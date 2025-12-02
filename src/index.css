@@ -1,0 +1,44 @@
+@config "../tailwind.config.js";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-primary: #0d0d12;
+  --bg-secondary: #16161d;
+  --bg-tertiary: #1e1e28;
+  --bg-elevated: #282833;
+
+  --text-primary: #f0f0f5;
+  --text-secondary: #9898a6;
+  --text-muted: #5c5c6e;
+
+  --accent-primary: #6366f1;
+  --accent-glow: rgba(99, 102, 241, 0.4);
+
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-medium: rgba(255, 255, 255, 0.15);
+}
+
+body {
+  @apply bg-bg-primary text-text-primary font-sans antialiased;
+  overflow-x: hidden;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-bg-secondary;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-bg-elevated rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-text-muted;
+}
