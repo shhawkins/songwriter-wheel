@@ -113,9 +113,9 @@ const QUALITY_ALIASES: Record<string, string> = {
 // Extended chord formulas including add9, 9, 11
 const EXTENDED_CHORD_FORMULAS: Record<string, number[]> = {
     ...CHORD_FORMULAS,
-    add9: [0, 4, 7, 14],  // Root, 3rd, 5th, 9th (octave + 2)
-    ninth: [0, 4, 7, 10, 14],  // Dominant 9 = 7 + 9
-    eleventh: [0, 4, 7, 10, 14, 17],  // Dominant 11 = 7 + 9 + 11
+    add9: [0, 4, 7, 2],  // Root, 3rd, 5th, 9th (9th = 2 semitones, shown in higher octave)
+    ninth: [0, 4, 7, 10, 2],  // Dominant 9 = 7 + 9
+    eleventh: [0, 4, 7, 10, 2, 5],  // Dominant 11 = 7 + 9 + 11
 };
 
 export function getChordNotes(root: string, quality: string): string[] {
