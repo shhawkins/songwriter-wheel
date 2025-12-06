@@ -6,7 +6,7 @@ import { playChord } from '../../utils/audioEngine';
 import { useState, useCallback, useEffect } from 'react';
 
 export const ChordDetails: React.FC = () => {
-    const { selectedChord, selectedKey, setSelectedChord, chordPanelVisible, toggleChordPanel } = useSongStore();
+    const { selectedChord, selectedKey, chordPanelVisible, toggleChordPanel } = useSongStore();
     const colors = getWheelColors();
     const [previewVariant, setPreviewVariant] = useState<string | null>(null);
     const [panelWidth, setPanelWidth] = useState(280);

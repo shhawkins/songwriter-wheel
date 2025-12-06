@@ -847,5 +847,30 @@ children: React.ReactNode
 4. **Modify a style** — Change a color in a Tailwind class and see it update
 5. **Break something** — Remove a required prop and see the TypeScript error
 
+---
+
+## Key Files to Understand
+
+### musicTheory.ts
+The heart of the music logic:
+- `MAJOR_POSITIONS` — Array of 12 wheel positions with major, ii, iii, and diminished chords
+- `getChordNotes(root, quality)` — Returns array of note names for any chord
+- `getDiatonicChords(key)` — Returns all 7 chords in a key
+- `getKeySignature(key)` — Returns sharps/flats count
+
+### geometry.ts
+SVG path generation:
+- `polarToCartesian(cx, cy, radius, angle)` — Convert polar to x,y coordinates
+- `describeSector(...)` — Create SVG path for a pie slice
+- `describeArc(...)` — Create SVG path for an arc
+- `describeArcReversed(...)` — Arc in opposite direction (for text)
+
+### useSongStore.ts
+Zustand store with all app state:
+- `selectedKey` — Current key (C, G, D, etc.)
+- `wheelRotation` — Cumulative wheel rotation in degrees
+- `currentSong` — Song object with sections and chords
+- Actions: `setKey()`, `rotateWheel()`, `addChordToSlot()`, etc.
+
 Welcome to the team! 🎵
 

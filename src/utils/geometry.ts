@@ -21,6 +21,21 @@ export function describeArc(x: number, y: number, radius: number, startAngle: nu
     return d;
 }
 
+// Arc that goes in the opposite direction (for text that should read left-to-right)
+export function describeArcReversed(x: number, y: number, radius: number, startAngle: number, endAngle: number) {
+    const start = polarToCartesian(x, y, radius, startAngle);
+    const end = polarToCartesian(x, y, radius, endAngle);
+
+    const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+
+    const d = [
+        "M", start.x, start.y,
+        "A", radius, radius, 0, largeArcFlag, 1, end.x, end.y
+    ].join(" ");
+
+    return d;
+}
+
 export function describeSector(x: number, y: number, innerRadius: number, outerRadius: number, startAngle: number, endAngle: number) {
     const startOuter = polarToCartesian(x, y, outerRadius, endAngle);
     const endOuter = polarToCartesian(x, y, outerRadius, startAngle);

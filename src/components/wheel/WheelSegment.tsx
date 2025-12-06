@@ -1,5 +1,5 @@
 import React from 'react';
-import { describeSector, polarToCartesian, describeArc } from '../../utils/geometry';
+import { describeSector, polarToCartesian, describeArcReversed } from '../../utils/geometry';
 import type { Chord } from '../../utils/musicTheory';
 import clsx from 'clsx';
 
@@ -21,7 +21,7 @@ interface WheelSegmentProps {
     wheelRotation?: number;
     romanNumeral?: string;
     voicingSuggestion?: string;
-    segmentId?: string;  // Unique ID for textPath
+    segmentId?: string;
 }
 
 export const WheelSegment: React.FC<WheelSegmentProps> = ({
@@ -47,25 +47,23 @@ export const WheelSegment: React.FC<WheelSegmentProps> = ({
     const path = describeSector(cx, cy, innerRadius, outerRadius, startAngle, endAngle);
     const midAngle = (startAngle + endAngle) / 2;
 
-    // Simple approach: ALL text is horizontal (0° screen rotation)
-    // Since text is inside a group rotated by wheelRotation,
-    // we counter-rotate by -wheelRotation to make it horizontal
+    // All text is horizontal - counter-rotate to cancel wheel rotation
     const textRotation = -wheelRotation;
 
     // Calculate positions for text elements
+    // Layout: voicing at TOP (outer), chord in MIDDLE, numeral at BOTTOM (inner)
     const ringHeight = outerRadius - innerRadius;
-    const chordRadius = innerRadius + ringHeight * 0.45;  // Center-ish, slightly toward inner
-    const numeralRadius = innerRadius + ringHeight * 0.78; // Near outer edge (below chord name visually)
+    const chordRadius = innerRadius + ringHeight * 0.5;    // Center of ring
+    const numeralRadius = innerRadius + ringHeight * 0.18; // Near inner edge (bottom of cell)
     
     const chordPos = polarToCartesian(cx, cy, chordRadius, midAngle);
     const numeralPos = polarToCartesian(cx, cy, numeralRadius, midAngle);
 
-    // Arc path for voicing text (follows the outer curve of the segment)
-    const voicingArcRadius = outerRadius - 6;  // Slightly inside outer edge
-    const arcPath = describeArc(cx, cy, voicingArcRadius, startAngle + 1, endAngle - 1);
+    // Arc path for voicing text - use reversed arc so text reads left-to-right
+    const voicingArcRadius = outerRadius - 6;
+    const arcPath = describeArcReversed(cx, cy, voicingArcRadius, startAngle + 1, endAngle - 1);
     const arcPathId = `voicing-arc-${segmentId}`;
 
-    // Adjust color based on ring type and diatonic status
     const getSegmentStyle = () => {
         let baseOpacity = 0.35;
         let baseSaturation = 0.5;
@@ -123,7 +121,7 @@ export const WheelSegment: React.FC<WheelSegmentProps> = ({
                 onClick(chord);
             }}
         >
-            {/* Define arc path for curved text */}
+            {/* Define arc path for curved voicing text */}
             {isDiatonic && voicingSuggestion && (
                 <defs>
                     <path id={arcPathId} d={arcPath} fill="none" />
@@ -143,7 +141,7 @@ export const WheelSegment: React.FC<WheelSegmentProps> = ({
                 )}
             />
             
-            {/* Curved voicing suggestion along top arc - only for major ring */}
+            {/* Curved voicing at TOP of cell (outer edge) - major ring */}
             {isDiatonic && voicingSuggestion && ringType === 'major' && (
                 <text
                     fill="rgba(0,0,0,0.6)"
@@ -160,7 +158,7 @@ export const WheelSegment: React.FC<WheelSegmentProps> = ({
                 </text>
             )}
 
-            {/* Curved voicing for minor ring */}
+            {/* Curved voicing - minor ring */}
             {isDiatonic && voicingSuggestion && ringType === 'minor' && (
                 <text
                     fill="rgba(0,0,0,0.55)"
@@ -176,8 +174,25 @@ export const WheelSegment: React.FC<WheelSegmentProps> = ({
                     </textPath>
                 </text>
             )}
+
+            {/* Curved voicing - diminished ring */}
+            {isDiatonic && voicingSuggestion && ringType === 'diminished' && (
+                <text
+                    fill="rgba(0,0,0,0.5)"
+                    fontSize="5px"
+                    className="pointer-events-none select-none"
+                >
+                    <textPath
+                        href={`#${arcPathId}`}
+                        startOffset="50%"
+                        textAnchor="middle"
+                    >
+                        {voicingSuggestion}
+                    </textPath>
+                </text>
+            )}
             
-            {/* Main chord label - horizontal */}
+            {/* Main chord label - CENTER of cell */}
             <text
                 x={chordPos.x}
                 y={chordPos.y}
@@ -192,7 +207,7 @@ export const WheelSegment: React.FC<WheelSegmentProps> = ({
                 {label}
             </text>
             
-            {/* Roman numeral - horizontal, below chord name */}
+            {/* Roman numeral - BOTTOM of cell (inner edge) */}
             {isDiatonic && romanNumeral && (
                 <text
                     x={numeralPos.x}
@@ -200,7 +215,7 @@ export const WheelSegment: React.FC<WheelSegmentProps> = ({
                     textAnchor="middle"
                     dominantBaseline="middle"
                     fill="rgba(0,0,0,0.6)"
-                    fontSize={ringType === 'diminished' ? '7px' : ringType === 'minor' ? '7px' : '8px'}
+                    fontSize={ringType === 'diminished' ? '6px' : ringType === 'minor' ? '6px' : '8px'}
                     fontStyle="italic"
                     className="pointer-events-none select-none"
                     transform={`rotate(${textRotation}, ${numeralPos.x}, ${numeralPos.y})`}

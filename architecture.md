@@ -475,9 +475,18 @@ NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 // Keys in Circle of Fifths order
 CIRCLE_OF_FIFTHS = ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'Db', 'Ab', 'Eb', 'Bb', 'F']
 
-// Get notes in a chord
+// The 12 wheel positions with their associated chords
+MAJOR_POSITIONS = [
+  { major: 'C',  ii: 'Dm',  iii: 'Em',   diminished: 'B°' },
+  { major: 'G',  ii: 'Am',  iii: 'Bm',   diminished: 'F#°' },
+  // ... etc for all 12 positions
+]
+
+// Get notes in a chord (supports variations via QUALITY_ALIASES)
 getChordNotes('C', 'major')  // Returns ['C', 'E', 'G']
 getChordNotes('D', 'minor')  // Returns ['D', 'F', 'A']
+getChordNotes('C', 'maj7')   // Returns ['C', 'E', 'G', 'B']
+getChordNotes('C', '7')      // Returns ['C', 'E', 'G', 'Bb']
 
 // Get all chords in a key
 getDiatonicChords('C')  
@@ -491,8 +500,11 @@ getDiatonicChords('C')
 //   { root: 'B', quality: 'diminished', numeral: 'vii°' },
 // ]
 
-// Get wheel colors
-getWheelColors()  // Returns colors for each key
+// Get key signature info
+getKeySignature('D')  // Returns { sharps: 2, flats: 0 }
+
+// Get wheel colors (HSL values matching physical wheel)
+getWheelColors()  // Returns { C: 'hsl(48, 95%, 58%)', G: 'hsl(72, 75%, 50%)', ... }
 ```
 
 ### geometry.ts
@@ -505,6 +517,9 @@ polarToCartesian(centerX, centerY, radius, angle)
 
 // Create an SVG arc path
 describeArc(x, y, radius, startAngle, endAngle)
+
+// Create an SVG arc in reverse direction (for text that reads left-to-right)
+describeArcReversed(x, y, radius, startAngle, endAngle)
 
 // Create an SVG "pie slice" sector path
 describeSector(x, y, innerRadius, outerRadius, startAngle, endAngle)
