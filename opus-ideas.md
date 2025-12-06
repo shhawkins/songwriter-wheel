@@ -302,3 +302,59 @@ We're not building a tool. We're building a music education revolution disguised
 
 *"The best time to learn music theory was 20 years ago. The second best time is right now, on this app."*
 
+---
+
+## Additional Feature Ideas (V3+)
+
+### 21. **Chord Comparison Mode**
+Side-by-side view of two chords showing:
+- Shared notes highlighted
+- Voice leading paths between them
+- Substitution relationship (if any)
+- "This chord can replace that one because..."
+
+### 22. **Progression Patterns Library**
+Pre-built patterns users can drag into their timeline:
+- Classic patterns: I-IV-V-I, ii-V-I, I-vi-IV-V
+- Genre-specific: Jazz turnarounds, Nashville numbers, Gospel movements
+- Named progressions: "Axis of Awesome", "Creep progression", "Andalusian cadence"
+
+### 23. **Audio Input Analysis**
+Listen through microphone and:
+- Detect what chord is being played
+- Show it highlighted on the wheel
+- Suggest what could come next
+- Real-time jam transcription
+
+### 24. **Smart Transposition**
+When changing keys:
+- Automatically transpose the entire timeline
+- Offer "capo position" suggestions for guitarists
+- Show difficulty rating for each key (based on chord shapes)
+
+### 25. **Collaboration Mode (Real-time)**
+Google Docs-style collaboration:
+- See other cursors in real-time
+- Chat sidebar
+- "Suggest" mode for contributions
+- Version comparison
+
+### 26. **Printable Wheel Generator**
+Let users generate custom printed wheels:
+- Choose which chords/labels to show
+- Custom colors for branding
+- PDF export sized for actual rotation
+- QR code linking back to the app
+
+### 27. **Accessibility Features**
+- Screen reader support with chord descriptions
+- High contrast mode
+- Keyboard-only navigation
+- Audible feedback for all interactions
+
+### 28. **Offline Mode (PWA)**
+- Full functionality without internet
+- Sync when back online
+- Install as app on mobile
+- Push notifications for collaboration
+

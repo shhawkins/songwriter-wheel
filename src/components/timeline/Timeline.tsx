@@ -36,7 +36,7 @@ export const Timeline: React.FC = () => {
     const sensors = useSensors(
         useSensor(PointerSensor, {
             activationConstraint: {
-                distance: 8,
+                distance: 8, // Require movement before drag starts to prevent accidental drags
             },
         }),
         useSensor(KeyboardSensor, {
@@ -57,6 +57,7 @@ export const Timeline: React.FC = () => {
 
         if (!over) return;
 
+        // Handling Section Reordering
         if (active.data.current?.type === 'section' && over.data.current?.type === 'section') {
             if (active.id !== over.id) {
                 const oldIndex = currentSong.sections.findIndex((s) => s.id === active.id);
@@ -66,6 +67,7 @@ export const Timeline: React.FC = () => {
             return;
         }
 
+        // Handling Chord Drop (Drag from slot to slot)
         if (active.data.current?.type === 'chord' && over.data.current?.type === 'slot') {
             const sourceSlotId = active.data.current.originSlotId;
             const sourceSectionId = active.data.current.originSectionId;
@@ -75,39 +77,40 @@ export const Timeline: React.FC = () => {
 
             if (sourceSlotId && sourceSectionId) {
                 if (sourceSlotId === targetSlotId) return;
+
+                // Use the new moveChord action
                 moveChord(sourceSectionId, sourceSlotId, targetSectionId, targetSlotId);
             } else {
+                // If no source (e.g. from wheel?), just add
                 addChordToSlot(chord, targetSectionId, targetSlotId);
             }
         }
     };
 
     return (
-        <div className="w-full h-full flex flex-col min-h-0">
-            {/* Compact Header */}
-            <div className="flex items-center justify-between px-4 py-2 border-b border-border-subtle bg-bg-secondary shrink-0">
-                <h2 className="text-sm font-semibold text-text-primary">Timeline</h2>
+        <div className="w-full h-full flex flex-col">
+            {/* Compact header */}
+            <div className="flex items-center justify-between px-3 py-1.5 border-b border-border-subtle bg-bg-secondary shrink-0">
+                <h2 className="text-xs font-semibold text-text-muted uppercase tracking-wider">Timeline</h2>
                 <button
                     onClick={() => addSection('verse')}
-                    className="flex items-center gap-1.5 px-2 py-1 rounded bg-bg-elevated hover:bg-bg-tertiary text-xs font-medium transition-colors"
+                    className="flex items-center gap-1 px-2 py-1 rounded bg-bg-elevated hover:bg-bg-tertiary text-[10px] font-medium transition-colors"
                 >
                     <Plus size={12} />
-                    Add Section
+                    Add
                 </button>
             </div>
 
-            {/* Scrollable Content */}
             <div
-                className="flex-1 overflow-x-auto overflow-y-hidden px-4 py-3 min-h-0"
+                className="flex-1 overflow-x-auto px-3 py-2"
                 ref={(el) => {
                     if (el) {
-                        const handler = (e: WheelEvent) => {
+                        el.addEventListener('wheel', (e) => {
                             if (e.deltaY !== 0) {
                                 e.preventDefault();
                                 el.scrollLeft += e.deltaY;
                             }
-                        };
-                        el.addEventListener('wheel', handler, { passive: false });
+                        }, { passive: false });
                     }
                 }}
             >
@@ -121,18 +124,18 @@ export const Timeline: React.FC = () => {
                         items={currentSong.sections.map(s => s.id)}
                         strategy={horizontalListSortingStrategy}
                     >
-                        <div className="flex gap-4 min-w-max h-full">
+                        <div className="flex gap-3 min-w-max pb-2">
                             {currentSong.sections.map((section) => (
                                 <Section key={section.id} section={section} />
                             ))}
 
-                            {/* Add Section Button */}
+                            {/* Add Section Placeholder/Button at end */}
                             <button
                                 onClick={() => addSection('chorus')}
-                                className="w-16 rounded-lg border-2 border-dashed border-border-medium hover:border-accent-primary hover:bg-bg-elevated/50 transition-all flex flex-col items-center justify-center text-text-muted hover:text-accent-primary gap-1 shrink-0"
+                                className="w-16 rounded-lg border-2 border-dashed border-border-medium hover:border-accent-primary hover:bg-bg-elevated transition-all flex flex-col items-center justify-center text-text-muted hover:text-accent-primary gap-1 min-h-[80px]"
                             >
-                                <Plus size={18} />
-                                <span className="text-[9px] font-medium uppercase">Add</span>
+                                <Plus size={16} />
+                                <span className="text-[8px] font-medium uppercase tracking-wider">Add</span>
                             </button>
                         </div>
                     </SortableContext>
@@ -140,14 +143,18 @@ export const Timeline: React.FC = () => {
                     <DragOverlay>
                         {activeId && activeDragData?.type === 'section' ? (
                             <div className="opacity-80 rotate-2 scale-105">
-                                <div className="bg-bg-elevated p-3 rounded-lg border border-accent-primary w-[300px] h-[100px] flex items-center justify-center shadow-2xl">
-                                    <span className="font-bold">Moving Section...</span>
+                                {/* We can't easily render the full Section here without props. 
+                     Ideally we pass the section data to DragOverlay or find it.
+                     For now, let's render a simple placeholder.
+                 */}
+                                <div className="bg-bg-elevated p-4 rounded-xl border border-accent-primary w-[400px] h-[200px] flex items-center justify-center shadow-2xl">
+                                    <span className="font-bold text-xl">Moving Section...</span>
                                 </div>
                             </div>
                         ) : null}
 
                         {activeId && activeDragData?.type === 'chord' ? (
-                            <div className="w-16 h-16 rounded-lg bg-accent-primary text-white flex items-center justify-center font-bold shadow-2xl rotate-6 scale-110 cursor-grabbing">
+                            <div className="w-24 h-24 rounded-lg bg-accent-primary text-white flex items-center justify-center font-bold text-xl shadow-2xl rotate-6 scale-110 cursor-grabbing">
                                 {activeDragData.chord.symbol}
                             </div>
                         ) : null}

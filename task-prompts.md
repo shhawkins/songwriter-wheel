@@ -317,6 +317,176 @@ Users can pinch to zoom the timeline on touch devices.
 
 ---
 
+## Task 36: Fix Chord Viewer Cutoff
+
+### Context
+The chord viewer panel on the right is being cut off by approximately 20 pixels, making some content invisible.
+
+### Your Task
+Fix the layout so the chord viewer is fully visible:
+
+1. Identify what's causing the overflow (likely a padding/margin issue)
+2. Ensure the panel fits within the viewport
+3. Test at various screen sizes
+4. Verify the resize handle still works correctly
+
+### Expected Outcome
+The chord viewer is fully visible without any content being cut off.
+
+---
+
+## Task 37: Fix Footer/Playback Controls Cutoff
+
+### Context
+The footer containing playback controls (tempo, etc.) is partially cut off, with only half the controls visible.
+
+### Your Task
+Fix the footer layout:
+
+1. Ensure the footer has proper height and doesn't overflow
+2. All playback controls should be fully visible
+3. Consider making footer height responsive or scrollable if needed
+4. Test on various screen sizes
+
+### Expected Outcome
+All playback controls in the footer are fully visible and usable.
+
+---
+
+## Task 38: Narrow Timeline Header
+
+### Context
+The timeline header section takes up too much vertical space, reducing the area available for the main content.
+
+### Your Task
+Make the timeline header more compact:
+
+1. Reduce vertical padding/margins in the header
+2. Use smaller font sizes where appropriate
+3. Consider combining elements (e.g., section name + controls on same line)
+4. Maintain readability while saving space
+
+### Expected Outcome
+Timeline header is more compact while remaining functional and readable.
+
+---
+
+## Task 39: Remove Roman Numeral Toggle Button
+
+### Context
+There's a button to toggle Roman numeral view, but numerals are now always visible on the wheel for diatonic chords, making this toggle unnecessary.
+
+### Your Task
+Remove the Roman numeral toggle:
+
+1. Remove the toggle button from the UI
+2. Remove `showRomanNumerals` state from the store
+3. Remove any conditional logic based on this state
+4. Clean up unused code
+
+### Expected Outcome
+The UI is cleaner without the unnecessary toggle button.
+
+---
+
+## Task 40: Improve Chord Viewer Spacing
+
+### Context
+The chord viewer has inconsistent spacing in places, making the layout feel cramped or unbalanced.
+
+### Your Task
+Improve the chord viewer styling:
+
+1. Audit all sections for consistent padding/margins
+2. Ensure proper spacing between sections
+3. Fix any text that's too close to borders
+4. Improve visual hierarchy with better whitespace
+
+### Expected Outcome
+The chord viewer has polished, consistent spacing throughout.
+
+---
+
+## Task 41: Add Timeline Hide Toggle
+
+### Context
+Users can hide the chord viewer panel, but not the timeline. For users focused on the wheel, being able to hide the timeline would be useful.
+
+### Your Task
+Add ability to collapse/hide the timeline:
+
+1. Add a toggle button to collapse the timeline section
+2. When hidden, the chord wheel can expand to fill more space
+3. Remember the state (localStorage or store)
+4. Smooth animation for showing/hiding
+
+### Expected Outcome
+Users can toggle the timeline visibility to focus on the chord wheel.
+
+---
+
+## Task 42: Add Chord Wheel Zoom View
+
+### Context
+The voicings and numerals on the wheel can be small and hard to read. A zoom feature would help users see the in-key chords more clearly.
+
+### Your Task
+Add a zoom button for the chord wheel:
+
+1. Add a zoom toggle button near the wheel
+2. When zoomed, focus on the top portion showing the 7 diatonic chords
+3. Could be implemented as a larger viewBox or CSS transform
+4. Ensure labels remain readable at both zoom levels
+
+### Expected Outcome
+Users can zoom in on the chord wheel to see diatonic chord details more clearly.
+
+---
+
+## Task 43: Mobile Responsive Design
+
+### Context
+The app should work well on mobile devices, but currently the layout is optimized for desktop.
+
+### Your Task
+Implement responsive design for mobile:
+
+1. Stack panels vertically on narrow screens
+2. Make the chord wheel fill available width
+3. Ensure touch targets are large enough (44px minimum)
+4. Consider a mobile-first navigation pattern
+5. Test on common phone/tablet sizes
+
+### Expected Outcome
+The app is fully usable on mobile devices with a thoughtful responsive layout.
+
+---
+
+## Task 44: Add Alternative Instrument Sounds
+
+### Context
+Currently only piano sounds are available. Musicians might want to hear chords with guitar, harpsichord, or other instruments.
+
+### Your Task
+Add support for alternative instrument voicings:
+
+1. Use Tone.js built-in synths or available soundfonts
+2. Add an instrument selector (piano, guitar, organ, synth)
+3. Keep the architecture simple - just swap the sound source
+4. Ensure all chords sound good on each instrument
+
+### Implementation Note
+Tone.js supports multiple synth types out of the box:
+- `Tone.Synth` - basic synth
+- `Tone.AMSynth` - AM synthesis (organ-like)
+- `Tone.FMSynth` - FM synthesis
+- `Tone.PluckSynth` - plucked string (guitar-like)
+
+### Expected Outcome
+Users can choose between different instrument sounds for chord playback.
+
+---
+
 ## General Guidelines for All Tasks
 
 ### Before Starting

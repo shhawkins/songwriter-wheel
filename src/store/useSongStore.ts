@@ -11,8 +11,7 @@ interface SongState {
     // Wheel state
     selectedKey: string;
     wheelRotation: number;        // Cumulative rotation (not reset at 360°)
-    showRomanNumerals: boolean;
-    chordPanelVisible: boolean;   // Task 18: Toggle chord panel visibility
+    chordPanelVisible: boolean;   // Toggle chord panel visibility
 
     // Selection state
     selectedChord: Chord | null;
@@ -27,9 +26,8 @@ interface SongState {
 
     // Actions
     setKey: (key: string) => void;
-    rotateWheel: (direction: 'cw' | 'ccw') => void;  // Fixed Task 35: Use direction-based rotation
-    toggleRomanNumerals: () => void;
-    toggleChordPanel: () => void;  // Task 18
+    rotateWheel: (direction: 'cw' | 'ccw') => void;  // Cumulative rotation
+    toggleChordPanel: () => void;
 
     setSelectedChord: (chord: Chord | null) => void;
     setSelectedSlot: (sectionId: string | null, slotId: string | null) => void;
@@ -93,7 +91,6 @@ export const useSongStore = create<SongState>()(
             currentSong: DEFAULT_SONG,
             selectedKey: 'C',
             wheelRotation: 0,
-            showRomanNumerals: false,
             chordPanelVisible: true,
             selectedChord: null,
             selectedSectionId: null,
@@ -105,12 +102,11 @@ export const useSongStore = create<SongState>()(
 
             setKey: (key) => set({ selectedKey: key }),
             
-            // Task 35: Use cumulative rotation to avoid wrap-around animation issues
+            // Cumulative rotation to avoid wrap-around animation issues
             rotateWheel: (direction) => set((state) => ({
                 wheelRotation: state.wheelRotation + (direction === 'cw' ? -30 : 30)
             })),
             
-            toggleRomanNumerals: () => set((state) => ({ showRomanNumerals: !state.showRomanNumerals })),
             toggleChordPanel: () => set((state) => ({ chordPanelVisible: !state.chordPanelVisible })),
 
             setSelectedChord: (chord) => set({ selectedChord: chord }),

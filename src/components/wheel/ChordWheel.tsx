@@ -22,7 +22,6 @@ export const ChordWheel: React.FC = () => {
         addChordToSlot,
         selectedSectionId,
         selectedSlotId,
-        showRomanNumerals,
         currentSong,
         setSelectedChord
     } = useSongStore();
@@ -284,19 +283,11 @@ export const ChordWheel: React.FC = () => {
                         const dimStartAngle = majorStartAngle + (majorAngleSize - dimAngleSize) / 2;
                         const dimEndAngle = dimStartAngle + dimAngleSize;
 
-                        // Determine labels
-                        const majorLabel = showRomanNumerals && (majorIsDiatonic || majorIsSecondary)
-                            ? getRomanNumeral(i, 'major') 
-                            : position.major;
-                        const iiLabel = showRomanNumerals && iiIsDiatonic 
-                            ? getRomanNumeral(i, 'ii') 
-                            : position.ii;
-                        const iiiLabel = showRomanNumerals && iiiIsDiatonic 
-                            ? getRomanNumeral(i, 'iii') 
-                            : position.iii;
-                        const dimLabel = showRomanNumerals && dimIsDiatonic 
-                            ? getRomanNumeral(i, 'dim') 
-                            : position.diminished;
+                        // Labels are always chord names (numerals shown separately in segment)
+                        const majorLabel = position.major;
+                        const iiLabel = position.ii;
+                        const iiiLabel = position.iii;
+                        const dimLabel = position.diminished;
 
                         return (
                             <g key={position.major}>

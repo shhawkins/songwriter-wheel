@@ -9,7 +9,7 @@ import * as Tone from 'tone';
 import jsPDF from 'jspdf';
 
 function App() {
-  const { currentSong, selectedKey, showRomanNumerals, toggleRomanNumerals } = useSongStore();
+  const { currentSong, selectedKey } = useSongStore();
   
   // Resizable panel state - timeline height in pixels
   const [timelineHeight, setTimelineHeight] = useState(180);
@@ -35,10 +35,10 @@ function App() {
 
     const handleMouseMove = (e: MouseEvent) => {
       // Calculate new height from bottom of viewport
-      const footerHeight = 80; // playback controls height
+      const footerHeight = 56; // playback controls height (h-14 = 56px)
       const newHeight = window.innerHeight - e.clientY - footerHeight;
       // Clamp between min and max
-      setTimelineHeight(Math.max(120, Math.min(400, newHeight)));
+      setTimelineHeight(Math.max(100, Math.min(350, newHeight)));
     };
 
     const handleMouseUp = () => {
@@ -92,7 +92,7 @@ function App() {
   return (
     <div className="h-screen w-screen flex flex-col bg-bg-primary text-text-primary overflow-hidden">
       {/* Header */}
-      <header className="h-12 border-b border-border-subtle flex items-center justify-between px-4 bg-bg-secondary shrink-0 z-10">
+      <header className="h-12 border-b border-border-subtle flex items-center justify-between px-3 bg-bg-secondary shrink-0 z-10">
         <div className="flex items-center gap-2 shrink-0">
           <div className="w-6 h-6 rounded bg-gradient-to-br from-accent-primary to-purple-600 flex items-center justify-center shadow-lg">
             <Music size={12} className="text-white" />
@@ -105,19 +105,6 @@ function App() {
             <span className="text-[9px] text-text-muted uppercase font-bold">Key</span>
             <span className="font-bold text-accent-primary text-sm">{selectedKey}</span>
           </div>
-
-          {/* Roman Numeral Toggle */}
-          <button
-            onClick={toggleRomanNumerals}
-            className={`px-2 py-1 rounded-full border text-[9px] font-bold transition-colors ${
-              showRomanNumerals 
-                ? 'bg-accent-primary text-white border-accent-primary' 
-                : 'bg-bg-tertiary text-text-secondary border-border-subtle hover:border-text-muted'
-            }`}
-            title="Toggle Roman Numerals"
-          >
-            I ii iii
-          </button>
 
           <div className="h-4 w-px bg-border-medium" />
 
