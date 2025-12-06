@@ -16,6 +16,7 @@ interface WheelSegmentProps {
     chord: Chord;
     isSelected: boolean;
     isDiatonic: boolean;
+    isSecondary?: boolean; // Secondary dominants (II, III) - half highlight
     onClick: (chord: Chord) => void;
     ringType?: 'major' | 'minor' | 'diminished';
 }
@@ -33,6 +34,7 @@ export const WheelSegment: React.FC<WheelSegmentProps> = ({
     chord,
     isSelected,
     isDiatonic,
+    isSecondary = false,
     onClick,
     ringType = 'major'
 }) => {
@@ -51,17 +53,29 @@ export const WheelSegment: React.FC<WheelSegmentProps> = ({
     // In our coordinate system, 0° is at top, angles increase clockwise
     // Text should be rotated so it's always readable (not upside down)
     let textRotation = midAngle;
-    // If text is in the bottom half (angles roughly 45 to 135, accounting for segment positions)
+    // If text is in the bottom half (angles roughly 90 to 270)
     // we need to flip it
     const normalizedAngle = ((midAngle % 360) + 360) % 360;
     if (normalizedAngle > 90 && normalizedAngle < 270) {
         textRotation += 180;
     }
 
-    // Adjust color based on ring type and diatonic status
+    // Adjust color based on ring type and diatonic/secondary status
     const getSegmentStyle = () => {
-        const baseOpacity = isDiatonic ? 1 : 0.35;
-        const baseSaturation = isDiatonic ? 1 : 0.5;
+        // Determine highlight level:
+        // - isDiatonic: full saturation and opacity
+        // - isSecondary: half saturation (for II, III secondary dominants)
+        // - neither: dim/muted
+        let baseOpacity = 0.35;
+        let baseSaturation = 0.5;
+        
+        if (isDiatonic) {
+            baseOpacity = 1;
+            baseSaturation = 1;
+        } else if (isSecondary) {
+            baseOpacity = 0.7; // Partial opacity for secondary dominants
+            baseSaturation = 0.65; // Half saturation
+        }
         
         // Parse HSL color and adjust
         const hslMatch = color.match(/hsl\((\d+),\s*(\d+)%,\s*(\d+)%\)/);
@@ -100,15 +114,16 @@ export const WheelSegment: React.FC<WheelSegmentProps> = ({
         return '13px';
     };
 
-    // Text color - darker for diatonic (more visible), lighter for non-diatonic
-    const textColor = isDiatonic ? '#000000' : 'rgba(255,255,255,0.7)';
-    const textWeight = isDiatonic ? 'bold' : 'normal';
+    // Text color - darker for diatonic/secondary (more visible), lighter for non-diatonic
+    const isHighlighted = isDiatonic || isSecondary;
+    const textColor = isHighlighted ? '#000000' : 'rgba(255,255,255,0.7)';
+    const textWeight = isDiatonic ? 'bold' : (isSecondary ? '600' : 'normal');
 
     return (
         <g
             className={clsx(
                 "cursor-pointer transition-all duration-200",
-                !isDiatonic && "hover:opacity-70"
+                !isHighlighted && "hover:opacity-70"
             )}
             onClick={(e) => {
                 e.stopPropagation();
@@ -124,7 +139,7 @@ export const WheelSegment: React.FC<WheelSegmentProps> = ({
                 className={clsx(
                     "transition-all duration-200 hover:brightness-110",
                     isSelected && "brightness-125 stroke-white stroke-2",
-                    isDiatonic && "hover:brightness-105"
+                    isHighlighted && "hover:brightness-105"
                 )}
             />
             <text

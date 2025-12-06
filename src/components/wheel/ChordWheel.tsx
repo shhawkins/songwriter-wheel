@@ -99,38 +99,6 @@ export const ChordWheel: React.FC = () => {
         setKey(CIRCLE_OF_FIFTHS[newIndex]);
     };
 
-    // Create the FIXED triangular overlay - this shows the diatonic positions
-    // The triangle encompasses: IV, I, V (inner), ii, iii, vi (middle), vii° (outer)
-    const createTriangleOverlay = () => {
-        // The triangle spans from IV position (-30° from center) through I (center) to V (+30°)
-        // But it's shaped to encompass all 7 diatonic chord positions
-        
-        // Angular positions (0° = top/12 o'clock):
-        // I = 0° (center top)
-        // V = 30° (clockwise, right side)
-        // IV = -30° (counter-clockwise, left side)
-        // iii = centered on I (0°)
-        // ii = between IV and I (around -15°)
-        // vi = between I and V (around 15°)
-        // vii° = above iii (0°)
-        
-        const leftAngle = -52;   // Left edge (past IV)
-        const rightAngle = 52;   // Right edge (past V)
-        
-        const outerLeft = polarToCartesian(cx, cy, dimOuterRadius + 8, leftAngle);
-        const outerRight = polarToCartesian(cx, cy, dimOuterRadius + 8, rightAngle);
-        const innerLeft = polarToCartesian(cx, cy, majorInnerRadius - 5, leftAngle);
-        const innerRight = polarToCartesian(cx, cy, majorInnerRadius - 5, rightAngle);
-        
-        return `
-            M ${outerLeft.x} ${outerLeft.y}
-            A ${dimOuterRadius + 8} ${dimOuterRadius + 8} 0 0 1 ${outerRight.x} ${outerRight.y}
-            L ${innerRight.x} ${innerRight.y}
-            A ${majorInnerRadius - 5} ${majorInnerRadius - 5} 0 0 0 ${innerLeft.x} ${innerLeft.y}
-            Z
-        `;
-    };
-
     // Check if a position is within the highlighted triangle (diatonic)
     // After rotation, the chord at position keyIndex is at the top (I position)
     // We need to check the RELATIVE position after rotation
@@ -139,6 +107,7 @@ export const ChordWheel: React.FC = () => {
         return (posIndex - keyIndex + 12) % 12;
     };
 
+    // Primary diatonic chords (full highlight)
     const isPositionDiatonic = (posIndex: number, type: 'major' | 'ii' | 'iii' | 'dim'): boolean => {
         const relPos = getRelativePosition(posIndex);
         
@@ -161,10 +130,18 @@ export const ChordWheel: React.FC = () => {
         return false;
     };
 
-    // Also need to highlight vi - which is the ii (left slot) of the V position
+    // vi chord is the ii (left slot) of the V position
     const isViPosition = (posIndex: number): boolean => {
         const relPos = getRelativePosition(posIndex);
         return relPos === 1; // V position's left slot = vi
+    };
+
+    // Secondary dominants (half highlight) - II (V/V) and III (V/vi)
+    const isSecondaryDominant = (posIndex: number): boolean => {
+        const relPos = getRelativePosition(posIndex);
+        // II is at relPos 2 (V/V - two fifths from I)
+        // III is at relPos 4 (V/vi - four fifths from I, which is E for key of C)
+        return relPos === 2 || relPos === 4;
     };
 
     // Get roman numeral for a diatonic position
@@ -175,6 +152,8 @@ export const ChordWheel: React.FC = () => {
             if (relPos === 0) return 'I';
             if (relPos === 1) return 'V';
             if (relPos === 11) return 'IV';
+            if (relPos === 2) return 'II';  // Secondary dominant V/V
+            if (relPos === 4) return 'III'; // Secondary dominant V/vi
         }
         if (type === 'ii') {
             if (relPos === 0) return 'ii';
@@ -214,7 +193,9 @@ export const ChordWheel: React.FC = () => {
                 >
                     {MAJOR_POSITIONS.map((position, i) => {
                         const majorAngleSize = 30;
-                        const majorStartAngle = i * majorAngleSize - 90 - (majorAngleSize / 2);
+                        // FIXED: Removed the extra -90 offset since polarToCartesian already handles it
+                        // 0° = top in polarToCartesian, so position 0 centered at top
+                        const majorStartAngle = i * majorAngleSize - (majorAngleSize / 2);
                         const majorEndAngle = majorStartAngle + majorAngleSize;
                         
                         const baseColor = colors[position.major as keyof typeof colors] || colors.C;
@@ -226,6 +207,7 @@ export const ChordWheel: React.FC = () => {
 
                         // Check if this position is in the diatonic area
                         const majorIsDiatonic = isPositionDiatonic(i, 'major');
+                        const majorIsSecondary = isSecondaryDominant(i);
                         // ii slot: diatonic if at I position (as ii) OR at V position (as vi)
                         const iiIsDiatonic = isPositionDiatonic(i, 'ii') || isViPosition(i);
                         const iiiIsDiatonic = isPositionDiatonic(i, 'iii');
@@ -277,7 +259,7 @@ export const ChordWheel: React.FC = () => {
                         const dimEndAngle = dimStartAngle + dimAngleSize;
 
                         // Determine labels
-                        const majorLabel = showRomanNumerals && majorIsDiatonic 
+                        const majorLabel = showRomanNumerals && (majorIsDiatonic || majorIsSecondary)
                             ? getRomanNumeral(i, 'major') 
                             : position.major;
                         const iiLabel = showRomanNumerals && iiIsDiatonic 
@@ -305,6 +287,7 @@ export const ChordWheel: React.FC = () => {
                                     chord={majorChord}
                                     isSelected={false}
                                     isDiatonic={majorIsDiatonic}
+                                    isSecondary={majorIsSecondary}
                                     onClick={handleChordClick}
                                     ringType="major"
                                 />
@@ -362,18 +345,6 @@ export const ChordWheel: React.FC = () => {
                             </g>
                         );
                     })}
-                </g>
-
-                {/* FIXED Triangular Overlay - always stays at top, shows diatonic area */}
-                <g pointerEvents="none">
-                    <path
-                        d={createTriangleOverlay()}
-                        fill="none"
-                        stroke="rgba(255,255,255,0.9)"
-                        strokeWidth="2.5"
-                        strokeLinejoin="round"
-                        filter="url(#glow)"
-                    />
                 </g>
 
                 {/* Center Circle */}
