@@ -1,7 +1,7 @@
 import { useSongStore } from '../../store/useSongStore';
 import { PianoKeyboard } from './PianoKeyboard';
 import { getWheelColors, getChordNotes } from '../../utils/musicTheory';
-import { PanelRightClose, PanelRight, GripVertical } from 'lucide-react';
+import { GripVertical, ChevronRight, ChevronLeft } from 'lucide-react';
 import { playChord } from '../../utils/audioEngine';
 import { useState, useCallback, useEffect } from 'react';
 
@@ -194,16 +194,21 @@ export const ChordDetails: React.FC = () => {
         return suggestions[numeral || ''] || { extensions: [], description: 'Try different extensions to find your sound' };
     };
 
-    // Collapsed state - just show a button
+    // Collapsed state - vertical bar with show button (matches timeline style)
     if (!chordPanelVisible) {
         return (
-            <button
-                onClick={toggleChordPanel}
-                className="h-full px-2 flex items-center justify-center bg-bg-secondary border-l border-border-subtle hover:bg-bg-tertiary transition-colors"
-                title="Show chord details"
-            >
-                <PanelRight size={18} className="text-text-muted" />
-            </button>
+            <div className="w-6 h-full bg-bg-secondary border-l border-border-subtle flex flex-col items-center justify-center shrink-0">
+                <button
+                    onClick={toggleChordPanel}
+                    className="py-3 w-full flex flex-col items-center gap-1 text-[9px] text-text-muted hover:text-text-primary hover:bg-bg-tertiary transition-colors"
+                    title="Show chord details"
+                >
+                    <ChevronLeft size={12} />
+                    <span className="uppercase tracking-wider font-bold writing-mode-vertical" style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}>
+                        Details
+                    </span>
+                </button>
+            </div>
         );
     }
 
@@ -212,31 +217,36 @@ export const ChordDetails: React.FC = () => {
             className="h-full flex bg-bg-secondary border-l border-border-subtle"
             style={{ width: panelWidth }}
         >
-            {/* Resize handle */}
+            {/* Resize handle with hide button - matches timeline style */}
             <div 
-                className={`w-2 flex items-center justify-center cursor-ew-resize hover:bg-bg-tertiary transition-colors ${isResizing ? 'bg-accent-primary/20' : ''}`}
-                onMouseDown={handleMouseDown}
+                className={`w-6 flex flex-col items-center border-r border-border-subtle transition-colors ${isResizing ? 'bg-accent-primary/20' : ''}`}
             >
-                <GripVertical size={12} className="text-text-muted" />
+                <div 
+                    className="flex-1 w-full cursor-ew-resize flex items-center justify-center hover:bg-bg-tertiary transition-colors"
+                    onMouseDown={handleMouseDown}
+                >
+                    <GripVertical size={12} className="text-text-muted" />
+                </div>
+                <button
+                    onClick={toggleChordPanel}
+                    className="py-2 w-full flex flex-col items-center gap-0.5 text-[8px] text-text-muted hover:text-text-primary hover:bg-bg-tertiary transition-colors border-t border-border-subtle"
+                    title="Hide panel"
+                >
+                    <ChevronRight size={10} />
+                    <span className="uppercase tracking-wider font-bold">Hide</span>
+                </button>
             </div>
 
             {/* Panel content */}
             <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-                {/* Header with single hide button */}
-                <div className="p-3 border-b border-border-subtle flex justify-between items-center shrink-0">
+                {/* Header with chord info */}
+                <div className="px-3 py-2 border-b border-border-subtle shrink-0">
                     <span className="text-[10px] text-text-muted uppercase tracking-wider font-bold">
                         {selectedChord ? selectedChord.symbol : 'Chord Details'}
                         {selectedChord?.numeral && (
                             <span className="ml-2 font-serif italic text-text-secondary">{selectedChord.numeral}</span>
                         )}
                     </span>
-                    <button
-                        onClick={toggleChordPanel}
-                        className="p-1 hover:bg-bg-tertiary rounded transition-colors"
-                        title="Hide panel"
-                    >
-                        <PanelRightClose size={16} className="text-text-muted" />
-                    </button>
                 </div>
 
                 {/* Content */}

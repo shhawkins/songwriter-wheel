@@ -45,20 +45,20 @@ export const Section: React.FC<SectionProps> = ({ section, chordSize = 48 }) => 
             ref={setNodeRef}
             style={style}
             className={clsx(
-                "flex flex-col bg-bg-secondary rounded-lg overflow-hidden border transition-all h-full",
+                "flex flex-col bg-bg-secondary rounded-lg overflow-hidden border transition-all",
                 selectedSectionId === section.id ? "border-accent-primary" : "border-border-subtle",
                 isDragging ? "opacity-50" : "opacity-100"
             )}
             onClick={handleSelect}
         >
             {/* Compact Header */}
-            <div className="flex items-center justify-between px-2 py-1.5 bg-bg-elevated border-b border-border-subtle group">
+            <div className="flex items-center justify-between px-2 py-1 bg-bg-elevated border-b border-border-subtle group">
                 <div className="flex items-center gap-1.5">
                     <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-text-muted hover:text-text-primary">
                         <GripVertical size={12} />
                     </div>
                     <span className="font-medium text-xs text-text-primary">{section.name}</span>
-                    <span className="text-[9px] text-text-muted px-1.5 py-0.5 rounded bg-bg-tertiary border border-border-subtle uppercase">
+                    <span className="text-[8px] text-text-muted px-1 py-0.5 rounded bg-bg-tertiary border border-border-subtle uppercase">
                         {section.type}
                     </span>
                 </div>
@@ -71,19 +71,19 @@ export const Section: React.FC<SectionProps> = ({ section, chordSize = 48 }) => 
                         }}
                         className="p-1 hover:bg-bg-tertiary rounded text-text-muted hover:text-text-primary"
                     >
-                        <Copy size={11} />
+                        <Copy size={10} />
                     </button>
                     <button
                         onClick={handleRemove}
                         className="p-1 hover:bg-red-500/10 rounded text-text-muted hover:text-red-400"
                     >
-                        <Trash2 size={11} />
+                        <Trash2 size={10} />
                     </button>
                 </div>
             </div>
 
             {/* Measures Container */}
-            <div className="flex p-1.5 gap-0 overflow-x-auto flex-1">
+            <div className="flex p-1 gap-0 overflow-x-auto">
                 {section.measures.map((measure, idx) => (
                     <Measure
                         key={measure.id}

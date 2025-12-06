@@ -122,18 +122,18 @@ export const Timeline: React.FC<TimelineProps> = ({ height = 180 }) => {
                         items={currentSong.sections.map(s => s.id)}
                         strategy={horizontalListSortingStrategy}
                     >
-                        <div className="flex gap-3 min-w-max h-full items-stretch">
+                        <div className="flex gap-2 min-w-max items-start">
                             {currentSong.sections.map((section) => (
                                 <Section key={section.id} section={section} chordSize={chordSize} />
                             ))}
 
-                            {/* Add Section Button - matches section height */}
+                            {/* Add Section Button - matches chord slot height */}
                             <button
                                 onClick={() => addSection('chorus')}
-                                className="w-10 rounded-lg border-2 border-dashed border-border-medium hover:border-accent-primary hover:bg-bg-elevated transition-all flex flex-col items-center justify-center text-text-muted hover:text-accent-primary gap-0.5 self-stretch"
+                                style={{ width: chordSize, height: chordSize }}
+                                className="rounded border-2 border-dashed border-border-medium hover:border-accent-primary hover:bg-bg-elevated transition-all flex flex-col items-center justify-center text-text-muted hover:text-accent-primary gap-0.5 flex-shrink-0 mt-[22px]"
                             >
-                                <Plus size={12} />
-                                <span className="text-[6px] font-medium uppercase tracking-wider">Add</span>
+                                <Plus size={14} />
                             </button>
                         </div>
                     </SortableContext>
