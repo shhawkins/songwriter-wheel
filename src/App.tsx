@@ -1,15 +1,17 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { ChordWheel } from './components/wheel/ChordWheel';
 import { Timeline } from './components/timeline/Timeline';
 import { ChordDetails } from './components/panel/ChordDetails';
 import { PlaybackControls } from './components/playback/PlaybackControls';
 import { useSongStore } from './store/useSongStore';
-import { Download, Save, Music, GripHorizontal, ChevronDown, ChevronUp, Plus, Minus, Clock } from 'lucide-react';
+import { Download, Save, Music, GripHorizontal, ChevronDown, ChevronUp, Plus, Minus, Clock, FolderOpen, FilePlus, Trash2 } from 'lucide-react';
 import * as Tone from 'tone';
 import jsPDF from 'jspdf';
+import { saveSong, getSavedSongs, loadSong, deleteSong } from './utils/storage';
+import type { Song } from './types';
 
 function App() {
-  const { currentSong, selectedKey, timelineVisible, toggleTimeline, selectedSectionId, selectedSlotId, clearSlot, setTitle } = useSongStore();
+  const { currentSong, selectedKey, timelineVisible, toggleTimeline, selectedSectionId, selectedSlotId, clearSlot, setTitle, loadSong: loadSongToStore, newSong } = useSongStore();
   
   // Resizable panel state - timeline height in pixels
   const [timelineHeight, setTimelineHeight] = useState(180);
@@ -94,6 +96,53 @@ function App() {
   const handleTitleSave = () => {
     setTitle(titleInput.trim() || 'Untitled Song');
     setIsEditingTitle(false);
+  };
+
+  // Save/Load state (Task 30)
+  const [showSaveMenu, setShowSaveMenu] = useState(false);
+  const [savedSongs, setSavedSongs] = useState<Song[]>([]);
+  const saveMenuRef = useRef<HTMLDivElement>(null);
+
+  // Load saved songs list
+  useEffect(() => {
+    setSavedSongs(getSavedSongs());
+  }, []);
+
+  // Close save menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (saveMenuRef.current && !saveMenuRef.current.contains(e.target as Node)) {
+        setShowSaveMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSave = () => {
+    saveSong(currentSong);
+    setSavedSongs(getSavedSongs());
+    setShowSaveMenu(false);
+  };
+
+  const handleLoad = (song: Song) => {
+    loadSongToStore(song);
+    setShowSaveMenu(false);
+  };
+
+  const handleNew = () => {
+    if (confirm('Start a new song? Unsaved changes will be lost.')) {
+      newSong();
+      setShowSaveMenu(false);
+    }
+  };
+
+  const handleDelete = (songId: string, songTitle: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirm(`Delete "${songTitle}"?`)) {
+      deleteSong(songId);
+      setSavedSongs(getSavedSongs());
+    }
   };
 
   const handleTitleKeyDown = (e: React.KeyboardEvent) => {
@@ -223,10 +272,73 @@ function App() {
 
           <div className="h-4 w-px bg-border-medium" />
 
-          <button className="flex items-center gap-1 text-[11px] text-text-secondary hover:text-text-primary transition-colors px-1.5 py-1">
-            <Save size={12} />
-            <span className="hidden sm:inline">Save</span>
-          </button>
+          {/* Save/Load Menu (Task 30) */}
+          <div className="relative" ref={saveMenuRef}>
+            <button 
+              onClick={() => setShowSaveMenu(!showSaveMenu)}
+              className="flex items-center gap-1 text-[11px] text-text-secondary hover:text-text-primary transition-colors px-1.5 py-1"
+            >
+              <Save size={12} />
+              <span className="hidden sm:inline">Save</span>
+              <ChevronDown size={10} className={`transition-transform ${showSaveMenu ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {showSaveMenu && (
+              <div className="absolute right-0 top-full mt-1 w-56 bg-bg-secondary border border-border-subtle rounded-lg shadow-xl z-50 overflow-hidden">
+                {/* Actions */}
+                <div className="p-1 border-b border-border-subtle">
+                  <button
+                    onClick={handleSave}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-text-primary hover:bg-bg-tertiary rounded transition-colors"
+                  >
+                    <Save size={14} />
+                    Save Current Song
+                  </button>
+                  <button
+                    onClick={handleNew}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-text-primary hover:bg-bg-tertiary rounded transition-colors"
+                  >
+                    <FilePlus size={14} />
+                    New Song
+                  </button>
+                </div>
+                
+                {/* Saved Songs List */}
+                <div className="max-h-48 overflow-y-auto">
+                  {savedSongs.length === 0 ? (
+                    <p className="px-3 py-3 text-[10px] text-text-muted text-center">No saved songs yet</p>
+                  ) : (
+                    <div className="p-1">
+                      <p className="px-2 py-1 text-[9px] text-text-muted uppercase tracking-wider">Saved Songs</p>
+                      {savedSongs.map((song) => (
+                        <div
+                          key={song.id}
+                          onClick={() => handleLoad(song)}
+                          className={`flex items-center justify-between px-3 py-2 text-xs rounded cursor-pointer transition-colors ${
+                            song.id === currentSong.id 
+                              ? 'bg-accent-primary/10 text-accent-primary' 
+                              : 'text-text-primary hover:bg-bg-tertiary'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <FolderOpen size={12} className="shrink-0" />
+                            <span className="truncate">{song.title}</span>
+                          </div>
+                          <button
+                            onClick={(e) => handleDelete(song.id, song.title, e)}
+                            className="p-1 hover:bg-red-500/20 rounded text-text-muted hover:text-red-400 shrink-0"
+                          >
+                            <Trash2 size={10} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+          
           <button
             onClick={handleExport}
             className="flex items-center gap-1 text-[11px] bg-text-primary text-bg-primary px-2 py-1 rounded font-medium hover:bg-white transition-colors"

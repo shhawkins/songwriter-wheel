@@ -41,6 +41,8 @@ interface SongState {
 
     // Song Actions
     setTitle: (title: string) => void;
+    loadSong: (song: Song) => void;
+    newSong: () => void;
     addSection: (type: Section['type']) => void;
     updateSection: (id: string, updates: Partial<Section>) => void;
     removeSection: (id: string) => void;
@@ -125,6 +127,54 @@ export const useSongStore = create<SongState>()(
             setTitle: (title) => set((state) => ({
                 currentSong: { ...state.currentSong, title }
             })),
+
+            loadSong: (song) => set({
+                currentSong: song,
+                selectedKey: song.key || 'C',
+                wheelRotation: 0,
+                selectedChord: null,
+                selectedSectionId: null,
+                selectedSlotId: null,
+            }),
+
+            newSong: () => set({
+                currentSong: {
+                    ...DEFAULT_SONG,
+                    id: uuidv4(),
+                    title: 'Untitled Song',
+                    createdAt: new Date(),
+                    updatedAt: new Date(),
+                    sections: [
+                        {
+                            id: uuidv4(),
+                            name: 'Verse 1',
+                            type: 'verse',
+                            measures: [
+                                { id: uuidv4(), beats: [{ id: uuidv4(), chord: null, duration: 4 }] },
+                                { id: uuidv4(), beats: [{ id: uuidv4(), chord: null, duration: 4 }] },
+                                { id: uuidv4(), beats: [{ id: uuidv4(), chord: null, duration: 4 }] },
+                                { id: uuidv4(), beats: [{ id: uuidv4(), chord: null, duration: 4 }] },
+                            ],
+                        },
+                        {
+                            id: uuidv4(),
+                            name: 'Chorus',
+                            type: 'chorus',
+                            measures: [
+                                { id: uuidv4(), beats: [{ id: uuidv4(), chord: null, duration: 4 }] },
+                                { id: uuidv4(), beats: [{ id: uuidv4(), chord: null, duration: 4 }] },
+                                { id: uuidv4(), beats: [{ id: uuidv4(), chord: null, duration: 4 }] },
+                                { id: uuidv4(), beats: [{ id: uuidv4(), chord: null, duration: 4 }] },
+                            ],
+                        },
+                    ],
+                },
+                selectedKey: 'C',
+                wheelRotation: 0,
+                selectedChord: null,
+                selectedSectionId: null,
+                selectedSlotId: null,
+            }),
 
             addSection: (type) => set((state) => {
                 const newSection: Section = {

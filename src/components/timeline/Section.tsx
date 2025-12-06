@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import type { Section as ISection } from '../../types';
 import { Measure } from './Measure';
 import { useSongStore } from '../../store/useSongStore';
@@ -13,7 +13,43 @@ interface SectionProps {
 }
 
 export const Section: React.FC<SectionProps> = ({ section, chordSize = 48 }) => {
-    const { removeSection, duplicateSection, selectedSectionId, setSelectedSlot } = useSongStore();
+    const { removeSection, duplicateSection, updateSection, selectedSectionId, setSelectedSlot } = useSongStore();
+    
+    // Editable section name state (Task 24)
+    const [isEditingName, setIsEditingName] = useState(false);
+    const [nameInput, setNameInput] = useState(section.name);
+    const inputRef = useRef<HTMLInputElement>(null);
+    
+    // Focus input when editing starts
+    useEffect(() => {
+        if (isEditingName && inputRef.current) {
+            inputRef.current.focus();
+            inputRef.current.select();
+        }
+    }, [isEditingName]);
+    
+    const handleNameDoubleClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setNameInput(section.name);
+        setIsEditingName(true);
+    };
+    
+    const handleNameSave = () => {
+        const trimmedName = nameInput.trim();
+        if (trimmedName && trimmedName !== section.name) {
+            updateSection(section.id, { name: trimmedName });
+        }
+        setIsEditingName(false);
+    };
+    
+    const handleNameKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            handleNameSave();
+        } else if (e.key === 'Escape') {
+            setNameInput(section.name);
+            setIsEditingName(false);
+        }
+    };
 
     const {
         attributes,
@@ -57,7 +93,28 @@ export const Section: React.FC<SectionProps> = ({ section, chordSize = 48 }) => 
                     <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-text-muted hover:text-text-primary">
                         <GripVertical size={12} />
                     </div>
-                    <span className="font-medium text-xs text-text-primary">{section.name}</span>
+                    {/* Editable section name (Task 24) */}
+                    {isEditingName ? (
+                        <input
+                            ref={inputRef}
+                            type="text"
+                            value={nameInput}
+                            onChange={(e) => setNameInput(e.target.value)}
+                            onBlur={handleNameSave}
+                            onKeyDown={handleNameKeyDown}
+                            onClick={(e) => e.stopPropagation()}
+                            className="font-medium text-xs text-text-primary bg-bg-tertiary border border-border-medium rounded px-1.5 py-0.5 w-24 focus:outline-none focus:border-accent-primary"
+                            maxLength={30}
+                        />
+                    ) : (
+                        <span 
+                            className="font-medium text-xs text-text-primary cursor-pointer hover:text-accent-primary transition-colors"
+                            onDoubleClick={handleNameDoubleClick}
+                            title="Double-click to rename"
+                        >
+                            {section.name}
+                        </span>
+                    )}
                     <span className="text-[9px] text-text-muted px-1.5 py-0.5 rounded bg-bg-tertiary border border-border-subtle uppercase">
                         {section.type}
                     </span>
