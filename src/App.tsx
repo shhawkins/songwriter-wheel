@@ -242,30 +242,36 @@ function App() {
         {/* Left: Wheel + Timeline */}
         <div className="flex-1 flex flex-col min-w-0 min-h-0">
           {/* Wheel Area - takes remaining space */}
-          <div className="flex-1 flex items-center justify-center min-h-0 overflow-hidden bg-gradient-to-b from-bg-primary to-bg-secondary/30 relative">
-            <ChordWheel 
-              zoomScale={wheelZoom} 
-              zoomOriginY={wheelZoomOrigin} 
-              onZoomChange={handleZoomChange} 
-            />
-            {/* Zoom controls in frame corner - positioned away from wheel */}
-            <div className="absolute top-3 right-3 flex gap-1 z-20">
-              <button
-                onClick={handleZoomOut}
-                disabled={wheelZoom <= 1}
-                className="w-7 h-7 flex items-center justify-center bg-bg-elevated/80 backdrop-blur-sm hover:bg-bg-tertiary disabled:opacity-30 disabled:cursor-not-allowed rounded border border-border-subtle text-text-muted hover:text-text-primary transition-colors"
-                title="Zoom out"
-              >
-                <Minus size={14} />
-              </button>
-              <button
-                onClick={handleZoomIn}
-                disabled={wheelZoom >= 2.5}
-                className="w-7 h-7 flex items-center justify-center bg-bg-elevated/80 backdrop-blur-sm hover:bg-bg-tertiary disabled:opacity-30 disabled:cursor-not-allowed rounded border border-border-subtle text-text-muted hover:text-text-primary transition-colors"
-                title="Zoom in"
-              >
-                <Plus size={14} />
-              </button>
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-gradient-to-b from-bg-primary to-bg-secondary/30">
+            {/* Zoom toolbar - fixed at top of wheel area */}
+            <div className="flex justify-end px-3 py-1.5 shrink-0">
+              <div className="flex items-center gap-1 bg-bg-secondary/80 backdrop-blur-sm rounded-full px-1 py-0.5 border border-border-subtle">
+                <button
+                  onClick={handleZoomOut}
+                  disabled={wheelZoom <= 1}
+                  className="w-6 h-6 flex items-center justify-center hover:bg-bg-tertiary disabled:opacity-30 disabled:cursor-not-allowed rounded-full text-text-muted hover:text-text-primary transition-colors"
+                  title="Zoom out"
+                >
+                  <Minus size={12} />
+                </button>
+                <span className="text-[9px] text-text-muted w-8 text-center">{Math.round(wheelZoom * 100)}%</span>
+                <button
+                  onClick={handleZoomIn}
+                  disabled={wheelZoom >= 2.5}
+                  className="w-6 h-6 flex items-center justify-center hover:bg-bg-tertiary disabled:opacity-30 disabled:cursor-not-allowed rounded-full text-text-muted hover:text-text-primary transition-colors"
+                  title="Zoom in"
+                >
+                  <Plus size={12} />
+                </button>
+              </div>
+            </div>
+            {/* Wheel container */}
+            <div className="flex-1 flex items-center justify-center min-h-0 overflow-hidden">
+              <ChordWheel 
+                zoomScale={wheelZoom} 
+                zoomOriginY={wheelZoomOrigin} 
+                onZoomChange={handleZoomChange} 
+              />
             </div>
           </div>
 

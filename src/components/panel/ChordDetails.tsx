@@ -279,57 +279,30 @@ export const ChordDetails: React.FC = () => {
 
                 {/* Content */}
                 {!selectedChord ? (
-                    <div className="flex-1 flex items-center justify-center p-4">
-                        <p className="text-xs text-text-muted text-center">
+                    <div className="flex-1 flex items-center justify-center p-6">
+                        <p className="text-sm text-text-muted text-center">
                             Select a chord from the wheel or timeline
                         </p>
                     </div>
                 ) : (
                     <div className="flex-1 overflow-y-auto min-h-0">
                         {/* Key indicator */}
-                        <div className="px-3 py-2 border-b border-border-subtle">
-                            <p className="text-[10px] text-text-muted">
-                                Key of <span className="font-bold text-text-primary">{selectedKey}</span>
+                        <div className="px-4 py-3 border-b border-border-subtle bg-bg-elevated/30">
+                            <p className="text-xs text-text-muted">
+                                Key of <span className="font-bold text-text-primary text-sm">{selectedKey}</span>
                             </p>
                         </div>
 
-                        {/* Suggested Voicings - prominent display */}
-                        {selectedChord?.numeral && getSuggestedVoicings().extensions.length > 0 && (
-                            <div className="px-3 py-2 border-b border-border-subtle bg-accent-primary/5">
-                                <h3 className="text-[9px] font-bold text-accent-primary uppercase tracking-wider mb-1.5">
-                                    Suggested Voicings for {selectedChord.numeral}
-                                </h3>
-                                <div className="flex flex-wrap gap-1.5 mb-2">
-                                    {getSuggestedVoicings().extensions.map((ext) => (
-                                        <button
-                                            key={ext}
-                                            className={`px-2 py-1 rounded text-xs font-semibold transition-colors ${
-                                                previewVariant === ext 
-                                                    ? 'bg-accent-primary text-white' 
-                                                    : 'bg-bg-elevated hover:bg-accent-primary/20 text-text-primary border border-border-subtle'
-                                            }`}
-                                            onClick={() => handleVariationClick(ext)}
-                                        >
-                                            {selectedChord.root}{ext}
-                                        </button>
-                                    ))}
-                                </div>
-                                <p className="text-[9px] text-text-muted italic">
-                                    {getSuggestedVoicings().description}
-                                </p>
-                            </div>
-                        )}
-
-                        {/* Piano */}
-                        <div className="p-3 border-b border-border-subtle">
-                            <div className="flex items-center justify-between mb-2">
-                                <h3 className="text-[9px] font-bold text-text-muted uppercase tracking-wider">
-                                    Voicing {previewVariant && <span className="text-accent-primary">({previewVariant})</span>}
+                        {/* Piano & Voicing Section */}
+                        <div className="px-4 py-4 border-b border-border-subtle">
+                            <div className="flex items-center justify-between mb-3">
+                                <h3 className="text-[10px] font-bold text-text-muted uppercase tracking-wider">
+                                    Voicing {previewVariant && <span className="text-accent-primary ml-1">({previewVariant})</span>}
                                 </h3>
                                 {previewVariant && (
                                     <button
                                         onClick={clearPreview}
-                                        className="text-[8px] text-text-muted hover:text-text-primary transition-colors"
+                                        className="text-[9px] text-accent-primary hover:text-accent-secondary transition-colors"
                                     >
                                         ← back to {selectedChord.symbol}
                                     </button>
@@ -340,15 +313,15 @@ export const ChordDetails: React.FC = () => {
                                 rootNote={selectedChord.root}
                                 color={chordColor}
                             />
-                            {/* Notes display */}
-                            <div className="mt-2 flex flex-wrap gap-1">
+                            {/* Notes display - improved spacing */}
+                            <div className="mt-4 flex flex-wrap gap-2 justify-center">
                                 {displayNotes.map((note, i) => (
                                     <div 
                                         key={i} 
-                                        className="flex flex-col items-center px-2 py-1 bg-bg-elevated rounded text-[10px]"
+                                        className="flex flex-col items-center px-3 py-2 bg-bg-elevated rounded-lg min-w-[44px]"
                                     >
-                                        <span className="font-bold text-text-primary">{note}</span>
-                                        <span className="text-[8px] text-text-muted">
+                                        <span className="font-bold text-text-primary text-sm">{note}</span>
+                                        <span className="text-[9px] text-text-muted mt-0.5">
                                             {getIntervalName(i, selectedChord.quality)}
                                         </span>
                                     </div>
@@ -357,15 +330,15 @@ export const ChordDetails: React.FC = () => {
                         </div>
 
                         {/* Variations */}
-                        <div className="p-3 border-b border-border-subtle">
-                            <h3 className="text-[9px] font-bold text-text-muted uppercase tracking-wider mb-2">
+                        <div className="px-4 py-4 border-b border-border-subtle">
+                            <h3 className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-3">
                                 Variations
                             </h3>
-                            <div className="grid grid-cols-3 gap-1">
+                            <div className="grid grid-cols-3 gap-1.5">
                                 {['7', 'maj7', 'm7', 'sus2', 'sus4', 'dim', 'add9', '9', '11'].map((ext) => (
                                     <button
                                         key={ext}
-                                        className={`px-1.5 py-1 rounded text-[9px] font-medium transition-colors border ${
+                                        className={`px-2 py-1.5 rounded text-[10px] font-medium transition-colors border ${
                                             previewVariant === ext 
                                                 ? 'bg-accent-primary text-white border-accent-primary' 
                                                 : 'bg-bg-elevated hover:bg-bg-tertiary text-text-secondary hover:text-text-primary border-border-subtle'
@@ -378,13 +351,40 @@ export const ChordDetails: React.FC = () => {
                             </div>
                         </div>
 
+                        {/* Suggested Voicings - now after variations */}
+                        {selectedChord?.numeral && getSuggestedVoicings().extensions.length > 0 && (
+                            <div className="px-4 py-4 border-b border-border-subtle bg-accent-primary/5">
+                                <h3 className="text-[10px] font-bold text-accent-primary uppercase tracking-wider mb-3">
+                                    Suggested for {selectedChord.numeral}
+                                </h3>
+                                <div className="flex flex-wrap gap-2 mb-3">
+                                    {getSuggestedVoicings().extensions.map((ext) => (
+                                        <button
+                                            key={ext}
+                                            className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${
+                                                previewVariant === ext 
+                                                    ? 'bg-accent-primary text-white' 
+                                                    : 'bg-bg-elevated hover:bg-accent-primary/20 text-text-primary border border-border-subtle'
+                                            }`}
+                                            onClick={() => handleVariationClick(ext)}
+                                        >
+                                            {selectedChord.root}{ext}
+                                        </button>
+                                    ))}
+                                </div>
+                                <p className="text-[10px] text-text-muted leading-relaxed">
+                                    {getSuggestedVoicings().description}
+                                </p>
+                            </div>
+                        )}
+
                         {/* Theory Note - with proper text wrapping */}
-                        <div className="p-3">
-                            <div className="p-3 bg-bg-elevated rounded border border-border-subtle">
-                                <h3 className="text-[9px] font-bold text-accent-primary uppercase tracking-wider mb-2">
+                        <div className="px-4 py-4">
+                            <div className="p-4 bg-bg-elevated rounded-lg border border-border-subtle">
+                                <h3 className="text-[10px] font-bold text-accent-primary uppercase tracking-wider mb-2">
                                     Theory
                                 </h3>
-                                <p className="text-[10px] text-text-secondary leading-relaxed whitespace-normal break-words overflow-wrap-anywhere">
+                                <p className="text-xs text-text-secondary leading-relaxed">
                                     {getTheoryNote()}
                                 </p>
                             </div>
