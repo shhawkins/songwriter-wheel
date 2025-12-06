@@ -462,6 +462,55 @@ The app is fully usable on mobile devices with a thoughtful responsive layout.
 
 ---
 
+## Task 45: Fix Voicing Interval Logic
+
+### Context
+The chord viewer displays intervals relative to the chord root (e.g., R ♭3 5 for a minor chord), but this is not musically useful in context. When viewing Em in the key of C, the intervals should show the notes' relationship to the KEY, not to the chord root.
+
+### Current (Incorrect) Behavior
+- Key of C selected
+- Click Em → Shows EGB with "R ♭3 5"
+- This describes Em as a chord in isolation
+
+### Desired Behavior
+- Key of C selected  
+- Click Em → Shows EGB with "3 5 7"
+- Because E is the 3rd of C, G is the 5th of C, B is the 7th of C
+
+### Your Task
+Fix the `getIntervalName` function in `ChordDetails.tsx` to display intervals relative to the selected key, not relative to the chord root:
+
+1. Calculate the semitone distance from each note to the key root
+2. Convert to scale degree (1, 2, ♭3, 3, 4, ♯4/♭5, 5, ♭6, 6, ♭7, 7)
+3. Display the scale degree instead of the chord interval
+
+### Implementation Hints
+```typescript
+const NOTE_SEMITONES: Record<string, number> = {
+  'C': 0, 'C#': 1, 'Db': 1, 'D': 2, 'D#': 3, 'Eb': 3,
+  'E': 4, 'F': 5, 'F#': 6, 'Gb': 6, 'G': 7, 'G#': 8,
+  'Ab': 8, 'A': 9, 'A#': 10, 'Bb': 10, 'B': 11
+};
+
+const getScaleDegree = (note: string, keyRoot: string): string => {
+  const noteSemitone = NOTE_SEMITONES[note.replace(/\d+$/, '')];
+  const keySemitone = NOTE_SEMITONES[keyRoot];
+  const interval = (noteSemitone - keySemitone + 12) % 12;
+  
+  const DEGREE_NAMES: Record<number, string> = {
+    0: '1', 1: '♭2', 2: '2', 3: '♭3', 4: '3', 5: '4',
+    6: '♯4', 7: '5', 8: '♭6', 9: '6', 10: '♭7', 11: '7'
+  };
+  
+  return DEGREE_NAMES[interval];
+};
+```
+
+### Expected Outcome
+When viewing any chord in the context of a key, the interval labels show the scale degrees relative to that key.
+
+---
+
 ## Task 44: Add Alternative Instrument Sounds
 
 ### Context

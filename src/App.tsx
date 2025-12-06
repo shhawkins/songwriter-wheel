@@ -4,12 +4,12 @@ import { Timeline } from './components/timeline/Timeline';
 import { ChordDetails } from './components/panel/ChordDetails';
 import { PlaybackControls } from './components/playback/PlaybackControls';
 import { useSongStore } from './store/useSongStore';
-import { Download, Save, Music, GripHorizontal } from 'lucide-react';
+import { Download, Save, Music, GripHorizontal, ChevronDown, ChevronUp } from 'lucide-react';
 import * as Tone from 'tone';
 import jsPDF from 'jspdf';
 
 function App() {
-  const { currentSong, selectedKey } = useSongStore();
+  const { currentSong, selectedKey, timelineVisible, toggleTimeline } = useSongStore();
   
   // Resizable panel state - timeline height in pixels
   const [timelineHeight, setTimelineHeight] = useState(180);
@@ -127,25 +127,54 @@ function App() {
         {/* Left: Wheel + Timeline */}
         <div className="flex-1 flex flex-col min-w-0 min-h-0">
           {/* Wheel Area - takes remaining space */}
-          <div className="flex-1 flex items-center justify-center min-h-0 overflow-hidden bg-gradient-to-b from-bg-primary to-bg-secondary/30">
+          <div className="flex-1 flex items-center justify-center min-h-0 overflow-hidden bg-gradient-to-b from-bg-primary to-bg-secondary/30 relative">
             <ChordWheel />
           </div>
 
-          {/* Resize Handle */}
-          <div 
-            className={`h-2 bg-bg-secondary border-t border-border-subtle cursor-ns-resize flex items-center justify-center group hover:bg-bg-tertiary transition-colors ${isResizing ? 'bg-accent-primary/20' : ''}`}
-            onMouseDown={handleMouseDown}
-          >
-            <GripHorizontal size={14} className="text-text-muted group-hover:text-text-secondary" />
-          </div>
+          {/* Timeline section with toggle */}
+          {timelineVisible ? (
+            <>
+              {/* Resize Handle with hide button */}
+              <div 
+                className={`h-6 bg-bg-secondary border-t border-border-subtle flex items-center justify-center group transition-colors ${isResizing ? 'bg-accent-primary/20' : ''}`}
+              >
+                <div 
+                  className="flex-1 h-full cursor-ns-resize flex items-center justify-center hover:bg-bg-tertiary transition-colors"
+                  onMouseDown={handleMouseDown}
+                >
+                  <GripHorizontal size={14} className="text-text-muted group-hover:text-text-secondary" />
+                </div>
+                <button
+                  onClick={toggleTimeline}
+                  className="px-2 h-full flex items-center gap-1 text-[9px] text-text-muted hover:text-text-primary hover:bg-bg-tertiary transition-colors"
+                  title="Hide timeline"
+                >
+                  <ChevronDown size={12} />
+                  <span className="uppercase tracking-wider font-bold">Hide</span>
+                </button>
+              </div>
 
-          {/* Timeline - resizable height */}
-          <div 
-            className="shrink-0 bg-bg-secondary overflow-hidden"
-            style={{ height: timelineHeight }}
-          >
-            <Timeline />
-          </div>
+              {/* Timeline - resizable height */}
+              <div 
+                className="shrink-0 bg-bg-secondary overflow-hidden"
+                style={{ height: timelineHeight }}
+              >
+                <Timeline />
+              </div>
+            </>
+          ) : (
+            /* Collapsed timeline - just a thin bar with show button */
+            <div className="h-6 bg-bg-secondary border-t border-border-subtle flex items-center justify-center shrink-0">
+              <button
+                onClick={toggleTimeline}
+                className="px-3 h-full flex items-center gap-1 text-[9px] text-text-muted hover:text-text-primary hover:bg-bg-tertiary transition-colors"
+                title="Show timeline"
+              >
+                <ChevronUp size={12} />
+                <span className="uppercase tracking-wider font-bold">Timeline</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Right: Details Panel */}

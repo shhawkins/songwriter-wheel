@@ -10,7 +10,7 @@ import {
 } from '../../utils/musicTheory';
 import { WheelSegment } from './WheelSegment';
 import { polarToCartesian } from '../../utils/geometry';
-import { RotateCw, RotateCcw } from 'lucide-react';
+import { RotateCw, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
 import { playChord } from '../../utils/audioEngine';
 
 export const ChordWheel: React.FC = () => {
@@ -23,7 +23,9 @@ export const ChordWheel: React.FC = () => {
         selectedSectionId,
         selectedSlotId,
         currentSong,
-        setSelectedChord
+        setSelectedChord,
+        wheelZoomed,
+        toggleWheelZoom
     } = useSongStore();
 
     const colors = getWheelColors();
@@ -193,12 +195,28 @@ export const ChordWheel: React.FC = () => {
 
     return (
         <div className="relative flex flex-col items-center justify-center w-full h-full max-w-[540px] max-h-[540px] aspect-square p-2">
-            <svg
-                width="100%"
-                height="100%"
-                viewBox={`0 0 ${size} ${size}`}
-                className="w-full h-full select-none"
+            {/* Zoom toggle button */}
+            <button
+                onClick={toggleWheelZoom}
+                className="absolute top-2 right-2 z-10 p-2 bg-bg-elevated/80 backdrop-blur-sm rounded-lg border border-border-subtle hover:bg-bg-tertiary transition-colors"
+                title={wheelZoomed ? "Zoom out" : "Zoom in on diatonic chords"}
             >
+                {wheelZoomed ? <ZoomOut size={16} className="text-text-secondary" /> : <ZoomIn size={16} className="text-text-secondary" />}
+            </button>
+
+            <div 
+                className="w-full h-full transition-transform duration-300 ease-out overflow-hidden"
+                style={{
+                    transform: wheelZoomed ? 'scale(1.6)' : 'scale(1)',
+                    transformOrigin: 'center 35%'
+                }}
+            >
+                <svg
+                    width="100%"
+                    height="100%"
+                    viewBox={`0 0 ${size} ${size}`}
+                    className="w-full h-full select-none"
+                >
                 <defs>
                     <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
                         <feGaussianBlur stdDeviation="3" result="blur" />
@@ -422,6 +440,7 @@ export const ChordWheel: React.FC = () => {
                     </g>
                 </g>
             </svg>
+            </div>
         </div>
     );
 };
