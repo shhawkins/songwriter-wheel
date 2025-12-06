@@ -28,6 +28,9 @@ The following tasks have been completed in V2/V3:
 | Task 35: Fix Rotation Wrap-Around | ✅ Done | Cumulative rotation |
 | Task 41: Timeline Hide Toggle | ✅ Done | Collapsible timeline section |
 | Task 42: Chord Wheel Zoom | ✅ Done | Pinch-to-zoom on wheel |
+| Task 22: Keyboard Delete | ✅ Done | Delete/Backspace removes chord from slot |
+| Task 23: Song Title | ✅ Done | Editable title in header, used in PDF |
+| Task 33: Song Duration | ✅ Done | Shows MM:SS in header |
 
 ---
 
@@ -151,53 +154,22 @@ Users can play back their progression with visual feedback.
 
 ---
 
-## Task 22: Add Keyboard Shortcut to Delete Chords
+## Task 22: Add Keyboard Shortcut to Delete Chords ✅ COMPLETED
 
-### Context
-Currently there's no way to quickly delete a chord from the timeline. Users should be able to select a chord and press Delete or Backspace to remove it.
-
-### Your Task
-Add keyboard shortcut functionality for chord deletion:
-
-1. When a chord slot is selected (clicked), it should have visual focus
-2. Pressing Delete or Backspace should remove the chord from that slot
-3. The selection should move to the next slot (or previous if at end)
-
-### Implementation Details
-```typescript
-useEffect(() => {
-  const handleKeyDown = (e: KeyboardEvent) => {
-    if ((e.key === 'Delete' || e.key === 'Backspace') && selectedSlotId) {
-      e.preventDefault();
-      clearSlot(selectedSectionId, selectedSlotId);
-    }
-  };
-  
-  window.addEventListener('keydown', handleKeyDown);
-  return () => window.removeEventListener('keydown', handleKeyDown);
-}, [selectedSlotId, selectedSectionId]);
-```
-
-### Expected Outcome
-Users can select a chord slot and press Delete to clear it.
+### Implementation
+- Added useEffect in App.tsx to handle Delete/Backspace key press
+- Only triggers when a slot is selected and user isn't in an input field
+- Calls clearSlot() to remove the chord from the selected slot
 
 ---
 
-## Task 23: Add Song Title with PDF Display
+## Task 23: Add Song Title with PDF Display ✅ COMPLETED
 
-### Context
-Songs currently have no editable title. Users should be able to name their song, and that name should appear prominently on the exported PDF chord sheet.
-
-### Your Task
-Add song title functionality:
-
-1. The `Song` type already has a `title` field in the store
-2. Add an editable title input at the top of the app (above the timeline)
-3. Default to "Untitled Song"
-4. In PDF export, render the title in bold at the top of the document
-
-### Expected Outcome
-Songs have an editable title that appears on the PDF export.
+### Implementation
+- Added setTitle action to Zustand store
+- Made title editable in header (double-click to edit)
+- Supports Enter to save, Escape to cancel
+- Title is used in PDF export filename
 
 ---
 
@@ -283,21 +255,14 @@ Users see intelligent scale suggestions based on their chord progression.
 
 ---
 
-## Task 33: Display Song Duration
+## Task 33: Display Song Duration ✅ COMPLETED
 
-### Context
-It would be helpful for users to see the total duration of their song based on the BPM and time signature.
-
-### Your Task
-Calculate and display song duration:
-
-1. Calculate total beats from all measures
-2. Convert to time using BPM: `duration = totalBeats / (BPM / 60)`
-3. Display in minutes:seconds format (e.g., "2:34")
-4. Update in real-time as chords/measures are added/removed
-
-### Expected Outcome
-Users can see how long their song is in real time.
+### Implementation
+- Added songDuration calculation using useMemo in App.tsx
+- Calculates total beats from all measures across all sections
+- Converts to time using BPM: duration = totalBeats / (BPM/60)
+- Displays in MM:SS format in header with Clock icon
+- Updates in real-time as tempo or measures change
 
 ---
 
