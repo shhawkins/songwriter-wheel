@@ -6,7 +6,8 @@ import {
     getChordNotes,
     getKeySignature,
     CIRCLE_OF_FIFTHS,
-    type Chord 
+    type Chord,
+    MINOR_RING_CHORDS
 } from '../../utils/musicTheory';
 import { WheelSegment } from './WheelSegment';
 import { polarToCartesian } from '../../utils/geometry';
@@ -351,16 +352,13 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({ zoomScale, zoomOriginY, 
                         };
 
                         // Minor ring: 24 segments (15° each)
-                        // iii should be centered at 12 o'clock (0°), with ii immediately to its left
+                        // FIXED Task 17: Shift minor ring -7.5° so iii is centered above the major chord
                         const minorAngleSize = 15;
-                        // For position 0 (C at 12 o'clock): iii centered at 0°, ii immediately to its left
-                        // So iii spans from -7.5° to 7.5° (centered at 0°)
-                        // And ii spans from -15° to -7.5° (immediately to the left, touching iii at -7.5°)
-                        const majorCenterAngle = majorStartAngle + (majorAngleSize / 2); // Center of major chord (0° for position 0)
-                        const iiiStartAngle = majorCenterAngle - (minorAngleSize / 2); // Center iii at major center (-7.5°)
-                        const iiiEndAngle = iiiStartAngle + minorAngleSize; // iii ends at 7.5°
-                        const iiEndAngle = iiiStartAngle; // ii ends where iii starts (-7.5°, touching)
-                        const iiStartAngle = iiEndAngle - minorAngleSize; // ii starts 15° to the left (-15°)
+                        const minorOffset = -7.5; // Center iii directly above the major
+                        const iiStartAngle = majorStartAngle + minorOffset;
+                        const iiEndAngle = iiStartAngle + minorAngleSize;
+                        const iiiStartAngle = iiEndAngle;
+                        const iiiEndAngle = iiiStartAngle + minorAngleSize;
 
                         // Diminished: narrow notch (15° width) centered on the position
                         const dimAngleSize = 15;
@@ -460,6 +458,40 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({ zoomScale, zoomOriginY, 
                                     segmentId={`dim-${i}`}
                                 />
                             </g>
+                        );
+                    })}
+                    {/* Minor Ring (Static Order) */}
+                    {MINOR_RING_CHORDS.map((minor, idx) => {
+                        // 0 deg is right/east; -90 deg is vertical/north/top.
+                        const angleSize = 15;
+                        const startAngle = idx * angleSize - 90;
+                        const endAngle = startAngle + angleSize;
+                        const baseColor = colors[minor.replace('m', '').replace('b', '')] || colors.C;
+                        return (
+                            <WheelSegment
+                                key={`minor-${minor}-${idx}`}
+                                cx={cx}
+                                cy={cy}
+                                innerRadius={minorInnerRadius}
+                                outerRadius={minorOuterRadius}
+                                startAngle={startAngle}
+                                endAngle={endAngle}
+                                color={baseColor}
+                                label={minor}
+                                chord={{
+                                    root: minor.replace('m', ''),
+                                    quality: 'minor',
+                                    numeral: '',
+                                    notes: getChordNotes(minor.replace('m', ''), 'minor'),
+                                    symbol: minor
+                                }}
+                                isSelected={false}
+                                isDiatonic={false} // Static ring, highlight handled separately if needed
+                                onClick={handleChordClick}
+                                ringType="minor"
+                                wheelRotation={wheelRotation}
+                                segmentId={`minor-${idx}`}
+                            />
                         );
                     })}
                 </g>

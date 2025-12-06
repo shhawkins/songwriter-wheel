@@ -276,3 +276,15 @@ export function getWheelColors() {
         F: 'hsl(28, 85%, 55%)',     // Orange
     };
 }
+
+// CHORD WHEEL MINOR RING ORDER (as on physical chord wheel, NOT local to key)
+// This is the absolute 24-order for the minor ring; each step advances by a fifth
+export const MINOR_RING_CHORDS = [
+  'Dm', 'Em', 'Am', 'Bm', 'Em', 'F#m',
+  'Bm', 'C#m', 'F#m', 'G#m', 'C#m', 'D#m',
+  'G#m', 'A#m', 'Ebm', 'Fm', 'Bbm', 'Cm',
+  'Fm', 'Gm', 'Cm', 'Dm', 'Gm', 'Am',
+];
+// This order ensures that, as the wheel spins, Em is always at the true top, Dm left, etc.,
+// matching the physical chord wheel that musicians use. The mapping is static for display purposes
+// and is not tied to diatonic relationships for the current key.
