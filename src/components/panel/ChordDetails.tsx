@@ -261,7 +261,7 @@ export const ChordDetails: React.FC = () => {
             </div>
 
             {/* Panel content */}
-            <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+            <div className="flex-1 flex flex-col overflow-hidden min-w-0 relative">
                 {/* Header with single hide button */}
                 <div className="p-3 border-b border-border-subtle flex justify-between items-center shrink-0">
                     <span className="text-[10px] text-text-muted uppercase tracking-wider font-bold">
@@ -394,10 +394,10 @@ export const ChordDetails: React.FC = () => {
                     </div>
                 )}
                 
-                {/* Help button at bottom right */}
+                {/* Help button at bottom left */}
                 <button
                     onClick={() => setShowHelp(true)}
-                    className="absolute bottom-3 right-3 w-7 h-7 flex items-center justify-center bg-bg-tertiary hover:bg-accent-primary/20 border border-border-subtle rounded-full text-text-muted hover:text-accent-primary transition-colors"
+                    className="absolute bottom-3 left-3 w-7 h-7 flex items-center justify-center bg-bg-tertiary hover:bg-accent-primary/20 border border-border-subtle rounded-full text-text-muted hover:text-accent-primary transition-colors"
                     title="Chord Wheel Guide"
                 >
                     <HelpCircle size={14} />

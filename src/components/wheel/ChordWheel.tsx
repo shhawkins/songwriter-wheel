@@ -183,7 +183,7 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({ zoomScale, zoomOriginY, 
 
     // Task 35: Use cumulative rotation from store (avoids wrap-around animation issues)
     // The wheel rotates so the selected key appears at the TOP (under position I)
-    const keyIndex = CIRCLE_OF_FIFTHS.indexOf(selectedKey);
+    // keyIndex is defined above for wheel mode calculations
 
     const handleChordClick = (chord: Chord) => {
         playChord(chord.notes);
