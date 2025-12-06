@@ -34,6 +34,7 @@ The following tasks have been completed in V2/V3:
 | Task 30: Save/Load Songs | ✅ Done | localStorage with dropdown menu |
 | Task 33: Song Duration | ✅ Done | Shows MM:SS in header |
 | Task 40: Chord Viewer Spacing | ✅ Done | Improved padding and typography |
+| Task 26: FAQ/Help Modal | ✅ Done | Comprehensive chord wheel guide modal |
 
 ---
 
@@ -187,25 +188,13 @@ Users can compose in various time signatures.
 
 ---
 
-## Task 26: Create FAQ Explaining Chord Wheel Concepts
+## Task 26: Create FAQ Explaining Chord Wheel Concepts ✅ COMPLETED
 
-### Context
-New users may not understand how to use the chord wheel or what the various elements mean. The app needs an FAQ or help section.
-
-### Your Task
-Create an FAQ/Help component:
-
-1. Add a help button (? icon) in the header that opens a modal
-2. Explain key concepts with sections:
-   - What is the Circle of Fifths?
-   - How to read the chord wheel
-   - What are diatonic chords?
-   - Understanding Roman numerals (I, ii, iii, IV, V, vi, vii°)
-   - Chord extensions (7ths, 9ths, etc.)
-   - Common chord progressions
-
-### Expected Outcome
-Users can access comprehensive help explaining how to use the chord wheel.
+### Implementation
+- Created HelpModal.tsx with comprehensive music theory guide
+- Added ? button in lower right of chord viewer panel
+- Covers: Quick Start, Understanding the Rings, Roman Numerals, Circle of Fifths, Chord Building, Common Progressions, Secondary Dominants, and Modes
+- Beautiful dark theme modal with scrollable content
 
 ---
 
