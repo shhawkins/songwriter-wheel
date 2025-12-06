@@ -1,5 +1,5 @@
 import React from 'react';
-import { describeSector } from '../../utils/geometry';
+import { describeSector, polarToCartesian } from '../../utils/geometry';
 import type { Chord } from '../../utils/musicTheory';
 import clsx from 'clsx';
 
@@ -17,6 +17,7 @@ interface WheelSegmentProps {
     isSelected: boolean;
     isDiatonic: boolean;
     onClick: (chord: Chord) => void;
+    ringType?: 'major' | 'minor' | 'diminished';
 }
 
 export const WheelSegment: React.FC<WheelSegmentProps> = ({
@@ -32,27 +33,78 @@ export const WheelSegment: React.FC<WheelSegmentProps> = ({
     chord,
     isSelected,
     isDiatonic,
-    onClick
+    onClick,
+    ringType = 'major'
 }) => {
     const path = describeSector(cx, cy, innerRadius, outerRadius, startAngle, endAngle);
 
-    // Calculate center of the segment for text placement
+    // Calculate center of the segment for text placement using the same coordinate system
     const midAngle = (startAngle + endAngle) / 2;
     const textRadius = (innerRadius + outerRadius) / 2;
-    const textX = cx + textRadius * Math.cos((midAngle - 90) * Math.PI / 180);
-    const textY = cy + textRadius * Math.sin((midAngle - 90) * Math.PI / 180);
+    
+    // Use polarToCartesian for consistent positioning (it already handles the -90 offset)
+    const textPos = polarToCartesian(cx, cy, textRadius, midAngle);
+    const textX = textPos.x;
+    const textY = textPos.y;
 
-    // Calculate text rotation to keep it upright relative to the screen
-    let textRotation = midAngle - 90;
-    if (midAngle > 90 && midAngle < 270) {
+    // Calculate text rotation to keep it readable
+    // In our coordinate system, 0° is at top, angles increase clockwise
+    // Text should be rotated so it's always readable (not upside down)
+    let textRotation = midAngle;
+    // If text is in the bottom half (angles roughly 45 to 135, accounting for segment positions)
+    // we need to flip it
+    const normalizedAngle = ((midAngle % 360) + 360) % 360;
+    if (normalizedAngle > 90 && normalizedAngle < 270) {
         textRotation += 180;
     }
+
+    // Adjust color based on ring type and diatonic status
+    const getSegmentStyle = () => {
+        const baseOpacity = isDiatonic ? 1 : 0.35;
+        const baseSaturation = isDiatonic ? 1 : 0.5;
+        
+        // Parse HSL color and adjust
+        const hslMatch = color.match(/hsl\((\d+),\s*(\d+)%,\s*(\d+)%\)/);
+        if (hslMatch) {
+            const h = parseInt(hslMatch[1]);
+            const s = Math.round(parseInt(hslMatch[2]) * baseSaturation);
+            const l = parseInt(hslMatch[3]);
+            
+            // Adjust lightness based on ring type
+            let adjustedL = l;
+            if (ringType === 'minor') {
+                adjustedL = Math.max(l - 8, 30); // Slightly darker for minor
+            } else if (ringType === 'diminished') {
+                adjustedL = Math.max(l - 15, 25); // Darker for diminished
+            }
+            
+            return {
+                fill: `hsl(${h}, ${s}%, ${adjustedL}%)`,
+                opacity: baseOpacity
+            };
+        }
+        
+        return { fill: color, opacity: baseOpacity };
+    };
+
+    const segmentStyle = getSegmentStyle();
+    
+    // Font size based on ring type
+    const getFontSize = () => {
+        if (ringType === 'diminished') return '10px';
+        if (ringType === 'minor') return '12px';
+        return '14px';
+    };
+
+    // Text color - darker for diatonic (more visible), lighter for non-diatonic
+    const textColor = isDiatonic ? '#000000' : 'rgba(255,255,255,0.7)';
+    const textWeight = isDiatonic ? 'bold' : 'normal';
 
     return (
         <g
             className={clsx(
-                "cursor-pointer transition-opacity duration-300",
-                isDiatonic ? "opacity-100" : "opacity-40 hover:opacity-80"
+                "cursor-pointer transition-all duration-200",
+                !isDiatonic && "hover:opacity-70"
             )}
             onClick={(e) => {
                 e.stopPropagation();
@@ -61,12 +113,14 @@ export const WheelSegment: React.FC<WheelSegmentProps> = ({
         >
             <path
                 d={path}
-                fill={color}
-                stroke="rgba(0,0,0,0.2)"
+                fill={segmentStyle.fill}
+                opacity={segmentStyle.opacity}
+                stroke="rgba(0,0,0,0.3)"
                 strokeWidth="1"
                 className={clsx(
-                    "transition-all duration-200",
-                    isSelected && "brightness-125 stroke-white stroke-2"
+                    "transition-all duration-200 hover:brightness-110",
+                    isSelected && "brightness-125 stroke-white stroke-2",
+                    isDiatonic && "hover:brightness-105"
                 )}
             />
             <text
@@ -74,29 +128,24 @@ export const WheelSegment: React.FC<WheelSegmentProps> = ({
                 y={textY}
                 textAnchor="middle"
                 dominantBaseline="middle"
-                fill={isDiatonic ? "#000" : "rgba(255,255,255,0.9)"}
-                className="font-bold pointer-events-none select-none text-sm"
-                style={{
-                    transformBox: 'fill-box',
-                    transformOrigin: 'center',
-                    transform: `rotate(${textRotation}deg)`
-                }}
+                fill={textColor}
+                fontWeight={textWeight}
+                fontSize={getFontSize()}
+                className="pointer-events-none select-none"
+                transform={`rotate(${textRotation}, ${textX}, ${textY})`}
             >
                 {label}
             </text>
             {subLabel && (
                 <text
                     x={textX}
-                    y={textY + 12}
+                    y={textY + 14}
                     textAnchor="middle"
                     dominantBaseline="middle"
-                    fill="rgba(0,0,0,0.6)"
-                    className="text-[10px] pointer-events-none select-none"
-                    style={{
-                        transformBox: 'fill-box',
-                        transformOrigin: 'center',
-                        transform: `rotate(${textRotation}deg)`
-                    }}
+                    fill="rgba(0,0,0,0.5)"
+                    fontSize="9px"
+                    className="pointer-events-none select-none"
+                    transform={`rotate(${textRotation}, ${textX}, ${textY + 14})`}
                 >
                     {subLabel}
                 </text>

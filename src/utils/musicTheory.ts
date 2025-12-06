@@ -7,6 +7,118 @@ export const ENHARMONIC_MAP: Record<string, string> = {
     'C#': 'Db', 'D#': 'Eb', 'F#': 'Gb', 'G#': 'Ab', 'A#': 'Bb'
 };
 
+/**
+ * Each wheel position contains 3 chords:
+ * - major: The major chord at this position (inner ring)
+ * - minor: The relative minor of that major (middle ring)  
+ * - diminished: The vii° of that major key (outer ring)
+ */
+export interface WheelPosition {
+    major: string;
+    minor: string;
+    diminished: string;
+}
+
+/**
+ * The 12 wheel positions in Circle of Fifths order.
+ * Position 0 = C (at 12 o'clock when C is selected)
+ */
+export const WHEEL_POSITIONS: WheelPosition[] = [
+    { major: 'C', minor: 'Am', diminished: 'B°' },
+    { major: 'G', minor: 'Em', diminished: 'F#°' },
+    { major: 'D', minor: 'Bm', diminished: 'C#°' },
+    { major: 'A', minor: 'F#m', diminished: 'G#°' },
+    { major: 'E', minor: 'C#m', diminished: 'D#°' },
+    { major: 'B', minor: 'G#m', diminished: 'A#°' },
+    { major: 'F#', minor: 'D#m', diminished: 'E#°' },
+    { major: 'Db', minor: 'Bbm', diminished: 'C°' },
+    { major: 'Ab', minor: 'Fm', diminished: 'G°' },
+    { major: 'Eb', minor: 'Cm', diminished: 'D°' },
+    { major: 'Bb', minor: 'Gm', diminished: 'A°' },
+    { major: 'F', minor: 'Dm', diminished: 'E°' },
+];
+
+/**
+ * Identifies which wheel position and ring a chord appears in
+ */
+export interface DiatonicHighlight {
+    wheelPosition: number;  // 0-11 index
+    ring: 'major' | 'minor' | 'diminished';
+    chordRoot: string;
+    numeral: string;
+}
+
+/**
+ * Get the wheel position index for a given major key root
+ */
+export function getWheelPositionForKey(keyRoot: string): number {
+    return CIRCLE_OF_FIFTHS.indexOf(keyRoot);
+}
+
+/**
+ * Find where a chord appears on the wheel (which position and ring)
+ */
+export function findChordOnWheel(chordSymbol: string): { position: number; ring: 'major' | 'minor' | 'diminished' } | null {
+    for (let i = 0; i < WHEEL_POSITIONS.length; i++) {
+        const pos = WHEEL_POSITIONS[i];
+        if (pos.major === chordSymbol) return { position: i, ring: 'major' };
+        if (pos.minor === chordSymbol) return { position: i, ring: 'minor' };
+        if (pos.diminished === chordSymbol) return { position: i, ring: 'diminished' };
+    }
+    return null;
+}
+
+/**
+ * Get all 7 diatonic chords and their positions on the wheel for a given key.
+ * This is the core function for highlighting the correct segments.
+ */
+export function getDiatonicHighlights(key: string): DiatonicHighlight[] {
+    const diatonicChords = getDiatonicChords(key);
+    const highlights: DiatonicHighlight[] = [];
+    
+    for (const chord of diatonicChords) {
+        // Build the chord symbol to search for
+        let searchSymbol: string;
+        if (chord.quality === 'major') {
+            searchSymbol = chord.root;
+        } else if (chord.quality === 'minor') {
+            searchSymbol = chord.root + 'm';
+        } else if (chord.quality === 'diminished') {
+            searchSymbol = chord.root + '°';
+        } else {
+            continue;
+        }
+        
+        const location = findChordOnWheel(searchSymbol);
+        if (location) {
+            highlights.push({
+                wheelPosition: location.position,
+                ring: location.ring,
+                chordRoot: chord.root,
+                numeral: chord.numeral,
+            });
+        }
+    }
+    
+    return highlights;
+}
+
+/**
+ * Check if a specific wheel segment (position + ring) is diatonic to the current key
+ */
+export function isSegmentDiatonic(
+    wheelPosition: number, 
+    ring: 'major' | 'minor' | 'diminished', 
+    selectedKey: string
+): { isDiatonic: boolean; numeral?: string } {
+    const highlights = getDiatonicHighlights(selectedKey);
+    const match = highlights.find(h => h.wheelPosition === wheelPosition && h.ring === ring);
+    return {
+        isDiatonic: !!match,
+        numeral: match?.numeral
+    };
+}
+
 export interface Chord {
     root: string;
     quality: 'major' | 'minor' | 'diminished' | 'augmented' | 'major7' | 'minor7' | 'dominant7' | 'halfDiminished7' | 'sus2' | 'sus4';
@@ -109,20 +221,25 @@ export function getKeySignature(key: string): { sharps: number; flats: number } 
     return { sharps: 0, flats: 0 }; // C major
 }
 
+/**
+ * Colors for each key position on the wheel.
+ * Matches the physical Hal Leonard Chord Wheel color scheme.
+ * Rainbow progression: Yellow → Green → Cyan → Blue → Purple → Magenta → Red → Orange
+ */
 export function getWheelColors() {
     return {
-        C: 'hsl(50, 85%, 55%)',    // Yellow
-        G: 'hsl(80, 75%, 50%)',    // Yellow-Green
-        D: 'hsl(120, 65%, 45%)',   // Green
-        A: 'hsl(165, 70%, 45%)',   // Teal
-        E: 'hsl(185, 75%, 48%)',   // Cyan
-        B: 'hsl(210, 80%, 55%)',   // Blue
-        'F#': 'hsl(250, 65%, 58%)', // Blue-Violet
-        'Gb': 'hsl(250, 65%, 58%)', // Same as F#
-        Db: 'hsl(275, 60%, 55%)',  // Violet
-        Ab: 'hsl(290, 55%, 52%)',  // Purple
-        Eb: 'hsl(320, 65%, 55%)',  // Magenta
-        Bb: 'hsl(355, 70%, 58%)',  // Red
-        F: 'hsl(25, 80%, 55%)',    // Orange
+        C: 'hsl(48, 95%, 58%)',     // Bright Yellow
+        G: 'hsl(72, 75%, 50%)',     // Yellow-Green
+        D: 'hsl(95, 65%, 48%)',     // Green
+        A: 'hsl(160, 60%, 45%)',    // Teal
+        E: 'hsl(185, 70%, 50%)',    // Cyan
+        B: 'hsl(205, 75%, 55%)',    // Sky Blue
+        'F#': 'hsl(235, 60%, 58%)', // Blue-Indigo
+        'Gb': 'hsl(235, 60%, 58%)', // Same as F#
+        Db: 'hsl(265, 55%, 55%)',   // Purple
+        Ab: 'hsl(285, 50%, 52%)',   // Violet
+        Eb: 'hsl(315, 60%, 55%)',   // Magenta
+        Bb: 'hsl(350, 70%, 58%)',   // Red-Pink
+        F: 'hsl(28, 85%, 55%)',     // Orange
     };
 }

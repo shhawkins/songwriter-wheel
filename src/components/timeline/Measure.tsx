@@ -10,11 +10,11 @@ interface MeasureProps {
 
 export const Measure: React.FC<MeasureProps> = ({ measure, sectionId, index }) => {
     return (
-        <div className="flex flex-col border-r border-border-subtle last:border-r-0 px-2 min-w-[300px]">
-            <div className="text-xs text-text-muted mb-2 font-mono uppercase tracking-wider">
-                Measure {index + 1}
+        <div className="flex flex-col border-r border-border-subtle last:border-r-0 px-1.5">
+            <div className="text-[9px] text-text-muted mb-1 font-mono uppercase tracking-wider text-center">
+                {index + 1}
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-1">
                 {measure.beats.map((beat) => (
                     <ChordSlot
                         key={beat.id}
