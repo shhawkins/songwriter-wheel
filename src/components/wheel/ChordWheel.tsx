@@ -319,6 +319,7 @@ export const ChordWheel: React.FC = () => {
                                     wheelRotation={wheelRotation}
                                     romanNumeral={majorIsDiatonic ? getRomanNumeral(i, 'major') : undefined}
                                     voicingSuggestion={majorIsDiatonic ? getVoicingSuggestion(i, 'major') : undefined}
+                                    segmentId={`major-${i}`}
                                 />
 
                                 {/* MIDDLE RING: ii chord (left 15° slot) */}
@@ -339,6 +340,7 @@ export const ChordWheel: React.FC = () => {
                                     wheelRotation={wheelRotation}
                                     romanNumeral={iiIsDiatonic ? getRomanNumeral(i, 'ii') : undefined}
                                     voicingSuggestion={iiIsDiatonic ? getVoicingSuggestion(i, 'ii') : undefined}
+                                    segmentId={`ii-${i}`}
                                 />
 
                                 {/* MIDDLE RING: iii chord (right 15° slot) */}
@@ -359,6 +361,7 @@ export const ChordWheel: React.FC = () => {
                                     wheelRotation={wheelRotation}
                                     romanNumeral={iiiIsDiatonic ? getRomanNumeral(i, 'iii') : undefined}
                                     voicingSuggestion={iiiIsDiatonic ? getVoicingSuggestion(i, 'iii') : undefined}
+                                    segmentId={`iii-${i}`}
                                 />
 
                                 {/* OUTER RING: Diminished chord (narrow 15° notch, centered) */}
@@ -379,6 +382,7 @@ export const ChordWheel: React.FC = () => {
                                     wheelRotation={wheelRotation}
                                     romanNumeral={dimIsDiatonic ? getRomanNumeral(i, 'dim') : undefined}
                                     voicingSuggestion={dimIsDiatonic ? getVoicingSuggestion(i, 'dim') : undefined}
+                                    segmentId={`dim-${i}`}
                                 />
                             </g>
                         );

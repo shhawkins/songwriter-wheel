@@ -95,6 +95,53 @@ export const ChordDetails: React.FC = () => {
         return theoryNotes[numeral || ''] || 'This chord adds color and interest to your progression.';
     };
 
+    // Get suggested voicings based on chord function
+    const getSuggestedVoicings = (): { extensions: string[], description: string } => {
+        if (!selectedChord) return { extensions: [], description: '' };
+        const numeral = selectedChord.numeral;
+        
+        const suggestions: Record<string, { extensions: string[], description: string }> = {
+            'I': { 
+                extensions: ['maj7', 'maj9', 'maj13', '6'], 
+                description: 'Major 7th or 6th voicings sound rich and resolved'
+            },
+            'IV': { 
+                extensions: ['maj7', 'maj9', 'maj13', '6'], 
+                description: 'Same as I — warm major extensions work beautifully'
+            },
+            'V': { 
+                extensions: ['7', '9', '11', 'sus4', '13'], 
+                description: 'Dominant 7th adds tension that pulls to I'
+            },
+            'ii': { 
+                extensions: ['m7', 'm9', 'm11', 'm6'], 
+                description: 'Minor 7th extensions for a smooth jazz sound'
+            },
+            'iii': { 
+                extensions: ['m7'], 
+                description: 'Keep it simple — m7 is most common for iii'
+            },
+            'vi': { 
+                extensions: ['m7', 'm9', 'm11'], 
+                description: 'Minor extensions add depth and emotion'
+            },
+            'vii°': { 
+                extensions: ['m7♭5'], 
+                description: 'Half-diminished (ø7) is the standard voicing'
+            },
+            'II': { 
+                extensions: ['7', '9'], 
+                description: 'Dominant voicing as V/V'
+            },
+            'III': { 
+                extensions: ['7', '9'], 
+                description: 'Dominant voicing as V/vi'
+            },
+        };
+
+        return suggestions[numeral || ''] || { extensions: [], description: 'Try different extensions to find your sound' };
+    };
+
     // Collapsed state - just show a button
     if (!chordPanelVisible) {
         return (
@@ -155,6 +202,33 @@ export const ChordDetails: React.FC = () => {
                                 Key of <span className="font-bold text-text-primary">{selectedKey}</span>
                             </p>
                         </div>
+
+                        {/* Suggested Voicings - prominent display */}
+                        {selectedChord?.numeral && getSuggestedVoicings().extensions.length > 0 && (
+                            <div className="px-3 py-2 border-b border-border-subtle bg-accent-primary/5">
+                                <h3 className="text-[9px] font-bold text-accent-primary uppercase tracking-wider mb-1.5">
+                                    Suggested Voicings for {selectedChord.numeral}
+                                </h3>
+                                <div className="flex flex-wrap gap-1.5 mb-2">
+                                    {getSuggestedVoicings().extensions.map((ext) => (
+                                        <button
+                                            key={ext}
+                                            className={`px-2 py-1 rounded text-xs font-semibold transition-colors ${
+                                                previewVariant === ext 
+                                                    ? 'bg-accent-primary text-white' 
+                                                    : 'bg-bg-elevated hover:bg-accent-primary/20 text-text-primary border border-border-subtle'
+                                            }`}
+                                            onClick={() => handleVariationClick(ext)}
+                                        >
+                                            {selectedChord.root}{ext}
+                                        </button>
+                                    ))}
+                                </div>
+                                <p className="text-[9px] text-text-muted italic">
+                                    {getSuggestedVoicings().description}
+                                </p>
+                            </div>
+                        )}
 
                         {/* Piano */}
                         <div className="p-3 border-b border-border-subtle">
