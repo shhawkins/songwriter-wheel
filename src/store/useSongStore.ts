@@ -622,11 +622,11 @@ export const useSongStore = create<SongState>()(
                 const history = buildHistoryState(state);
                 return {
                     ...history,
-                tempo,
-                currentSong: {
-                    ...state.currentSong,
-                    tempo
-                }
+                    tempo,
+                    currentSong: {
+                        ...state.currentSong,
+                        tempo
+                    }
                 };
             }),
             setVolume: (volume) => set({ volume }),
@@ -638,7 +638,7 @@ export const useSongStore = create<SongState>()(
                 const history = buildHistoryState(state);
                 return {
                     ...history,
-                currentSong: { ...state.currentSong, title }
+                    currentSong: { ...state.currentSong, title }
                 };
             }),
 
@@ -675,39 +675,39 @@ export const useSongStore = create<SongState>()(
                 const history = buildHistoryState(state);
                 return {
                     ...history,
-                currentSong: {
-                    ...DEFAULT_SONG,
-                    id: uuidv4(),
-                    title: 'Untitled Song',
-                    createdAt: new Date(),
-                    updatedAt: new Date(),
-                    tempo: DEFAULT_SONG.tempo,
-                    sections: [
-                        {
-                            id: uuidv4(),
-                            name: 'Verse 1',
-                            type: 'verse',
-                            timeSignature: DEFAULT_TIME_SIGNATURE,
-                            measures: Array(4).fill(null).map(() => createEmptyMeasure(DEFAULT_TIME_SIGNATURE)),
-                        },
-                        {
-                            id: uuidv4(),
-                            name: 'Chorus',
-                            type: 'chorus',
-                            timeSignature: DEFAULT_TIME_SIGNATURE,
-                            measures: Array(4).fill(null).map(() => createEmptyMeasure(DEFAULT_TIME_SIGNATURE)),
-                        },
-                    ],
-                },
-                selectedKey: 'C',
-                wheelRotation: 0,
-                selectedChord: null,
-                selectedSectionId: null,
-                selectedSlotId: null,
+                    currentSong: {
+                        ...DEFAULT_SONG,
+                        id: uuidv4(),
+                        title: 'Untitled Song',
+                        createdAt: new Date(),
+                        updatedAt: new Date(),
+                        tempo: DEFAULT_SONG.tempo,
+                        sections: [
+                            {
+                                id: uuidv4(),
+                                name: 'Verse 1',
+                                type: 'verse',
+                                timeSignature: DEFAULT_TIME_SIGNATURE,
+                                measures: Array(4).fill(null).map(() => createEmptyMeasure(DEFAULT_TIME_SIGNATURE)),
+                            },
+                            {
+                                id: uuidv4(),
+                                name: 'Chorus',
+                                type: 'chorus',
+                                timeSignature: DEFAULT_TIME_SIGNATURE,
+                                measures: Array(4).fill(null).map(() => createEmptyMeasure(DEFAULT_TIME_SIGNATURE)),
+                            },
+                        ],
+                    },
+                    selectedKey: 'C',
+                    wheelRotation: 0,
+                    selectedChord: null,
+                    selectedSectionId: null,
+                    selectedSlotId: null,
                     selectedSlots: [],
                     selectionAnchor: null,
-                collapsedSections: {},
-                tempo: DEFAULT_SONG.tempo,
+                    collapsedSections: {},
+                    tempo: DEFAULT_SONG.tempo,
                 };
             }),
 
@@ -734,10 +734,10 @@ export const useSongStore = create<SongState>()(
                 const history = buildHistoryState(state);
                 return {
                     ...history,
-                currentSong: {
-                    ...state.currentSong,
-                    sections: state.currentSong.sections.map(s => s.id === id ? { ...s, ...updates } : s)
-                }
+                    currentSong: {
+                        ...state.currentSong,
+                        sections: state.currentSong.sections.map(s => s.id === id ? { ...s, ...updates } : s)
+                    }
                 };
             }),
 
@@ -746,11 +746,11 @@ export const useSongStore = create<SongState>()(
                 const { [id]: _removed, ...remainingCollapsed } = state.collapsedSections || {};
                 return {
                     ...history,
-                currentSong: {
-                    ...state.currentSong,
-                    sections: state.currentSong.sections.filter(s => s.id !== id)
-                },
-                collapsedSections: remainingCollapsed
+                    currentSong: {
+                        ...state.currentSong,
+                        sections: state.currentSong.sections.filter(s => s.id !== id)
+                    },
+                    collapsedSections: remainingCollapsed
                 };
             }),
 
@@ -789,7 +789,7 @@ export const useSongStore = create<SongState>()(
                 const history = buildHistoryState(state);
                 return {
                     ...history,
-                currentSong: { ...state.currentSong, sections }
+                    currentSong: { ...state.currentSong, sections }
                 };
             }),
 
@@ -930,9 +930,9 @@ export const useSongStore = create<SongState>()(
                         }))
                     };
                 });
-                return { 
+                return {
                     ...history,
-                    currentSong: { ...state.currentSong, sections: newSections } 
+                    currentSong: { ...state.currentSong, sections: newSections }
                 };
             }),
 
@@ -961,9 +961,9 @@ export const useSongStore = create<SongState>()(
                         }))
                     };
                 });
-                return { 
+                return {
                     ...history,
-                    currentSong: { ...state.currentSong, sections: newSections } 
+                    currentSong: { ...state.currentSong, sections: newSections }
                 };
             }),
 
@@ -1012,9 +1012,9 @@ export const useSongStore = create<SongState>()(
                     };
                 });
 
-                return { 
+                return {
                     ...history,
-                    currentSong: { ...state.currentSong, sections: newSections } 
+                    currentSong: { ...state.currentSong, sections: newSections }
                 };
             }),
 
