@@ -254,29 +254,22 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose, isEmbedde
                 </div>
 
                 {/* Content - Scrollable */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-6">
-                    {/* Re-use content sections but with adjusted spacing? 
-                        Actually, let's just render the same content structure but flattened if possible. 
-                        For now, to save complexity, I'll copy the content logic or structure below.
-                        Wait, duplication is bad.
-                        Let's restructure the return to share the content.
-                    */}
-                    <HelpContent />
+                <div className="flex-1 overflow-y-auto px-[20px] py-[20px] sm:px-6 sm:py-6 space-y-8">
+                    <div className="space-y-8 text-sm leading-relaxed [p]:mb-3 [p]:mx-[20px] [ul]:mx-[20px] [li]:ml-4">
+                        <HelpContent />
+                    </div>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            {/* Backdrop */}
-            <div
-                className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-                onClick={onClose}
-            />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+            {/* Backdrop purely visual so sidebars remain interactive */}
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm pointer-events-none" />
 
             {/* Modal */}
-            <div className="relative bg-[#1a1a24] border border-border-medium rounded-xl shadow-2xl max-w-3xl w-full max-h-[85vh] overflow-hidden flex flex-col">
+            <div className="relative bg-[#1a1a24] border border-border-medium rounded-xl shadow-2xl max-w-4xl w-full max-h-[85vh] overflow-hidden flex flex-col pointer-events-auto">
                 {/* Header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-border-subtle bg-[#22222e]">
                     <div className="flex items-center gap-3">
@@ -293,15 +286,17 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose, isEmbedde
                     </button>
                 </div>
 
-                {/* Content - Scrollable */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-8">
-                    <HelpContent />
+                {/* Content - Scrollable with generous padding */}
+                <div className="flex-1 overflow-y-auto px-[20px] py-[20px] sm:px-8 sm:py-8 space-y-8">
+                    <div className="space-y-8 text-sm leading-relaxed [p]:mb-3 [p]:mx-[20px] [ul]:mx-[20px] [li]:ml-4">
+                        <HelpContent />
+                    </div>
                 </div>
 
 
                 {/* Footer */}
-                <div className="px-6 py-3 border-t border-border-subtle bg-[#22222e] text-center">
-                    <p className="text-xs text-gray-500">
+                <div className="px-6 py-4 sm:px-8 sm:py-5 border-t border-border-subtle bg-[#22222e] text-center">
+                    <p className="text-xs text-gray-500 leading-relaxed">
                         Drag the wheel or use the rotation buttons to change keys. Click any chord to see details.
                     </p>
                 </div>

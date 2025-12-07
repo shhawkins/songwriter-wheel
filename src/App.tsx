@@ -294,27 +294,23 @@ function App() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 shrink-0 mr-2">
+        <div className="flex items-center gap-[20px] shrink-0 mr-2">
           {/* Song Duration (Task 33) */}
-          <div className="flex items-center gap-1.5 text-[10px] text-text-muted">
-            <Clock size={11} />
-            <span>{songDuration}</span>
+          <div className="flex items-center gap-[6px] text-[10px] text-text-muted">
+            <Clock size={11} className="shrink-0" />
+            <span className="leading-none">{songDuration}</span>
           </div>
 
-          <div className="h-4 w-px bg-border-medium" />
-
-          <div className="flex items-center gap-1.5 bg-bg-tertiary px-2.5 py-1 rounded-full border border-border-subtle">
-            <span className="text-[9px] text-text-muted uppercase font-bold">Key</span>
+          <div className="flex items-center gap-[6px] text-[10px] text-text-muted">
+            <span className="uppercase font-bold">Key</span>
             <span className="font-bold text-accent-primary text-sm">{selectedKey}</span>
           </div>
-
-          <div className="h-4 w-px bg-border-medium" />
 
           {/* Save/Load Menu (Task 30) - fixed styling */}
           <div className="relative" ref={saveMenuRef}>
             <button
               onClick={() => setShowSaveMenu(!showSaveMenu)}
-              className="flex items-center gap-1 text-[11px] text-text-secondary hover:text-text-primary transition-colors px-2 py-1"
+              className="flex items-center gap-[20px] text-[11px] text-text-secondary hover:text-text-primary transition-colors px-2 py-1"
             >
               <Save size={12} />
               <span className="hidden sm:inline">Save</span>
@@ -378,7 +374,7 @@ function App() {
 
           <button
             onClick={handleExport}
-            className="flex items-center gap-1 text-[11px] bg-text-primary text-bg-primary px-2 py-1 rounded font-medium hover:bg-white transition-colors"
+            className="flex items-center gap-[20px] text-[11px] bg-text-primary text-bg-primary px-2 py-1 rounded font-medium hover:bg-white transition-colors"
           >
             <Download size={12} />
             <span className="hidden sm:inline">Export</span>
@@ -391,7 +387,7 @@ function App() {
         {/* Left: Wheel + Timeline */}
         <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
           {/* Wheel Area - takes remaining space */}
-          <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-gradient-to-b from-bg-primary to-bg-secondary/30">
+          <div className="flex-1 flex flex-col min-h-0 overflow-auto bg-gradient-to-b from-bg-primary to-bg-secondary/30">
             {/* Zoom toolbar - fixed at top of wheel area */}
             <div className="flex justify-end px-3 py-1.5 shrink-0">
               <div className="flex items-center gap-1 bg-bg-secondary/80 backdrop-blur-sm rounded-full px-1 py-0.5 border border-border-subtle">
@@ -415,12 +411,22 @@ function App() {
               </div>
             </div>
             {/* Wheel container */}
-            <div className="flex-1 flex items-center justify-center min-h-0 overflow-hidden">
-              <ChordWheel
-                zoomScale={wheelZoom}
-                zoomOriginY={wheelZoomOrigin}
-                onZoomChange={handleZoomChange}
-              />
+            <div className="flex-1 overflow-auto">
+              <div
+                className="relative flex items-center justify-center"
+                style={{
+                  width: `${720 * wheelZoom}px`,
+                  height: `${720 * wheelZoom}px`,
+                  minWidth: '100%',
+                  minHeight: '100%'
+                }}
+              >
+                <ChordWheel
+                  zoomScale={wheelZoom}
+                  zoomOriginY={wheelZoomOrigin}
+                  onZoomChange={handleZoomChange}
+                />
+              </div>
             </div>
           </div>
 

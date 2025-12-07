@@ -358,7 +358,7 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({ zoomScale, zoomOriginY, 
     return (
         <div
             ref={containerRef}
-            className="relative flex flex-col items-center justify-center w-full h-full max-w-[540px] max-h-[540px] aspect-square p-2 touch-none"
+            className="relative flex flex-col items-center justify-center w-[600px] h-[600px] aspect-square p-2 touch-none"
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
