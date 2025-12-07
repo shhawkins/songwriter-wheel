@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useSongStore } from '../../store/useSongStore';
 import { Play, Pause, SkipBack, SkipForward, Repeat, Volume2, VolumeX, ChevronLeft, ChevronRight } from 'lucide-react';
-import { initAudio, playSong, pauseSong, skipToSection, scheduleSong, setTempo as setAudioTempo, toggleLoopMode, setInstrument as setAudioInstrument } from '../../utils/audioEngine';
+import { playSong, pauseSong, skipToSection, scheduleSong, setTempo as setAudioTempo, toggleLoopMode, setInstrument as setAudioInstrument } from '../../utils/audioEngine';
 import type { InstrumentType } from '../../types';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import * as Tone from 'tone';
@@ -94,7 +94,7 @@ export const PlaybackControls: React.FC = () => {
         <div className={`${isMobile ? 'h-16' : 'h-14'} bg-bg-elevated border-t border-border-subtle flex items-center ${isMobile ? 'justify-around px-2' : 'justify-between px-6'}`}>
             {/* Transport */}
             <div className={`flex items-center ${isMobile ? 'gap-1' : 'gap-2'}`}>
-                <button 
+                <button
                     onClick={() => handleSkip('prev')}
                     className={`${isMobile ? 'p-2 min-w-[44px] min-h-[44px]' : 'p-1.5'} text-text-secondary hover:text-text-primary transition-colors touch-feedback flex items-center justify-center`}
                 >
@@ -106,14 +106,14 @@ export const PlaybackControls: React.FC = () => {
                 >
                     {isPlaying ? <Pause size={isMobile ? 22 : 18} fill="currentColor" /> : <Play size={isMobile ? 22 : 18} fill="currentColor" className="ml-0.5" />}
                 </button>
-                <button 
+                <button
                     onClick={() => handleSkip('next')}
                     className={`${isMobile ? 'p-2 min-w-[44px] min-h-[44px]' : 'p-1.5'} text-text-secondary hover:text-text-primary transition-colors touch-feedback flex items-center justify-center`}
                 >
                     <SkipForward size={isMobile ? 18 : 16} />
                 </button>
                 {!isMobile && (
-                    <button 
+                    <button
                         onClick={handleLoopToggle}
                         className={`p-1.5 transition-colors ml-1 ${isLooping ? 'text-accent-primary' : 'text-text-secondary hover:text-text-primary'}`}
                         title="Loop Section"
