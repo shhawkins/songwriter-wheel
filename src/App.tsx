@@ -16,17 +16,14 @@ function App() {
 
   // Audio Sync Logic
   useEffect(() => {
-    console.log("App Audio Sync: Instrument", instrument);
     setInstrument(instrument);
   }, [instrument]);
 
   useEffect(() => {
-    console.log("App Audio Sync: Volume", volume);
     setVolume(volume);
   }, [volume]);
 
   useEffect(() => {
-    console.log("App Audio Sync: Mute", isMuted);
     setMute(isMuted);
   }, [isMuted]);
 
@@ -53,7 +50,7 @@ function App() {
       const height = window.innerHeight;
       const mobile = width < 768;
       const landscape = height < width && width < 1024 && mobile;
-      
+
       setIsMobile(mobile);
       setIsLandscape(landscape);
 
@@ -75,7 +72,7 @@ function App() {
           const chordDetailsReserve = 80; // Space for collapsed chord details button
           const availableHeight = height - headerHeight - footerHeight - chordDetailsReserve;
           const maxWheelHeight = availableHeight * 0.8; // Give more height budget for larger wheel
-          
+
           const rawSize = Math.min(
             Math.min(width - padding, maxWheelHeight),
             560 // Allow a bit more headroom for boosted size
@@ -185,12 +182,11 @@ function App() {
         await Tone.start();
         await initAudio();
         setAudioReady(true);
-        console.log('Audio Context Started and Ready');
       } catch (error) {
         console.error('Audio initialization failed:', error);
       }
     };
-    
+
     // Start on any user interaction
     const handleInteraction = () => {
       if (!audioReady) {
@@ -591,87 +587,87 @@ function App() {
           {/* Desktop & Mobile Landscape: Timeline section */}
           {(!isMobile || isLandscape) ? (
             timelineVisible ? (
-            <>
-              {/* Resize Handle with hide button */}
-              <div
-                className={`h-7 bg-bg-secondary border-t border-border-subtle flex items-center justify-center group transition-colors ${isResizing ? 'bg-accent-primary/20' : ''}`}
-              >
+              <>
+                {/* Resize Handle with hide button */}
                 <div
-                  className="flex-1 h-full cursor-ns-resize flex items-center justify-center hover:bg-bg-tertiary transition-colors"
-                  onMouseDown={handleMouseDown}
+                  className={`h-7 bg-bg-secondary border-t border-border-subtle flex items-center justify-center group transition-colors ${isResizing ? 'bg-accent-primary/20' : ''}`}
                 >
-                  <GripHorizontal size={14} className="text-text-muted group-hover:text-text-secondary" />
-                </div>
-              </div>
-
-              {/* Timeline - resizable height */}
-              <div
-                className="shrink-0 bg-bg-secondary overflow-hidden"
-                style={{ height: timelineHeight }}
-              >
-                <div className="flex items-center justify-between px-3 py-2 border-b border-border-subtle bg-bg-secondary/90 backdrop-blur-sm">
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2 text-[10px] text-text-muted">
-                      <span className="uppercase font-bold tracking-wider text-[9px]">Scale</span>
-                      <input
-                        type="range"
-                      min={0.01}
-                        max={1.6}
-                      step={0.01}
-                        value={timelineScale}
-                        onChange={(e) => setTimelineScale(parseFloat(e.target.value))}
-                        className="w-32"
-                        style={{ accentColor: '#8b5cf6' }}
-                        aria-label="Timeline scale"
-                      />
-                      <span className="text-[10px] text-text-secondary w-12 text-right">{Math.round(timelineScale * 100)}%</span>
-                    </div>
-
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={undo}
-                        disabled={!canUndo}
-                        className={`flex items-center gap-1 ${isMobile ? 'text-xs px-3 py-2 min-h-[44px]' : 'text-[10px] px-2 py-1'} rounded bg-bg-tertiary/60 hover:bg-bg-tertiary text-text-muted hover:text-text-primary disabled:opacity-40 disabled:cursor-not-allowed border border-border-subtle touch-feedback`}
-                        title="Undo (⌘Z)"
-                      >
-                        <RotateCcw size={isMobile ? 14 : 12} />
-                        <span className="uppercase font-bold tracking-wider">{isMobile ? '' : 'Undo'}</span>
-                      </button>
-                      <button
-                        onClick={redo}
-                        disabled={!canRedo}
-                        className={`flex items-center gap-1 ${isMobile ? 'text-xs px-3 py-2 min-h-[44px]' : 'text-[10px] px-2 py-1'} rounded bg-bg-tertiary/60 hover:bg-bg-tertiary text-text-muted hover:text-text-primary disabled:opacity-40 disabled:cursor-not-allowed border border-border-subtle touch-feedback`}
-                        title="Redo (⇧⌘Z)"
-                      >
-                        <RotateCw size={isMobile ? 14 : 12} />
-                        <span className="uppercase font-bold tracking-wider">{isMobile ? '' : 'Redo'}</span>
-                      </button>
-                    </div>
-                  </div>
-                  <button
-                    onClick={toggleTimeline}
-                    className={`${isMobile ? 'text-xs min-h-[44px] px-3' : 'text-[10px] px-2 py-1'} text-text-muted hover:text-text-primary rounded hover:bg-bg-tertiary transition-colors flex items-center gap-1 touch-feedback`}
-                    title="Hide timeline"
+                  <div
+                    className="flex-1 h-full cursor-ns-resize flex items-center justify-center hover:bg-bg-tertiary transition-colors"
+                    onMouseDown={handleMouseDown}
                   >
-                    <ChevronDown size={isMobile ? 14 : 12} />
-                    <span className="uppercase tracking-wider font-bold">Hide</span>
-                  </button>
+                    <GripHorizontal size={14} className="text-text-muted group-hover:text-text-secondary" />
+                  </div>
                 </div>
-                <Timeline height={timelineContentHeight} scale={timelineScale} />
+
+                {/* Timeline - resizable height */}
+                <div
+                  className="shrink-0 bg-bg-secondary overflow-hidden"
+                  style={{ height: timelineHeight }}
+                >
+                  <div className="flex items-center justify-between px-3 py-2 border-b border-border-subtle bg-bg-secondary/90 backdrop-blur-sm">
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2 text-[10px] text-text-muted">
+                        <span className="uppercase font-bold tracking-wider text-[9px]">Scale</span>
+                        <input
+                          type="range"
+                          min={0.01}
+                          max={1.6}
+                          step={0.01}
+                          value={timelineScale}
+                          onChange={(e) => setTimelineScale(parseFloat(e.target.value))}
+                          className="w-32"
+                          style={{ accentColor: '#8b5cf6' }}
+                          aria-label="Timeline scale"
+                        />
+                        <span className="text-[10px] text-text-secondary w-12 text-right">{Math.round(timelineScale * 100)}%</span>
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={undo}
+                          disabled={!canUndo}
+                          className={`flex items-center gap-1 ${isMobile ? 'text-xs px-3 py-2 min-h-[44px]' : 'text-[10px] px-2 py-1'} rounded bg-bg-tertiary/60 hover:bg-bg-tertiary text-text-muted hover:text-text-primary disabled:opacity-40 disabled:cursor-not-allowed border border-border-subtle touch-feedback`}
+                          title="Undo (⌘Z)"
+                        >
+                          <RotateCcw size={isMobile ? 14 : 12} />
+                          <span className="uppercase font-bold tracking-wider">{isMobile ? '' : 'Undo'}</span>
+                        </button>
+                        <button
+                          onClick={redo}
+                          disabled={!canRedo}
+                          className={`flex items-center gap-1 ${isMobile ? 'text-xs px-3 py-2 min-h-[44px]' : 'text-[10px] px-2 py-1'} rounded bg-bg-tertiary/60 hover:bg-bg-tertiary text-text-muted hover:text-text-primary disabled:opacity-40 disabled:cursor-not-allowed border border-border-subtle touch-feedback`}
+                          title="Redo (⇧⌘Z)"
+                        >
+                          <RotateCw size={isMobile ? 14 : 12} />
+                          <span className="uppercase font-bold tracking-wider">{isMobile ? '' : 'Redo'}</span>
+                        </button>
+                      </div>
+                    </div>
+                    <button
+                      onClick={toggleTimeline}
+                      className={`${isMobile ? 'text-xs min-h-[44px] px-3' : 'text-[10px] px-2 py-1'} text-text-muted hover:text-text-primary rounded hover:bg-bg-tertiary transition-colors flex items-center gap-1 touch-feedback`}
+                      title="Hide timeline"
+                    >
+                      <ChevronDown size={isMobile ? 14 : 12} />
+                      <span className="uppercase tracking-wider font-bold">Hide</span>
+                    </button>
+                  </div>
+                  <Timeline height={timelineContentHeight} scale={timelineScale} />
+                </div>
+              </>
+            ) : (
+              /* Collapsed timeline - just a thin bar with show button */
+              <div className={`${isMobile ? 'h-12' : 'h-7'} bg-bg-secondary border-t border-border-subtle flex items-center justify-center shrink-0`}>
+                <button
+                  onClick={toggleTimeline}
+                  className={`${isMobile ? 'px-4 min-h-[48px]' : 'px-3 h-full'} flex items-center gap-1 ${isMobile ? 'text-xs' : 'text-[9px]'} text-text-muted hover:text-text-primary hover:bg-bg-tertiary transition-colors touch-feedback`}
+                  title="Show timeline"
+                >
+                  <ChevronUp size={isMobile ? 14 : 12} />
+                  <span className="uppercase tracking-wider font-bold">Timeline</span>
+                </button>
               </div>
-            </>
-          ) : (
-            /* Collapsed timeline - just a thin bar with show button */
-            <div className={`${isMobile ? 'h-12' : 'h-7'} bg-bg-secondary border-t border-border-subtle flex items-center justify-center shrink-0`}>
-              <button
-                onClick={toggleTimeline}
-                className={`${isMobile ? 'px-4 min-h-[48px]' : 'px-3 h-full'} flex items-center gap-1 ${isMobile ? 'text-xs' : 'text-[9px]'} text-text-muted hover:text-text-primary hover:bg-bg-tertiary transition-colors touch-feedback`}
-                title="Show timeline"
-              >
-                <ChevronUp size={isMobile ? 14 : 12} />
-                <span className="uppercase tracking-wider font-bold">Timeline</span>
-              </button>
-            </div>
             )
           ) : null}
         </div>
@@ -710,11 +706,11 @@ function App() {
           <ChordDetails variant="drawer" />
         </div>
       )}
-      
+
       {/* Mobile Portrait: Timeline overlay when visible */}
       {isMobile && !isLandscape && timelineVisible && (
-        <div className="absolute inset-x-0 bottom-0 bg-bg-secondary border-t-2 border-accent-primary shadow-2xl" 
-          style={{ 
+        <div className="absolute inset-x-0 bottom-0 bg-bg-secondary border-t-2 border-accent-primary shadow-2xl"
+          style={{
             height: '45vh',
             maxHeight: '350px',
             zIndex: 50,

@@ -11,6 +11,7 @@ import {
 import { WheelSegment } from './WheelSegment';
 import { RotateCw, RotateCcw, Compass } from 'lucide-react';
 import { playChord } from '../../utils/audioEngine';
+import { useIsMobile } from '../../hooks/useIsMobile';
 
 interface ChordWheelProps {
     zoomScale: number;
@@ -50,22 +51,15 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({ zoomScale, zoomOriginY, 
     const lastPanCenter = useRef<{ x: number; y: number } | null>(null);
     const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
     const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
-    
-    // Mobile detection state
-    const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 768 : false);
+
+    // Mobile detection using centralized hook
+    const isMobile = useIsMobile();
 
     // Keep wheel highlight in sync with store selection when it carries segment info
     useEffect(() => {
         const segId = (selectedChord as WheelChord | null)?.segmentId ?? null;
         setSelectedSegmentId(segId);
     }, [selectedChord]);
-
-    // Update mobile state on resize
-    useEffect(() => {
-        const updateMobile = () => setIsMobile(window.innerWidth < 768);
-        window.addEventListener('resize', updateMobile);
-        return () => window.removeEventListener('resize', updateMobile);
-    }, []);
 
     const containerRef = useRef<HTMLDivElement>(null);
     const svgRef = useRef<SVGSVGElement>(null);
@@ -126,7 +120,7 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({ zoomScale, zoomOriginY, 
     // Touch drag for mobile
     const handleTouchStartForDrag = useCallback((e: React.TouchEvent) => {
         if (e.touches.length !== 1) return; // Only single touch for drag
-        
+
         const touch = e.touches[0];
         dragStartPos.current = { x: touch.clientX, y: touch.clientY };
         hasMoved.current = false;
@@ -149,7 +143,7 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({ zoomScale, zoomOriginY, 
 
     const handleTouchMoveForDrag = useCallback((e: React.TouchEvent) => {
         if (e.touches.length !== 1 || !dragStartPos.current) return;
-        
+
         const touch = e.touches[0];
         const dx = touch.clientX - dragStartPos.current.x;
         const dy = touch.clientY - dragStartPos.current.y;
@@ -176,7 +170,7 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({ zoomScale, zoomOriginY, 
                 if (Math.abs(deltaAngle) >= 15) {
                     const steps = Math.round(deltaAngle / 30);
                     if (steps !== 0) {
-                        const effectiveDirection = wheelMode === 'fixed' 
+                        const effectiveDirection = wheelMode === 'fixed'
                             ? (steps > 0 ? 'cw' : 'ccw')
                             : (steps > 0 ? 'ccw' : 'cw');
 
@@ -286,13 +280,13 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({ zoomScale, zoomOriginY, 
             // Prevent default scrolling and zooming
             e.preventDefault();
             e.stopPropagation();
-            
+
             const dx = e.touches[0].clientX - e.touches[1].clientX;
             const dy = e.touches[0].clientY - e.touches[1].clientY;
             const distance = Math.sqrt(dx * dx + dy * dy);
 
             const scaleDelta = distance / lastTouchDistance.current;
-            
+
             // More responsive scaling - apply immediately
             const newScale = Math.max(1, Math.min(2.5, zoomScale * scaleDelta));
             const newOriginY = newScale > 1.3 ? 38 : 50;
@@ -303,7 +297,7 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({ zoomScale, zoomOriginY, 
                 const deltaY = center.y - lastPanCenter.current.y;
                 setPanOffset((prev) => clampPan(prev.x + deltaX, prev.y + deltaY, newScale));
             }
-            
+
             // Update for next frame
             lastTouchDistance.current = distance;
             lastPanCenter.current = center;
@@ -416,13 +410,13 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({ zoomScale, zoomOriginY, 
         }
 
         if (targetSectionId && targetSlotId) {
-                    addChordToSlot(chord, targetSectionId, targetSlotId);
+            addChordToSlot(chord, targetSectionId, targetSlotId);
             const advanced = selectNextSlotAfter(targetSectionId, targetSlotId);
 
             if (!advanced) {
                 setSelectedSlot(targetSectionId, targetSlotId);
-                        setSelectedSegmentId(wheelChord.segmentId ?? null);
-                        setSelectedChord(chord);
+                setSelectedSegmentId(wheelChord.segmentId ?? null);
+                setSelectedChord(chord);
             }
         }
     };
@@ -857,13 +851,13 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({ zoomScale, zoomOriginY, 
                         className="cursor-pointer"
                         style={{ pointerEvents: 'all', cursor: 'pointer' }}
                     >
-                        <rect 
-                            x={isMobile ? -24 : -18} 
-                            y={isMobile ? -10 : -6} 
-                            width={isMobile ? 48 : 36} 
-                            height={isMobile ? 20 : 12} 
-                            rx={isMobile ? 10 : 6} 
-                            fill={wheelMode === 'fixed' ? '#6366f1' : '#282833'} 
+                        <rect
+                            x={isMobile ? -24 : -18}
+                            y={isMobile ? -10 : -6}
+                            width={isMobile ? 48 : 36}
+                            height={isMobile ? 20 : 12}
+                            rx={isMobile ? 10 : 6}
+                            fill={wheelMode === 'fixed' ? '#6366f1' : '#282833'}
                             className="hover:brightness-110 transition-all"
                             style={{ pointerEvents: 'all' }}
                         />

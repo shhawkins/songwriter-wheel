@@ -19,24 +19,6 @@ let instruments: Record<InstrumentName, Tone.Sampler | Tone.PolySynth | null> = 
     choir: null,
 };
 
-// Fallback synth that requires NO external loading - created immediately for mobile reliability
-let fallbackSynth: Tone.PolySynth | null = null;
-
-const createFallbackSynth = () => {
-    if (!fallbackSynth) {
-        try {
-            fallbackSynth = new Tone.PolySynth(Tone.Synth, {
-                oscillator: { type: "triangle" },
-                envelope: { attack: 0.02, decay: 0.3, sustain: 0.4, release: 0.8 }
-            }).toDestination();
-            console.log("Fallback synth created for mobile reliability");
-        } catch (err) {
-            console.error("Failed to create fallback synth", err);
-        }
-    }
-    return fallbackSynth;
-};
-
 let currentInstrument: InstrumentName = 'piano';
 let initPromise: Promise<void> | null = null;
 
@@ -48,11 +30,7 @@ export const setInstrument = (name: string) => {
 
 export const setVolume = (volume: number) => {
     // Convert 0-1 linear volume to decibels
-    // -60dB is effectively silent, 0dB is full volume
-    // We can use Tone.gainToDb but let's just do a simple log approximation or use Tone's helpers if available
-    // For now simple approach:
     const db = volume <= 0 ? -Infinity : 20 * Math.log10(volume);
-    console.log(`Setting volume: ${volume} -> ${db} db`);
     try {
         Tone.Destination.volume.rampTo(db, 0.1);
     } catch (e) {
@@ -61,7 +39,6 @@ export const setVolume = (volume: number) => {
 };
 
 export const setMute = (muted: boolean) => {
-    console.log(`Setting mute: ${muted}`);
     Tone.Destination.mute = muted;
 };
 
@@ -79,7 +56,6 @@ export const initAudio = async () => {
                 const created = factory();
                 if (created) {
                     instruments[label] = created as any;
-                    console.log(`Instrument "${label}" ready`);
                 }
             } catch (err) {
                 console.error(`Failed to init instrument "${label}"`, err);
@@ -212,7 +188,6 @@ export const initAudio = async () => {
         }).toDestination());
 
         await Tone.loaded();
-        console.log("Audio initialized");
     })();
 
     try {
@@ -232,18 +207,18 @@ const NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
  * Notes are spread across octaves to sound musical
  */
 export const playChord = async (notes: string[], duration: string = "1n") => {
-    console.log('playChord called with notes:', notes);
-
     if (Tone.context.state !== 'running') {
-        console.log('Starting Tone context...');
         await Tone.start();
     }
 
+    // Also resume if suspended (important for mobile)
+    if (Tone.context.state === 'suspended') {
+        await Tone.context.resume();
+    }
+
     await initAudio();
-    console.log('Audio initialized, current instrument:', currentInstrument);
 
     if (!notes || notes.length === 0) {
-        console.log('No notes to play');
         return;
     }
 
@@ -283,10 +258,8 @@ export const playChord = async (notes: string[], duration: string = "1n") => {
     });
 
     let inst = instruments[currentInstrument];
-    console.log(`Trying to play with instrument: ${currentInstrument}, available:`, inst !== null);
 
     if (!inst) {
-        console.warn(`Instrument "${currentInstrument}" not ready, falling back to piano`);
         inst = instruments.piano;
     }
     if (!inst) {
@@ -295,11 +268,9 @@ export const playChord = async (notes: string[], duration: string = "1n") => {
     }
 
     try {
-        console.log('Playing voiced notes:', voicedNotes);
         inst.triggerAttackRelease(voicedNotes, duration);
-        console.log('Chord played successfully');
     } catch (err) {
-        console.error(`Failed to play on "${currentInstrument}"`, err);
+        console.error(`Failed to play chord`, err);
     }
 };
 

@@ -5,6 +5,7 @@ import { PanelRightClose, PanelRight, GripVertical, HelpCircle, ChevronUp, Chevr
 import { playChord } from '../../utils/audioEngine';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { HelpModal } from '../HelpModal';
+import { useIsMobile } from '../../hooks/useIsMobile';
 
 interface ChordDetailsProps {
     variant?: 'sidebar' | 'drawer';
@@ -33,18 +34,13 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
     const isDrawer = variant === 'drawer';
     const [persistedChord, setPersistedChord] = useState(selectedChord);
     const chord = selectedChord ?? persistedChord;
-    const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 768 : false);
+    const isMobile = useIsMobile();
 
     // Collapsible sections state (for mobile) - most collapsed by default to save space
     const [showVariations, setShowVariations] = useState(false); // Collapsed by default
     const [showSuggested, setShowSuggested] = useState(false); // Also collapsed by default
     const [showTheory, setShowTheory] = useState(false); // Collapsed by default
 
-    useEffect(() => {
-        const updateMobile = () => setIsMobile(window.innerWidth < 768);
-        window.addEventListener('resize', updateMobile);
-        return () => window.removeEventListener('resize', updateMobile);
-    }, []);
     const voicingTooltips: Record<string, string> = {
         'maj': 'Bright, stable major triad — home base sound.',
         '7': 'Dominant 7: bluesy tension that wants to resolve.',
@@ -198,7 +194,6 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
         if (!chord) return;
 
         const variantNotes = getChordNotes(chord.root, variant);
-        console.log(`Playing ${chord.root}${variant}:`, variantNotes);
 
         playChord(variantNotes);
         setPreviewVariant(variant);

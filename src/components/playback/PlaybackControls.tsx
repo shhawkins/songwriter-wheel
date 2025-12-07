@@ -2,7 +2,7 @@ import { useSongStore } from '../../store/useSongStore';
 import { Play, Pause, SkipBack, SkipForward, Repeat, Volume2, VolumeX, ChevronLeft, ChevronRight } from 'lucide-react';
 import { initAudio } from '../../utils/audioEngine';
 import type { InstrumentType } from '../../types';
-import { useState, useEffect } from 'react';
+import { useIsMobile } from '../../hooks/useIsMobile';
 
 export const PlaybackControls: React.FC = () => {
     const {
@@ -18,13 +18,7 @@ export const PlaybackControls: React.FC = () => {
         toggleMute
     } = useSongStore();
 
-    const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 768 : false);
-
-    useEffect(() => {
-        const updateMobile = () => setIsMobile(window.innerWidth < 768);
-        window.addEventListener('resize', updateMobile);
-        return () => window.removeEventListener('resize', updateMobile);
-    }, []);
+    const isMobile = useIsMobile();
 
     const handlePlayPause = async () => {
         if (!isPlaying) {
