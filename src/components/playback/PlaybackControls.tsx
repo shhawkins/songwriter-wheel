@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useSongStore } from '../../store/useSongStore';
-import { Play, Pause, SkipBack, SkipForward, Repeat, Volume2, VolumeX } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Repeat, Volume2, VolumeX, ChevronLeft, ChevronRight } from 'lucide-react';
 import { initAudio } from '../../utils/audioEngine';
+import type { InstrumentType } from '../../types';
 
 export const PlaybackControls: React.FC = () => {
     const {
@@ -48,6 +49,34 @@ export const PlaybackControls: React.FC = () => {
         } else {
             setIsPlaying(false);
         }
+    };
+
+    const instrumentOptions: { value: InstrumentType, label: string }[] = [
+        { value: 'piano', label: 'Piano' },
+        { value: 'epiano', label: 'E-Piano' },
+        { value: 'guitar', label: 'Guitar' },
+        { value: 'organ', label: 'Organ' },
+        { value: 'synth', label: 'Synth' },
+        { value: 'strings', label: 'Strings' },
+        { value: 'pad', label: 'Pad' },
+        { value: 'brass', label: 'Brass' },
+        { value: 'marimba', label: 'Marimba' },
+        { value: 'bell', label: 'Bell' },
+        { value: 'lead', label: 'Lead' },
+        { value: 'bass', label: 'Bass' },
+        { value: 'choir', label: 'Choir' },
+    ];
+
+    const cycleInstrument = (direction: 'prev' | 'next') => {
+        const idx = instrumentOptions.findIndex(o => o.value === instrument);
+        if (idx === -1) {
+            setInstrument('piano');
+            return;
+        }
+        const nextIndex = direction === 'next'
+            ? (idx + 1) % instrumentOptions.length
+            : (idx - 1 + instrumentOptions.length) % instrumentOptions.length;
+        setInstrument(instrumentOptions[nextIndex].value);
     };
 
     return (
@@ -112,17 +141,34 @@ export const PlaybackControls: React.FC = () => {
 
             {/* Volume & Instrument */}
             <div className="flex items-center gap-4">
-                {/* Instrument Selector */}
-                <select
-                    value={instrument}
-                    onChange={(e) => setInstrument(e.target.value as any)}
-                    className="bg-bg-tertiary border border-border-subtle rounded px-2 py-1 text-[10px] text-text-secondary focus:outline-none focus:border-accent-primary cursor-pointer"
-                >
-                    <option value="piano">Piano</option>
-                    <option value="guitar">Guitar</option>
-                    <option value="organ">Organ</option>
-                    <option value="synth">Synth</option>
-                </select>
+                {/* Instrument Selector with quick cycle buttons */}
+                <div className="flex items-center gap-2">
+                    <div className="flex items-center rounded bg-bg-tertiary/60 border border-border-subtle/70">
+                        <button
+                            onClick={() => cycleInstrument('prev')}
+                            className="px-1.5 py-1 text-text-secondary hover:text-text-primary hover:bg-bg-tertiary rounded-l transition-colors"
+                            title="Previous instrument"
+                        >
+                            <ChevronLeft size={12} />
+                        </button>
+                        <button
+                            onClick={() => cycleInstrument('next')}
+                            className="px-1.5 py-1 text-text-secondary hover:text-text-primary hover:bg-bg-tertiary rounded-r transition-colors"
+                            title="Next instrument"
+                        >
+                            <ChevronRight size={12} />
+                        </button>
+                    </div>
+                    <select
+                        value={instrument}
+                        onChange={(e) => setInstrument(e.target.value as InstrumentType)}
+                        className="bg-bg-tertiary border border-border-subtle rounded px-2 py-1 text-[10px] text-text-secondary focus:outline-none focus:border-accent-primary cursor-pointer min-w-[120px]"
+                    >
+                        {instrumentOptions.map((opt) => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                    </select>
+                </div>
 
                 {/* Volume Control */}
                 <div className="flex items-center gap-2 w-32">

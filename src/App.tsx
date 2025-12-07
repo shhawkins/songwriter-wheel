@@ -37,6 +37,46 @@ function App() {
   // Wheel zoom state
   const [wheelZoom, setWheelZoom] = useState(1);
   const [wheelZoomOrigin, setWheelZoomOrigin] = useState(50);
+  const [wheelBaseSize, setWheelBaseSize] = useState(720);
+
+  // Responsive state
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 768 : false);
+  const autoCollapsedPanelRef = useRef(false);
+
+  useEffect(() => {
+    const updateLayout = () => {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      const mobile = width < 768;
+      setIsMobile(mobile);
+
+      const padding = mobile ? 24 : 120; // leave room for padding/margins
+      const headerHeight = 48; // h-12
+      const footerHeight = 56; // h-14
+      const timelineReserve = 140; // keep room for timeline
+      const availableHeight = Math.max(360, height - headerHeight - footerHeight - timelineReserve);
+
+      const computedSize = Math.min(
+        720,
+        Math.max(320, Math.min(width - padding, availableHeight))
+      );
+      setWheelBaseSize(computedSize);
+
+      // Auto-collapse the side panel when entering mobile to save space
+      const store = useSongStore.getState();
+      if (mobile && store.chordPanelVisible) {
+        store.toggleChordPanel();
+        autoCollapsedPanelRef.current = true;
+      } else if (!mobile && autoCollapsedPanelRef.current && !store.chordPanelVisible) {
+        store.toggleChordPanel();
+        autoCollapsedPanelRef.current = false;
+      }
+    };
+
+    updateLayout();
+    window.addEventListener('resize', updateLayout);
+    return () => window.removeEventListener('resize', updateLayout);
+  }, []);
 
   const handleZoomChange = useCallback((scale: number, originY: number) => {
     setWheelZoom(scale);
@@ -258,9 +298,9 @@ function App() {
   };
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-bg-primary text-text-primary overflow-hidden">
+    <div className={`${isMobile ? 'min-h-screen' : 'h-screen'} w-screen flex flex-col bg-bg-primary text-text-primary overflow-x-hidden`}>
       {/* Header */}
-      <header className="h-12 border-b border-border-subtle flex items-center justify-between px-3 bg-bg-secondary shrink-0 z-10">
+      <header className="h-12 border-b border-border-subtle flex items-center justify-between px-3 bg-bg-secondary shrink-0 z-20 sticky top-0">
         <div className="flex items-center gap-3 shrink-0">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded bg-gradient-to-br from-accent-primary to-purple-600 flex items-center justify-center shadow-lg">
@@ -383,14 +423,14 @@ function App() {
       </header>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex overflow-hidden min-h-0">
+      <div className={`flex-1 flex ${isMobile ? 'flex-col' : 'flex-row'} overflow-x-hidden ${isMobile ? '' : 'overflow-hidden'} min-h-0`}>
         {/* Left: Wheel + Timeline */}
-        <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
+        <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden bg-gradient-to-b from-bg-primary to-bg-secondary/30">
           {/* Wheel Area - takes remaining space */}
-          <div className="flex-1 flex flex-col min-h-0 overflow-auto bg-gradient-to-b from-bg-primary to-bg-secondary/30">
+          <div className="flex-1 flex flex-col min-h-[320px] md:min-h-0 overflow-auto">
             {/* Zoom toolbar - fixed at top of wheel area */}
-            <div className="flex justify-end px-3 py-1.5 shrink-0">
-              <div className="flex items-center gap-1 bg-bg-secondary/80 backdrop-blur-sm rounded-full px-1 py-0.5 border border-border-subtle">
+            <div className="flex justify-end px-3 py-2 md:py-1.5 shrink-0">
+              <div className="flex items-center gap-1 bg-bg-secondary/80 backdrop-blur-sm rounded-full px-2 py-1 border border-border-subtle shadow-lg">
                 <button
                   onClick={handleZoomOut}
                   disabled={wheelZoom <= 1}
@@ -411,12 +451,12 @@ function App() {
               </div>
             </div>
             {/* Wheel container */}
-            <div className="flex-1 overflow-auto">
+            <div className="flex-1 overflow-auto px-3 pb-3 md:px-0 md:pb-0">
               <div
-                className="relative flex items-center justify-center"
+                className="relative flex items-center justify-center mx-auto"
                 style={{
-                  width: `${720 * wheelZoom}px`,
-                  height: `${720 * wheelZoom}px`,
+                  width: `${wheelBaseSize}px`,
+                  height: `${wheelBaseSize}px`,
                   minWidth: '100%',
                   minHeight: '100%'
                 }}
@@ -435,7 +475,7 @@ function App() {
             <>
               {/* Resize Handle with hide button */}
               <div
-                className={`h-6 bg-bg-secondary border-t border-border-subtle flex items-center justify-center group transition-colors ${isResizing ? 'bg-accent-primary/20' : ''}`}
+                className={`h-7 bg-bg-secondary border-t border-border-subtle flex items-center justify-center group transition-colors ${isResizing ? 'bg-accent-primary/20' : ''}`}
               >
                 <div
                   className="flex-1 h-full cursor-ns-resize flex items-center justify-center hover:bg-bg-tertiary transition-colors"
@@ -463,7 +503,7 @@ function App() {
             </>
           ) : (
             /* Collapsed timeline - just a thin bar with show button */
-            <div className="h-6 bg-bg-secondary border-t border-border-subtle flex items-center justify-center shrink-0">
+            <div className="h-7 bg-bg-secondary border-t border-border-subtle flex items-center justify-center shrink-0">
               <button
                 onClick={toggleTimeline}
                 className="px-3 h-full flex items-center gap-1 text-[9px] text-text-muted hover:text-text-primary hover:bg-bg-tertiary transition-colors"
@@ -477,8 +517,15 @@ function App() {
         </div>
 
         {/* Right: Details Panel */}
-        <ChordDetails />
+        {!isMobile && <ChordDetails variant="sidebar" />}
       </div>
+
+      {/* Mobile drawer for chord details */}
+      {isMobile && (
+        <div className="px-3 pb-3 md:hidden">
+          <ChordDetails variant="drawer" />
+        </div>
+      )}
 
       {/* Footer: Playback */}
       <div className="shrink-0 z-30 relative">

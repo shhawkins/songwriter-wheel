@@ -1,12 +1,16 @@
 import { useSongStore } from '../../store/useSongStore';
 import { PianoKeyboard } from './PianoKeyboard';
 import { getWheelColors, getChordNotes, getIntervalFromKey } from '../../utils/musicTheory';
-import { PanelRightClose, PanelRight, GripVertical, HelpCircle } from 'lucide-react';
+import { PanelRightClose, PanelRight, GripVertical, HelpCircle, ChevronUp } from 'lucide-react';
 import { playChord } from '../../utils/audioEngine';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { HelpModal } from '../HelpModal';
 
-export const ChordDetails: React.FC = () => {
+interface ChordDetailsProps {
+    variant?: 'sidebar' | 'drawer';
+}
+
+export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' }) => {
     const { selectedChord, selectedKey, chordPanelVisible, toggleChordPanel, selectedSectionId, selectedSlotId, addChordToSlot, setSelectedChord } = useSongStore();
     const colors = getWheelColors();
     const [previewVariant, setPreviewVariant] = useState<string | null>(null);
@@ -15,6 +19,47 @@ export const ChordDetails: React.FC = () => {
     const [isResizing, setIsResizing] = useState(false);
     const [showHelp, setShowHelp] = useState(false);
     const lastVariationClickTime = useRef<number>(0);
+    const isDrawer = variant === 'drawer';
+    const voicingTooltips: Record<string, string> = {
+        'maj': 'Bright, stable major triad — home base sound.',
+        '7': 'Dominant 7: bluesy tension that wants to resolve.',
+        'maj7': 'Dreamy, smooth major color — great on I or IV.',
+        'maj9': 'Airy, modern major flavor; adds sparkle without tension.',
+        'maj13': 'Lush, extended major pad; orchestral/jazz sheen.',
+        '6': 'Warm vintage major; softer than maj7 for tonic use.',
+        '13': 'Dominant with a soulful top; funky/jazz turnaround vibe.',
+        'm7': 'Soulful, laid-back minor — default jazz ii sound.',
+        'm9': 'Lush, cinematic minor color with extra depth.',
+        'm11': 'Spacious, modal minor; great for grooves and vamps.',
+        'm6': 'Bittersweet/film-noir minor; nice tonic minor option.',
+        'sus2': 'Open and airy with no third; neutral pop/ambient feel.',
+        'sus4': 'Suspended tension that likes to resolve to major.',
+        'dim': 'Tense and unstable; classic passing/leading chord.',
+        'm7b5': 'Half-diminished; dark ii chord in minor keys.',
+        'add9': 'Sparkly major with no 7th; modern pop shimmer.',
+        '9': 'Dominant 9: rich funk/jazz tension with color.',
+        '11': 'Dominant 11: suspended, modal flavor over V.',
+    };
+    const voicingOptions = [
+        'maj',
+        '7',
+        'maj7',
+        'maj9',
+        'maj13',
+        '6',
+        '13',
+        'm7',
+        'm9',
+        'm11',
+        'm6',
+        'sus2',
+        'sus4',
+        'dim',
+        'm7b5',
+        'add9',
+        '9',
+        '11',
+    ];
 
     const getAbsoluteDegree = (note: string): string => {
         if (!selectedChord?.root) return '-';
@@ -67,14 +112,15 @@ export const ChordDetails: React.FC = () => {
         return degreeMap[interval] ?? '-';
     };
 
-    // Handle resize drag
+    // Handle resize drag (sidebar only)
     const handleMouseDown = useCallback((e: React.MouseEvent) => {
+        if (isDrawer) return;
         e.preventDefault();
         setIsResizing(true);
-    }, []);
+    }, [isDrawer]);
 
     useEffect(() => {
-        if (!isResizing) return;
+        if (!isResizing || isDrawer) return;
 
         const handleMouseMove = (e: MouseEvent) => {
             const newWidth = window.innerWidth - e.clientX;
@@ -92,7 +138,7 @@ export const ChordDetails: React.FC = () => {
             document.removeEventListener('mousemove', handleMouseMove);
             document.removeEventListener('mouseup', handleMouseUp);
         };
-    }, [isResizing]);
+    }, [isResizing, isDrawer]);
 
     // Clear preview when selected chord changes
     useEffect(() => {
@@ -228,11 +274,27 @@ export const ChordDetails: React.FC = () => {
             },
         };
 
-        return suggestions[numeral || ''] || { extensions: [], description: 'Try different extensions to find your sound' };
+        return suggestions[numeral || ''] || {
+            extensions: [],
+            description: `This chord doesn't fit in the key of ${selectedKey}, but it may add color and interest to your progression.`
+        };
     };
 
-    // Collapsed state - just show a button
+    // Collapsed state - show appropriate reopen control
     if (!chordPanelVisible) {
+        if (isDrawer) {
+            return (
+                <button
+                    onClick={toggleChordPanel}
+                    className="w-full h-11 flex items-center justify-center gap-2 bg-bg-secondary border border-border-subtle rounded-xl text-[11px] font-semibold text-text-primary shadow-md"
+                    title="Show chord details"
+                >
+                    <ChevronUp size={14} />
+                    <span>Open chord details</span>
+                </button>
+            );
+        }
+
         return (
             <button
                 onClick={toggleChordPanel}
@@ -246,25 +308,32 @@ export const ChordDetails: React.FC = () => {
 
     return (
         <div
-            className="h-full flex bg-bg-secondary border-l border-border-subtle shrink-0"
-            style={{ width: panelWidth, minWidth: panelWidth }}
+            className={isDrawer
+                ? "fixed inset-x-3 bottom-[88px] max-h-[70vh] bg-bg-secondary border border-border-subtle rounded-2xl shadow-2xl overflow-hidden z-40 flex"
+                : "h-full flex bg-bg-secondary border-l border-border-subtle shrink-0"
+            }
+            style={!isDrawer ? { width: panelWidth, minWidth: panelWidth } : undefined}
         >
-            {/* Resize handle */}
-            <div
-                className={`w-2 flex items-center justify-center cursor-ew-resize hover:bg-bg-tertiary transition-colors ${isResizing ? 'bg-accent-primary/20' : ''} relative z-[60]`}
-                onMouseDown={handleMouseDown}
-            >
-                <GripVertical size={12} className="text-text-muted" />
-            </div>
+            {/* Resize handle (sidebar only) */}
+            {!isDrawer && (
+                <div
+                    className={`w-2 flex items-center justify-center cursor-ew-resize hover:bg-bg-tertiary transition-colors ${isResizing ? 'bg-accent-primary/20' : ''} relative z-[60]`}
+                    onMouseDown={handleMouseDown}
+                >
+                    <GripVertical size={12} className="text-text-muted" />
+                </div>
+            )}
 
             {/* Panel content */}
             <div className="flex-1 flex flex-col overflow-hidden min-w-0 relative">
                 {/* Header with single hide button */}
-                <div className="p-3 border-b border-border-subtle flex justify-between items-center gap-2 shrink-0">
-                    <span className="text-[10px] text-text-muted uppercase tracking-wider font-bold">
-                        {selectedChord ? selectedChord.symbol : 'Chord Details'}
+                <div className={`p-3 border-b border-border-subtle flex justify-between items-center gap-2 shrink-0 ${isDrawer ? 'bg-bg-secondary/80 backdrop-blur-md' : ''}`}>
+                    <span className="flex items-center">
+                        <span className="text-base sm:text-lg font-bold text-text-primary leading-none">
+                            {selectedChord ? selectedChord.symbol : 'Chord Details'}
+                        </span>
                         {selectedChord?.numeral && (
-                            <span className="ml-2 font-serif italic text-text-secondary">{selectedChord.numeral}</span>
+                            <span className="text-[11px] font-serif italic text-text-secondary ml-3">{selectedChord.numeral}</span>
                         )}
                     </span>
                     <div className="flex items-center gap-2">
@@ -353,30 +422,11 @@ export const ChordDetails: React.FC = () => {
                             <h3 className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-3">
                                 Variations
                             </h3>
-                            <div className="grid grid-cols-3 gap-1.5">
-                                {[
-                                    'maj',
-                                    '7',
-                                    'maj7',
-                                    'maj9',
-                                    'maj13',
-                                    '6',
-                                    '13',
-                                    'm7',
-                                    'm9',
-                                    'm11',
-                                    'm6',
-                                    'sus2',
-                                    'sus4',
-                                    'dim',
-                                    'm7b5',
-                                    'add9',
-                                    '9',
-                                    '11',
-                                ].map((ext) => (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                                {voicingOptions.map((ext) => (
                                     <button
                                         key={ext}
-                                        className={`px-2 py-1.5 rounded text-[10px] font-medium transition-colors border ${previewVariant === ext
+                                        className={`relative group px-2 py-1.5 rounded text-[10px] font-medium transition-colors border ${previewVariant === ext
                                             ? 'bg-accent-primary text-white border-accent-primary'
                                             : 'bg-bg-elevated hover:bg-bg-tertiary text-text-secondary hover:text-text-primary border-border-subtle'
                                             }`}
@@ -384,6 +434,14 @@ export const ChordDetails: React.FC = () => {
                                         onDoubleClick={() => handleVariationDoubleClick(ext)}
                                     >
                                         {ext}
+                                        {voicingTooltips[ext] && (
+                                            <span
+                                                className="pointer-events-none absolute top-1/2 -translate-y-1/2 whitespace-normal text-[10px] leading-tight bg-bg-primary text-text-primary px-3 py-2 rounded border border-border-subtle shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-150 group-hover:delay-150 z-20 w-44 text-left"
+                                                style={{ right: 'calc(100% + 8px)' }}
+                                            >
+                                                {voicingTooltips[ext]}
+                                            </span>
+                                        )}
                                     </button>
                                 ))}
                             </div>
