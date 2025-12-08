@@ -483,7 +483,7 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
                         </div>
 
                         {/* Combined Guitar / Suggested section */}
-                        <div className={`${isMobile ? 'px-5 py-4' : 'px-5 py-4'} border-b border-border-subtle bg-accent-primary/5 rounded-none`}>
+                        <div className={`${isMobile ? 'px-5 py-4' : 'px-5 py-4'} border-b border-border-subtle bg-bg-tertiary rounded-none`}>
                             <button
                                 onClick={() => isMobile && setShowGuitar(!showGuitar)}
                                 className={`w-full flex items-center justify-between ${showGuitar && isMobile ? 'mb-3' : 'mb-0'} ${isMobile ? 'cursor-pointer py-0.5' : ''} rounded-none`}
@@ -518,8 +518,8 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
                                                     <button
                                                         key={ext}
                                                         className={`relative group ${isMobile ? 'px-4 py-2.5 text-sm min-h-[44px]' : 'px-3 py-1.5 text-xs'} rounded font-semibold transition-colors touch-feedback ${previewVariant === ext
-                                                            ? 'bg-white text-accent-primary'
-                                                            : 'bg-bg-elevated hover:bg-white/10 text-text-primary border border-border-subtle'
+                                                            ? 'bg-accent-primary text-white border border-accent-primary'
+                                                            : 'bg-bg-elevated hover:bg-bg-elevated/80 text-text-primary border border-border-subtle'
                                                             }`}
                                                         onClick={() => handleVariationClick(ext)}
                                                         onDoubleClick={() => handleVariationDoubleClick(ext)}
@@ -564,7 +564,7 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
                         </div>
 
                         {/* Variations */}
-                        <div className={`${isMobile ? 'px-5 py-4 mt-2' : 'px-5 py-4'} border-b border-border-subtle rounded-none`}>
+                        <div className={`${isMobile ? 'px-5 py-4 mt-2' : 'px-5 py-4'} border-b border-border-subtle bg-bg-tertiary rounded-none`}>
                             <button
                                 onClick={() => isMobile && setShowVariations(!showVariations)}
                                 className={`w-full flex items-center justify-between ${showVariations && isMobile ? 'mb-3' : 'mb-0'} ${isMobile ? 'cursor-pointer py-0.5' : ''} rounded-none`}
@@ -591,8 +591,8 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
                                             <button
                                                 key={ext}
                                                 className={`relative group ${isMobile ? 'px-3 py-3 min-h-[48px] text-xs' : 'px-2 py-1.5 text-[10px]'} rounded font-medium transition-colors border touch-feedback ${previewVariant === ext
-                                                    ? 'bg-white text-accent-primary border-white'
-                                                    : 'bg-bg-elevated hover:bg-white/10 text-text-secondary hover:text-text-primary border-border-subtle'
+                                                    ? 'bg-accent-primary text-white border-accent-primary'
+                                                    : 'bg-bg-elevated hover:bg-bg-elevated/80 text-text-secondary hover:text-text-primary border-border-subtle'
                                                     }`}
                                                 onClick={() => handleVariationClick(ext)}
                                                 onDoubleClick={() => handleVariationDoubleClick(ext)}
@@ -625,7 +625,7 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
                         </div>
 
                         {/* Theory Note - with proper text wrapping */}
-                        <div className={`${isMobile ? 'px-5 py-4 mt-2 pb-4' : 'px-5 py-4'} rounded-none`}>
+                        <div className={`${isMobile ? 'px-5 py-4 mt-2 pb-4' : 'px-5 py-4'} bg-bg-tertiary rounded-none`}>
                             <button
                                 onClick={() => isMobile && setShowTheory(!showTheory)}
                                 className={`w-full flex items-center justify-between ${isMobile ? 'cursor-pointer py-0.5' : 'mb-0'} ${showTheory && isMobile ? 'mb-3' : 'mb-0'} rounded-none`}

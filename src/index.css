@@ -183,10 +183,23 @@ body {
   }
 }
 
+/* Reset WebKit button appearance to prevent iOS styling quirks */
+button {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
 /* Active state feedback for touch */
 button:active,
 .touch-feedback:active {
   transform: scale(0.97);
   opacity: 0.9;
   transition: transform 0.1s ease, opacity 0.1s ease;
+}
+
+/* Ensure focus/active states don't override border-radius */
+button:focus,
+button:active {
+  outline: none;
 }
