@@ -41,7 +41,7 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
     const [showVariations, setShowVariations] = useState(false); // Collapsed by default
     const [showSuggested, setShowSuggested] = useState(false); // Also collapsed by default
     const [showTheory, setShowTheory] = useState(false); // Collapsed by default
-    const [showGuitar, setShowGuitar] = useState(true); // Expanded by default since it's new/useful
+    const [showGuitar, setShowGuitar] = useState(false); // Collapsed by default to save space
 
     const voicingTooltips: Record<string, string> = {
         'maj': 'Bright, stable major triad — home base sound.',
@@ -406,21 +406,19 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
                     </div>
                 ) : (
                     <div className="flex-1 overflow-y-auto min-h-0 overscroll-contain">
-                        {/* Piano & Voicing Section - Key indicator removed, now in header */}
-                        <div className={`${isMobile ? 'px-4 pt-3 pb-2' : 'px-4 py-3'} border-b border-border-subtle`}>
-                            <div className="flex items-center justify-between mb-3">
-                                <h3 className={`${isMobile ? 'text-[11px]' : 'text-[10px]'} font-semibold text-text-muted uppercase tracking-wide`}>
-                                    Voicing {previewVariant && <span className="text-accent-primary ml-1">({previewVariant})</span>}
-                                </h3>
-                                {previewVariant && (
+                        {/* Piano & Voicing Section */}
+                        <div className={`${isMobile ? 'px-4 pt-2 pb-2' : 'px-4 py-3'} border-b border-border-subtle`}>
+                            {/* Show reset button only when previewing a variant */}
+                            {previewVariant && (
+                                <div className="flex justify-end mb-2">
                                     <button
                                         onClick={clearPreview}
                                         className={`${isMobile ? 'text-[10px] px-2 py-1' : 'text-[9px]'} text-accent-primary hover:text-accent-secondary transition-colors touch-feedback`}
                                     >
                                         ← {chord.symbol}
                                     </button>
-                                )}
-                            </div>
+                                </div>
+                            )}
                             <PianoKeyboard
                                 highlightedNotes={displayNotes}
                                 rootNote={chord.root}
@@ -478,10 +476,10 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
                         </div>
 
                         {/* Guitar Fingering */}
-                        <div className={`${isMobile ? 'px-4 py-2 mt-2' : 'px-4 py-3'} border-b border-border-subtle rounded-none`}>
+                        <div className={`${isMobile ? 'px-4 py-1' : 'px-4 py-3'} border-b border-border-subtle rounded-none`}>
                             <button
                                 onClick={() => isMobile && setShowGuitar(!showGuitar)}
-                                className={`w-full flex items-center justify-between ${showGuitar && isMobile ? 'mb-2' : 'mb-0'} ${isMobile ? 'cursor-pointer py-0.5' : ''}`}
+                                className={`w-full flex items-center justify-between ${showGuitar && isMobile ? 'mb-1' : 'mb-0'} ${isMobile ? 'cursor-pointer py-0.5' : ''}`}
                             >
                                 <h3 className={`${isMobile ? 'text-[11px]' : 'text-[10px]'} font-semibold text-text-muted uppercase tracking-wide`}>
                                     Guitar Fingering
@@ -494,7 +492,7 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
                                 )}
                             </button>
                             {(!isMobile || showGuitar) && (
-                                <div className="flex justify-center py-2">
+                                <div className="flex justify-center py-1">
                                     <GuitarChord
                                         root={chord.root}
                                         quality={previewVariant || chord.quality}

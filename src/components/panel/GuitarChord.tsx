@@ -34,21 +34,20 @@ export const GuitarChord: React.FC<GuitarChordProps> = ({
     return (
         <div className="flex flex-col items-center">
             <span
-                className={`${isMobile ? 'text-xs' : 'text-[11px]'} font-bold mb-2 text-center`}
+                className={`${isMobile ? 'text-xs' : 'text-[11px]'} font-bold mb-1 text-center`}
                 style={{
                     backgroundColor: color,
                     color: textColor,
-                    padding: '6px 14px',
-                    borderRadius: '12px',
-                    marginTop: '15px'
+                    padding: '4px 12px',
+                    borderRadius: '10px'
                 }}
             >
                 {chordName}
             </span>
             <svg
                 viewBox="0 0 100 120"
-                className={`w-full ${isMobile ? 'max-w-[140px]' : 'max-w-[120px]'}`}
-                style={{ minHeight: isMobile ? 140 : 120 }}
+                className={`w-full ${isMobile ? 'max-w-[110px]' : 'max-w-[120px]'}`}
+                style={{ minHeight: isMobile ? 110 : 120 }}
             >
                 <ChordDiagram chord={chord} color={color} />
             </svg>
