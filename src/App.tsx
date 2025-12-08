@@ -454,17 +454,6 @@ function App() {
         </div>
 
         <div className={`flex items-center ${isMobile ? 'gap-3' : 'gap-4'} shrink-0 justify-self-end`}>
-          {/* Timeline Toggle for Mobile - make it prominent */}
-          {isMobile && !isLandscape && (
-            <button
-              onClick={toggleTimeline}
-              className={`flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-lg ${timelineVisible ? 'bg-accent-primary text-white' : 'bg-bg-tertiary text-text-muted'} hover:bg-accent-primary/80 hover:text-white transition-all border border-border-subtle shadow-md active:scale-95`}
-              title={timelineVisible ? "Hide Timeline" : "Show Timeline"}
-            >
-              <GripHorizontal size={16} className="shrink-0" />
-              <span className="text-xs font-semibold uppercase tracking-wider">{timelineVisible ? 'Hide' : 'Show'}</span>
-            </button>
-          )}
 
           {/* Song Duration (Task 33) - Hide on very small screens */}
           {!isMobile && (
@@ -605,8 +594,8 @@ function App() {
             </div>
           </div>
 
-          {/* Desktop & Mobile Landscape: Timeline section */}
-          {(!isMobile || isLandscape) ? (
+          {/* Desktop: Timeline section (mobile landscape shows timeline on right side only) */}
+          {!isMobile ? (
             timelineVisible ? (
               <>
                 {/* Resize Handle with hide button */}
@@ -693,27 +682,11 @@ function App() {
           ) : null}
         </div>
 
-        {/* Right Side: Chord Details Panel (Desktop) or Timeline+Details (Mobile Landscape) */}
+        {/* Right Side: Chord Details Panel (Desktop) or Timeline (Mobile Landscape) */}
         {isMobile && isLandscape ? (
-          /* Mobile Landscape: Right side with timeline and chord details */
-          <div className="w-1/2 flex flex-col overflow-hidden border-l border-border-subtle">
-            {timelineVisible && (
-              <div className="flex-1 overflow-hidden bg-bg-secondary border-b border-border-subtle">
-                <div className="flex items-center justify-between px-3 py-2 border-b border-border-subtle bg-bg-secondary/90">
-                  <span className="text-xs font-bold text-text-primary uppercase tracking-wider">Timeline</span>
-                  <button
-                    onClick={toggleTimeline}
-                    className="text-xs px-2 py-1 text-text-muted hover:text-text-primary rounded hover:bg-bg-tertiary transition-colors"
-                  >
-                    Hide
-                  </button>
-                </div>
-                <Timeline height={150} scale={0.8} />
-              </div>
-            )}
-            <div className="flex-1 overflow-auto">
-              <ChordDetails variant="drawer" />
-            </div>
+          /* Mobile Landscape: Right side with timeline only - maximize space */
+          <div className="w-1/2 flex flex-col overflow-hidden border-l border-border-subtle bg-bg-secondary">
+            <Timeline height={300} scale={0.8} />
           </div>
         ) : !isMobile ? (
           /* Desktop: Sidebar */
@@ -721,37 +694,15 @@ function App() {
         ) : null}
       </div>
 
-      {/* Mobile Portrait: Bottom area for chord details (only when timeline is not visible) */}
-      {isMobile && !isLandscape && !timelineVisible && (
+      {/* Mobile Portrait: Bottom area for chord details (always visible in portrait) */}
+      {isMobile && !isLandscape && (
         <div className="shrink-0 px-4 pb-3 bg-bg-primary border-t border-border-subtle">
           <ChordDetails variant="drawer" />
         </div>
       )}
 
-      {/* Mobile Portrait: Timeline overlay when visible */}
-      {isMobile && !isLandscape && timelineVisible && (
-        <div className="absolute inset-x-0 bottom-0 bg-bg-secondary border-t-2 border-accent-primary shadow-2xl"
-          style={{
-            height: '45vh',
-            maxHeight: '350px',
-            zIndex: 50,
-            paddingBottom: 'env(safe-area-inset-bottom)'
-          }}>
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border-subtle bg-bg-secondary/95 backdrop-blur-sm">
-            <span className="text-sm font-bold text-text-primary uppercase tracking-wider">Timeline</span>
-            <button
-              onClick={toggleTimeline}
-              className="text-sm px-4 py-2 min-h-[44px] bg-bg-tertiary hover:bg-bg-elevated text-text-primary rounded-lg transition-colors font-semibold"
-            >
-              Hide
-            </button>
-          </div>
-          <Timeline height={200} scale={0.8} />
-        </div>
-      )}
-
-      {/* Footer: Playback - with safe area padding for iOS - hidden on mobile unless timeline is visible */}
-      {(!isMobile || timelineVisible) && (
+      {/* Footer: Playback - desktop and landscape mobile only */}
+      {(!isMobile || isLandscape) && (
         <div className="shrink-0 z-30 relative" style={{
           paddingBottom: isMobile ? 'env(safe-area-inset-bottom)' : undefined
         }}>
