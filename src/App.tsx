@@ -463,7 +463,7 @@ function App() {
             </div>
           )}
 
-          <div className={`flex items-center gap-2 ${isMobile ? 'text-xs px-2' : 'text-[10px] px-3'} text-text-muted`}>
+          <div className={`flex items-center gap-2 p-[10px] ${isMobile ? 'text-xs' : 'text-[10px]'} text-text-muted`}>
             <span className="uppercase font-bold">Key</span>
             <span className={`font-bold text-accent-primary ${isMobile ? 'text-base' : 'text-sm'}`}>{selectedKey}</span>
           </div>
@@ -701,14 +701,12 @@ function App() {
         </div>
       )}
 
-      {/* Footer: Playback - desktop and landscape mobile only */}
-      {(!isMobile || isLandscape) && (
-        <div className="shrink-0 z-30 relative" style={{
-          paddingBottom: isMobile ? 'env(safe-area-inset-bottom)' : undefined
-        }}>
-          <PlaybackControls />
-        </div>
-      )}
+      {/* Footer: Playback - always visible now for voice selection on mobile */}
+      <div className="shrink-0 z-30 relative" style={{
+        paddingBottom: isMobile ? 'env(safe-area-inset-bottom)' : undefined
+      }}>
+        <PlaybackControls />
+      </div>
     </div>
   );
 }

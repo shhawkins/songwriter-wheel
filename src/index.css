@@ -164,8 +164,8 @@ body {
 
   /* Increase minimum touch targets */
   button:not(.no-touch-enlarge) {
-    min-height: 44px;
-    padding: 0.5rem 0.75rem;
+    min-height: 30px;
+    padding: 0.5rem 0.5rem;
   }
 
   /* Better spacing for mobile */
