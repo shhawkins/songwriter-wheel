@@ -244,7 +244,6 @@ export const WheelSegment: React.FC<WheelSegmentProps> = ({
             )}
             onClick={handleMouseClick}
             onDoubleClick={handleMouseDoubleClick}
-            onDoubleClick={handleMouseDoubleClick}
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
             onTouchCancel={handleTouchCancel}
