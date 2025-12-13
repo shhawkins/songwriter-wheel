@@ -151,19 +151,21 @@ export const PlaybackControls: React.FC = () => {
 
             {/* Tempo & Info - Desktop only */}
             {!isMobile && (
-                <div className="flex items-center gap-3 text-[10px] text-text-muted">
-                    <div className="flex items-center gap-1.5">
-                        <span>Tempo</span>
+                <div className="flex items-center gap-4 text-[11px] text-text-muted">
+                    <div className="flex items-center gap-2">
+                        <span className="text-text-secondary font-medium">Tempo</span>
                         <input
                             type="number"
                             value={tempo}
                             onChange={(e) => setTempo(Number(e.target.value))}
-                            className="w-10 bg-bg-tertiary border border-border-subtle rounded px-1 py-0.5 text-center text-text-primary text-[10px]"
+                            className="w-14 bg-bg-tertiary border border-border-subtle rounded px-2 py-1 text-center text-text-primary text-[11px] font-medium"
+                            min={40}
+                            max={240}
                         />
-                        <span>BPM</span>
+                        <span className="text-text-muted">BPM</span>
                     </div>
-                    <span className="text-text-muted">•</span>
-                    <span>{currentSong.timeSignature ? `${currentSong.timeSignature[0]}/${currentSong.timeSignature[1]}` : '4/4'}</span>
+                    <span className="text-border-medium">|</span>
+                    <span className="font-medium text-text-secondary">{currentSong.timeSignature ? `${currentSong.timeSignature[0]}/${currentSong.timeSignature[1]}` : '4/4'}</span>
                 </div>
             )}
 

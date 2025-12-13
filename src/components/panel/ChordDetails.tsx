@@ -511,7 +511,7 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
                                 style={{ backgroundColor: 'transparent' }}
                             >
                                 <h3 className={`${isMobile ? 'text-[11px]' : 'text-[10px]'} font-semibold text-text-secondary uppercase tracking-wide whitespace-nowrap`}>
-                                    Guitar Chart & Suggested Voicings for {chord.numeral || chord.symbol}
+                                    Guitar & Voicings for {chord.numeral || chord.symbol}
                                 </h3>
                                 {isMobile && (
                                     <ChevronDown
