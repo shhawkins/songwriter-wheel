@@ -82,6 +82,7 @@ interface SongState {
 
     addChordToSlot: (chord: Chord, sectionId: string, slotId: string) => void;
     clearSlot: (sectionId: string, slotId: string) => void;
+    clearTimeline: () => void;
     moveChord: (fromSectionId: string, fromSlotId: string, toSectionId: string, toSlotId: string) => void;
 
     // History
@@ -974,6 +975,36 @@ export const useSongStore = create<SongState>()(
                 return {
                     ...history,
                     currentSong: { ...state.currentSong, sections: newSections }
+                };
+            }),
+
+            clearTimeline: () => set((state) => {
+                // Check if there are any chords to clear
+                const hasAnyChords = state.currentSong.sections.some(section =>
+                    section.measures.some(measure =>
+                        measure.beats.some(beat => beat.chord !== null)
+                    )
+                );
+
+                if (!hasAnyChords) return {};
+
+                const history = buildHistoryState(state);
+
+                const newSections = state.currentSong.sections.map(section => ({
+                    ...section,
+                    measures: section.measures.map(measure => ({
+                        ...measure,
+                        beats: measure.beats.map(beat => ({
+                            ...beat,
+                            chord: null
+                        }))
+                    }))
+                }));
+
+                return {
+                    ...history,
+                    currentSong: { ...state.currentSong, sections: newSections },
+                    selectedChord: null
                 };
             }),
 

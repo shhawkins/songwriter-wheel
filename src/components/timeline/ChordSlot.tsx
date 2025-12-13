@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import type { ChordSlot as IChordSlot } from '../../types';
 import clsx from 'clsx';
 import { useSongStore } from '../../store/useSongStore';
 import { getWheelColors, normalizeNote, getContrastingTextColor } from '../../utils/musicTheory';
+import { playChord } from '../../utils/audioEngine';
 
 interface ChordSlotProps {
     slot: IChordSlot;
@@ -24,6 +25,9 @@ export const ChordSlot: React.FC<ChordSlotProps> = ({ slot, sectionId, size = 48
     } = useSongStore();
     const colors = getWheelColors();
     const resolvedWidth = width ?? size;
+
+    // Track mouse movement to distinguish clicks from drags
+    const mouseStartPos = useRef<{ x: number; y: number } | null>(null);
 
     const { isOver, setNodeRef: setDroppableRef } = useDroppable({
         id: `slot-${slot.id}`,
@@ -65,6 +69,35 @@ export const ChordSlot: React.FC<ChordSlotProps> = ({ slot, sectionId, size = 48
             } else {
                 setSelectedSlot(sectionId, slot.id);
             }
+        }
+    };
+
+    // Track mouse position when starting to interact with a chord
+    const handleChordMouseDown = (e: React.MouseEvent) => {
+        mouseStartPos.current = { x: e.clientX, y: e.clientY };
+    };
+
+    // Play chord on click if no significant movement occurred (not a drag)
+    const handleChordClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+
+        if (!slot.chord) return;
+
+        // Check if mouse moved significantly (indicating a drag attempt)
+        if (mouseStartPos.current) {
+            const dx = e.clientX - mouseStartPos.current.x;
+            const dy = e.clientY - mouseStartPos.current.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            // If moved more than 5 pixels, consider it a drag, don't play
+            if (distance > 5) {
+                return;
+            }
+        }
+
+        // Play the chord
+        if (slot.chord.notes && slot.chord.notes.length > 0) {
+            playChord(slot.chord.notes);
         }
     };
 
@@ -117,6 +150,12 @@ export const ChordSlot: React.FC<ChordSlotProps> = ({ slot, sectionId, size = 48
                     ref={setDraggableRef}
                     {...listeners}
                     {...attributes}
+                    onMouseDown={(e) => {
+                        handleChordMouseDown(e);
+                        // Call dnd-kit's mousedown handler if present
+                        listeners?.onMouseDown?.(e as any);
+                    }}
+                    onClick={handleChordClick}
                     style={{
                         ...style,
                         backgroundColor: chordColor,

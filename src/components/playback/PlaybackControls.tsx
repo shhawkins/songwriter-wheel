@@ -164,8 +164,7 @@ export const PlaybackControls: React.FC = () => {
                         />
                         <span className="text-text-muted">BPM</span>
                     </div>
-                    <span className="text-border-medium">|</span>
-                    <span className="font-medium text-text-secondary">{currentSong.timeSignature ? `${currentSong.timeSignature[0]}/${currentSong.timeSignature[1]}` : '4/4'}</span>
+
                 </div>
             )}
 

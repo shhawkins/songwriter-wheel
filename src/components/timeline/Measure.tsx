@@ -24,8 +24,27 @@ export const Measure: React.FC<MeasureProps> = ({ measure, sectionId, index, cho
     const stepCount = measure.beats.length;
     const baseUnitWidth = chordSize * 0.9;
     const beatUnitWidth = Math.max(8, baseUnitWidth * horizontalScale);
-    const isTripleBased = totalBeats % 3 === 0; // e.g., 3/4, 6/8
-    const stepsOptions = isTripleBased ? [1, 3, 6] : [2, 4, 8];
+    // Calculate logical step options based on time signature numerator
+    // Offers: 1 chord per measure, 1 per beat (quarter), 1 per eighth, optionally 1 per sixteenth
+    const [numerator] = timeSignature;
+    const getStepsOptions = (num: number): number[] => {
+        // Always include: 1 (single chord for whole measure), natural beat count, and subdivisions
+        const options: number[] = [1, num];
+
+        // Add eighths (2x the beat count)
+        if (num * 2 <= 16) {
+            options.push(num * 2);
+        }
+
+        // For common meters, add sixteenths if reasonable
+        if (num * 4 <= 16) {
+            options.push(num * 4);
+        }
+
+        // Remove duplicates and sort
+        return [...new Set(options)].sort((a, b) => a - b);
+    };
+    const stepsOptions = getStepsOptions(numerator);
 
     const handleStepsChange = (value: number) => {
         if (!Number.isFinite(value)) return;

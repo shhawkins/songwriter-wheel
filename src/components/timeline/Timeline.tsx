@@ -22,6 +22,7 @@ import { useSongStore } from '../../store/useSongStore';
 import { Section } from './Section';
 import { Playhead } from './Playhead';
 import { Plus } from 'lucide-react';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
 import type { Chord } from '../../utils/musicTheory';
 
 const CopyMonitor: React.FC<{ onAltChange: (isAlt: boolean) => void }> = ({ onAltChange }) => {
@@ -62,6 +63,20 @@ export const Timeline: React.FC<TimelineProps> = ({ height = 180, scale = 1 }) =
     const [activeId, setActiveId] = React.useState<string | null>(null);
     const [activeDragData, setActiveDragData] = React.useState<any>(null);
     const [copyModifier, setCopyModifier] = React.useState(false);
+
+    const [confirmDialog, setConfirmDialog] = React.useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+        confirmLabel?: string;
+        isDestructive?: boolean;
+    }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: () => { },
+    });
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -210,7 +225,13 @@ export const Timeline: React.FC<TimelineProps> = ({ height = 180, scale = 1 }) =
                             strategy={horizontalListSortingStrategy}
                         >
                             {currentSong.sections.map((section) => (
-                                <Section key={section.id} section={section} chordSize={chordSize} scale={horizontalScale} />
+                                <Section
+                                    key={section.id}
+                                    section={section}
+                                    chordSize={chordSize}
+                                    scale={horizontalScale}
+                                    onRequestConfirm={(options) => setConfirmDialog({ ...options, isOpen: true })}
+                                />
                             ))}
 
                             {/* Add Section Button - matches section height */}
@@ -252,6 +273,16 @@ export const Timeline: React.FC<TimelineProps> = ({ height = 180, scale = 1 }) =
                     </DndContext>
                 </div>
             </div>
+
+            <ConfirmDialog
+                isOpen={confirmDialog.isOpen}
+                onClose={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+                onConfirm={confirmDialog.onConfirm}
+                title={confirmDialog.title}
+                message={confirmDialog.message}
+                confirmLabel={confirmDialog.confirmLabel}
+                isDestructive={confirmDialog.isDestructive}
+            />
         </div>
     );
 };

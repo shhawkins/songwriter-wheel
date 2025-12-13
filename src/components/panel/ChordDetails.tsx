@@ -575,11 +575,11 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
                                 </div>
                             )}
                             {/* Inversion controls + Staff in horizontal layout */}
-                            <div className="flex items-center mt-1 gap-2">
-                                {/* Left: Inversion controls (compact) */}
+                            <div className="flex items-center mt-1 gap-1">
+                                {/* Left: Inversion controls (ultra-compact) */}
                                 <div className="flex flex-col items-center shrink-0">
-                                    <span className="text-[8px] font-semibold uppercase tracking-wide text-text-muted mb-0.5">Inversion</span>
-                                    <div className="flex items-center gap-0.5 bg-bg-tertiary/50 rounded px-1 py-0.5" title="Chord inversion - which note is in the bass">
+                                    <span className="text-[7px] font-semibold uppercase tracking-wide text-text-muted mb-0">Inv</span>
+                                    <div className="flex items-center gap-0 bg-bg-tertiary/50 rounded" title="Chord inversion - which note is in the bass">
                                         <button
                                             onClick={() => {
                                                 const newInversion = Math.max(0, chordInversion - 1);
@@ -588,12 +588,12 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
                                                 playChord(notes);
                                             }}
                                             disabled={chordInversion <= 0}
-                                            className={`${isMobile ? 'w-6 h-6' : 'w-5 h-5'} flex items-center justify-center hover:bg-accent-primary/20 rounded text-text-muted hover:text-accent-primary transition-colors touch-feedback disabled:opacity-40 disabled:cursor-not-allowed`}
+                                            className={`${isMobile ? 'w-5 h-5' : 'w-4 h-4'} flex items-center justify-center hover:bg-accent-primary/20 rounded text-text-muted hover:text-accent-primary transition-colors touch-feedback disabled:opacity-40 disabled:cursor-not-allowed`}
                                             title="Previous inversion"
                                         >
-                                            <ChevronLeft size={isMobile ? 12 : 10} />
+                                            <ChevronLeft size={isMobile ? 10 : 8} />
                                         </button>
-                                        <span className={`${isMobile ? 'text-[10px]' : 'text-[9px]'} font-semibold text-text-secondary min-w-[28px] text-center`}>
+                                        <span className={`${isMobile ? 'text-[9px]' : 'text-[8px]'} font-semibold text-text-secondary min-w-[20px] text-center`}>
                                             {getInversionName(chordInversion)}
                                         </span>
                                         <button
@@ -604,14 +604,14 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
                                                 playChord(notes);
                                             }}
                                             disabled={chordInversion >= maxInversion}
-                                            className={`${isMobile ? 'w-6 h-6' : 'w-5 h-5'} flex items-center justify-center hover:bg-accent-primary/20 rounded text-text-muted hover:text-accent-primary transition-colors touch-feedback disabled:opacity-40 disabled:cursor-not-allowed`}
+                                            className={`${isMobile ? 'w-5 h-5' : 'w-4 h-4'} flex items-center justify-center hover:bg-accent-primary/20 rounded text-text-muted hover:text-accent-primary transition-colors touch-feedback disabled:opacity-40 disabled:cursor-not-allowed`}
                                             title="Next inversion"
                                         >
-                                            <ChevronRight size={isMobile ? 12 : 10} />
+                                            <ChevronRight size={isMobile ? 10 : 8} />
                                         </button>
                                     </div>
                                 </div>
-                                {/* Right: Musical Staff (takes ~80% width) */}
+                                {/* Right: Musical Staff (takes maximum width) */}
                                 <div className="flex-1">
                                     <MusicStaff
                                         notes={displayNotes}

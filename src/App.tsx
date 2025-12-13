@@ -4,7 +4,8 @@ import { Timeline } from './components/timeline/Timeline';
 import { ChordDetails } from './components/panel/ChordDetails';
 import { PlaybackControls } from './components/playback/PlaybackControls';
 import { useSongStore } from './store/useSongStore';
-import { Download, Save, Music, GripHorizontal, ChevronDown, ChevronUp, Plus, Minus, Clock, FolderOpen, FilePlus, Trash2, RotateCcw, RotateCw } from 'lucide-react';
+import { Download, Save, GripHorizontal, ChevronDown, ChevronUp, Plus, Minus, Clock, FolderOpen, FilePlus, Trash2, RotateCcw, RotateCw } from 'lucide-react';
+import { Logo } from './components/Logo';
 import * as Tone from 'tone';
 import jsPDF from 'jspdf';
 import { saveSong, getSavedSongs, deleteSong } from './utils/storage';
@@ -15,10 +16,11 @@ import { setInstrument, setVolume, setMute, initAudio } from './utils/audioEngin
 // Enable Web Audio even with iOS mute switch on
 // This must be called early in the page lifecycle
 import unmuteAudio from 'unmute-ios-audio';
+import { ConfirmDialog } from './components/ui/ConfirmDialog';
 unmuteAudio();
 
 function App() {
-  const { currentSong, selectedKey, timelineVisible, toggleTimeline, selectedSectionId, selectedSlotId, clearSlot, setTitle, loadSong: loadSongToStore, newSong, instrument, volume, isMuted, undo, redo, canUndo, canRedo } = useSongStore();
+  const { currentSong, selectedKey, timelineVisible, toggleTimeline, selectedSectionId, selectedSlotId, clearSlot, clearTimeline, setTitle, loadSong: loadSongToStore, newSong, instrument, volume, isMuted, undo, redo, canUndo, canRedo } = useSongStore();
 
   // Audio Sync Logic
   useEffect(() => {
@@ -48,7 +50,7 @@ function App() {
   const [isLandscape, setIsLandscape] = useState(() => typeof window !== 'undefined' ? window.innerHeight < window.innerWidth && window.innerWidth < 1024 : false);
   const autoCollapsedPanelRef = useRef(false);
   const hasInitializedMobile = useRef(false);
-  const hasAppliedMobileBoost = useRef(false);
+
 
   useEffect(() => {
     const updateLayout = () => {
@@ -87,6 +89,8 @@ function App() {
           setWheelBaseSize(Math.max(260, boosted));
         }
 
+        // Auto-boost logic removed to ensure 100% zoom on load
+        /*
         // Apply an initial zoom bump so boost is visible (without overriding user changes later)
         if (!hasAppliedMobileBoost.current && wheelZoom === 1) {
           const zoomBoost = Math.min(boost, 2.5);
@@ -94,13 +98,15 @@ function App() {
           setWheelZoomOrigin(zoomBoost > 1.3 ? 45 : 50);
           hasAppliedMobileBoost.current = true;
         }
+        */
       } else {
         // Desktop sizing
         const padding = 120;
         const headerHeight = 48;
         const footerHeight = 56;
         const timelineReserve = 140;
-        const availableHeight = Math.max(360, height - headerHeight - footerHeight - timelineReserve);
+        const zoomControlsHeight = 50; // Space for the zoom toolbar
+        const availableHeight = Math.max(360, height - headerHeight - footerHeight - timelineReserve - zoomControlsHeight);
 
         const computedSize = Math.min(
           720,
@@ -151,7 +157,7 @@ function App() {
   }, [wheelZoom]);
 
   const handleZoomOut = useCallback(() => {
-    const newScale = Math.max(1, wheelZoom - 0.3);
+    const newScale = Math.max(0.2, wheelZoom - 0.15);
     setWheelZoom(newScale);
     setWheelZoomOrigin(newScale > 1.3 ? 38 : 50);
   }, [wheelZoom]);
@@ -304,19 +310,48 @@ function App() {
     setShowSaveMenu(false);
   };
 
+  // Confirmation Dialog State
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    confirmLabel?: string;
+    isDestructive?: boolean;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => { },
+  });
+
   const handleNew = () => {
-    if (confirm('Start a new song? Unsaved changes will be lost.')) {
-      newSong();
-      setShowSaveMenu(false);
-    }
+    setConfirmDialog({
+      isOpen: true,
+      title: 'New Song',
+      message: 'Start a new song? Unsaved changes will be lost.',
+      confirmLabel: 'Start New',
+      isDestructive: true,
+      onConfirm: () => {
+        newSong();
+        setShowSaveMenu(false);
+      }
+    });
   };
 
   const handleDelete = (songId: string, songTitle: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm(`Delete "${songTitle}"?`)) {
-      deleteSong(songId);
-      setSavedSongs(getSavedSongs());
-    }
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Song',
+      message: `Are you sure you want to delete "${songTitle}"? This cannot be undone.`,
+      confirmLabel: 'Delete',
+      isDestructive: true,
+      onConfirm: () => {
+        deleteSong(songId);
+        setSavedSongs(getSavedSongs());
+      }
+    });
   };
 
   const handleTitleKeyDown = (e: React.KeyboardEvent) => {
@@ -486,9 +521,23 @@ function App() {
       });
     }
 
-    // Save PDF using jsPDF's native save method
+    // Generate PDF blob
+    const pdfBlob = doc.output('blob');
     const fileName = `${currentSong.title.replace(/\s+/g, '-').toLowerCase()}.pdf`;
-    doc.save(fileName);
+
+    // Create download link
+    const url = URL.createObjectURL(pdfBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+
+    // Append to body and click (required for some browsers)
+    document.body.appendChild(link);
+    link.click();
+
+    // Cleanup
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   // Helper function to draw a chord diagram using jsPDF primitives (black & white, compact)
@@ -547,7 +596,7 @@ function App() {
       const barreY = startY + (barreFret - 0.5) * fretSpacing;
 
       // Draw barre as thick line
-      doc.setLineWidth(dotRadius * 2);
+      doc.setLineWidth(dotRadius * 1.4);
       doc.line(stringPositions[minIdx], barreY, stringPositions[maxIdx], barreY);
       doc.setLineWidth(0.2);
     });
@@ -594,11 +643,9 @@ function App() {
       <header className={`${isMobile ? 'h-14' : 'h-12'} border-b border-border-subtle grid grid-cols-[1fr_auto_1fr] items-center ${isMobile ? 'px-4' : 'px-3'} bg-bg-secondary shrink-0 z-20 sticky top-0`}>
         <div className="flex items-center gap-2 shrink-0">
           <div className="flex items-center gap-2">
-            <div className={`${isMobile ? 'w-8 h-8' : 'w-6 h-6'} rounded bg-gradient-to-br from-accent-primary to-purple-600 flex items-center justify-center shadow-lg relative`}>
-              <Music size={isMobile ? 16 : 12} className="text-white" />
-              {audioReady && (
-                <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full" title="Audio Ready" />
-              )}
+            <div className="relative">
+              <Logo size={isMobile ? 32 : 24} />
+
             </div>
             <span className={`font-bold ${isMobile ? 'text-xs' : 'text-sm'} tracking-tight hidden sm:block text-text-muted`}>Songwriter's Wheel</span>
           </div>
@@ -731,7 +778,7 @@ function App() {
                 <div className={`flex items-center ${isMobile ? 'gap-2' : 'gap-1'} bg-bg-secondary/80 backdrop-blur-sm rounded-full ${isMobile ? 'px-3 py-2' : 'px-2 py-1'} border border-border-subtle shadow-lg`}>
                   <button
                     onClick={handleZoomOut}
-                    disabled={wheelZoom <= 1}
+                    disabled={wheelZoom <= 0.2}
                     className={`${isMobile ? 'w-11 h-11' : 'w-6 h-6'} flex items-center justify-center hover:bg-bg-tertiary disabled:opacity-30 disabled:cursor-not-allowed rounded-full text-text-muted hover:text-text-primary transition-colors touch-feedback active:scale-95`}
                     title="Zoom out"
                   >
@@ -750,7 +797,7 @@ function App() {
               </div>
             ) : null}
             {/* Wheel container */}
-            <div className={`flex-1 flex items-center justify-center ${isMobile && !isLandscape ? 'overflow-hidden' : 'overflow-auto'} ${isMobile && !isLandscape ? 'px-2 py-0' : 'px-3 pb-3'}`}>
+            <div className={`flex-1 flex items-center justify-center overflow-hidden ${isMobile && !isLandscape ? 'px-2 py-0' : 'px-3 pb-3'}`}>
               <div
                 className="relative flex items-center justify-center"
                 style={{
@@ -830,14 +877,33 @@ function App() {
                         </button>
                       </div>
                     </div>
-                    <button
-                      onClick={toggleTimeline}
-                      className={`${isMobile ? 'text-xs min-h-[44px] px-3' : 'text-[10px] px-2 py-1'} text-text-muted hover:text-text-primary rounded hover:bg-bg-tertiary transition-colors flex items-center gap-1 touch-feedback`}
-                      title="Hide timeline"
-                    >
-                      <ChevronDown size={isMobile ? 14 : 12} />
-                      <span className="uppercase tracking-wider font-bold">Hide</span>
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => {
+                          setConfirmDialog({
+                            isOpen: true,
+                            title: 'Clear Timeline',
+                            message: 'Are you sure you want to clear all chords from the timeline? This action cannot be undone.',
+                            confirmLabel: 'Clear',
+                            isDestructive: true,
+                            onConfirm: clearTimeline
+                          });
+                        }}
+                        className={`${isMobile ? 'text-xs min-h-[44px] px-3' : 'text-[10px] px-2 py-1'} text-text-muted hover:text-red-400 rounded hover:bg-red-400/10 transition-colors flex items-center gap-1 touch-feedback`}
+                        title="Clear all chords from timeline"
+                      >
+                        <Trash2 size={isMobile ? 14 : 12} />
+                        <span className="uppercase tracking-wider font-bold">Clear</span>
+                      </button>
+                      <button
+                        onClick={toggleTimeline}
+                        className={`${isMobile ? 'text-xs min-h-[44px] px-3' : 'text-[10px] px-2 py-1'} text-text-muted hover:text-text-primary rounded hover:bg-bg-tertiary transition-colors flex items-center gap-1 touch-feedback`}
+                        title="Hide timeline"
+                      >
+                        <ChevronDown size={isMobile ? 14 : 12} />
+                        <span className="uppercase tracking-wider font-bold">Hide</span>
+                      </button>
+                    </div>
                   </div>
                   <Timeline height={timelineContentHeight} scale={timelineScale} />
                 </div>
@@ -883,6 +949,16 @@ function App() {
       }}>
         <PlaybackControls />
       </div>
+      {/* Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmLabel={confirmDialog.confirmLabel}
+        isDestructive={confirmDialog.isDestructive}
+      />
     </div>
   );
 }

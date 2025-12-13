@@ -11,9 +11,10 @@ interface SectionProps {
     section: ISection;
     chordSize?: number;
     scale?: number;
+    onRequestConfirm: (options: { title: string; message: string; onConfirm: () => void; isDestructive?: boolean; confirmLabel?: string }) => void;
 }
 
-export const Section: React.FC<SectionProps> = ({ section, chordSize = 48, scale = 1 }) => {
+export const Section: React.FC<SectionProps> = ({ section, chordSize = 48, scale = 1, onRequestConfirm }) => {
     const {
         removeSection,
         duplicateSection,
@@ -26,12 +27,12 @@ export const Section: React.FC<SectionProps> = ({ section, chordSize = 48, scale
         collapsedSections,
         toggleSectionCollapsed
     } = useSongStore();
-    
+
     // Editable section name state (Task 24)
     const [isEditingName, setIsEditingName] = useState(false);
     const [nameInput, setNameInput] = useState(section.name);
     const inputRef = useRef<HTMLInputElement>(null);
-    
+
     // Focus input when editing starts
     useEffect(() => {
         if (isEditingName && inputRef.current) {
@@ -39,13 +40,13 @@ export const Section: React.FC<SectionProps> = ({ section, chordSize = 48, scale
             inputRef.current.select();
         }
     }, [isEditingName]);
-    
+
     const handleNameDoubleClick = (e: React.MouseEvent) => {
         e.stopPropagation();
         setNameInput(section.name);
         setIsEditingName(true);
     };
-    
+
     const handleNameSave = () => {
         const trimmedName = nameInput.trim();
         if (trimmedName && trimmedName !== section.name) {
@@ -53,7 +54,7 @@ export const Section: React.FC<SectionProps> = ({ section, chordSize = 48, scale
         }
         setIsEditingName(false);
     };
-    
+
     const handleNameKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter') {
             handleNameSave();
@@ -79,9 +80,13 @@ export const Section: React.FC<SectionProps> = ({ section, chordSize = 48, scale
 
     const handleRemove = (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (confirm(`Delete section "${section.name}"?`)) {
-            removeSection(section.id);
-        }
+        onRequestConfirm({
+            title: 'Delete Section',
+            message: `Delete section "${section.name}"?`,
+            confirmLabel: 'Delete',
+            isDestructive: true,
+            onConfirm: () => removeSection(section.id)
+        });
     };
 
     const handleSelect = () => {
@@ -107,8 +112,14 @@ export const Section: React.FC<SectionProps> = ({ section, chordSize = 48, scale
         );
 
         if (hasChords) {
-            const proceed = confirm('Changing the time signature will clear chords in this section. Continue?');
-            if (!proceed) return;
+            onRequestConfirm({
+                title: 'Change Time Signature',
+                message: 'Changing the time signature will clear chords in this section. Continue?',
+                confirmLabel: 'Change',
+                isDestructive: true,
+                onConfirm: () => setSectionTimeSignature(section.id, [top, bottom])
+            });
+            return;
         }
 
         setSectionTimeSignature(section.id, [top, bottom]);
@@ -118,6 +129,7 @@ export const Section: React.FC<SectionProps> = ({ section, chordSize = 48, scale
     const timeSignatureOptions: Array<[number, number]> = [
         [4, 4],
         [3, 4],
+        [5, 4],
         [2, 4],
         [6, 8],
     ];
@@ -140,7 +152,7 @@ export const Section: React.FC<SectionProps> = ({ section, chordSize = 48, scale
                     compactHeader ? "px-1.5 py-1 gap-1.5" : "flex-wrap gap-3 px-2 py-1.5"
                 )}
             >
-                <div className={clsx("flex items-center min-w-0", compactHeader ? "gap-1" : "gap-1.5")}>
+                <div className={clsx("flex items-center min-w-0", compactHeader ? "gap-0.5" : "gap-1.5")}>
                     <div
                         {...attributes}
                         {...listeners}
@@ -150,75 +162,86 @@ export const Section: React.FC<SectionProps> = ({ section, chordSize = 48, scale
                         <GripVertical size={compactHeader ? 10 : 12} />
                     </div>
 
-                    {!compactHeader && (
-                        <>
-                            {/* Editable section name (Task 24) - removed redundant type tag */}
-                            {isEditingName ? (
-                                <input
-                                    ref={inputRef}
-                                    type="text"
-                                    value={nameInput}
-                                    onChange={(e) => setNameInput(e.target.value)}
-                                    onBlur={handleNameSave}
-                                    onKeyDown={handleNameKeyDown}
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="font-medium text-xs text-text-primary bg-bg-tertiary border border-border-medium rounded px-1.5 py-0.5 w-24 focus:outline-none focus:border-accent-primary"
-                                    maxLength={30}
-                                />
-                            ) : (
-                                <span 
-                                    className="font-medium text-xs text-text-primary cursor-pointer hover:text-accent-primary transition-colors truncate max-w-[120px]"
-                                    onDoubleClick={handleNameDoubleClick}
-                                    title="Double-click to rename"
-                                >
-                                    {section.name}
-                                </span>
+                    {/* Editable section name - visible in all views */}
+                    {isEditingName ? (
+                        <input
+                            ref={inputRef}
+                            type="text"
+                            value={nameInput}
+                            onChange={(e) => setNameInput(e.target.value)}
+                            onBlur={handleNameSave}
+                            onKeyDown={handleNameKeyDown}
+                            onClick={(e) => e.stopPropagation()}
+                            className={clsx(
+                                "font-medium text-text-primary bg-bg-tertiary border border-border-medium rounded focus:outline-none focus:border-accent-primary",
+                                compactHeader ? "text-[8px] px-1 py-0 w-16" : "text-xs px-1.5 py-0.5 w-24"
                             )}
-                        </>
+                            maxLength={30}
+                        />
+                    ) : (
+                        <span
+                            className={clsx(
+                                "font-medium text-text-primary cursor-pointer hover:text-accent-primary transition-colors truncate",
+                                compactHeader ? "text-[8px] max-w-[60px]" : "text-xs max-w-[120px]"
+                            )}
+                            onDoubleClick={handleNameDoubleClick}
+                            title="Double-click to rename"
+                        >
+                            {section.name}
+                        </span>
                     )}
                 </div>
 
-                {!compactHeader && (
-                    <div className="flex items-center gap-2">
-                        <div
-                            className="flex items-center gap-1 text-[10px] text-text-muted bg-bg-tertiary/70 border border-border-subtle rounded px-1.5 py-0.5"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <span className="uppercase font-semibold tracking-wider text-[8px]">Bars</span>
-                            <input
-                                type="number"
-                                min={1}
-                                max={32}
-                                value={measureCount}
-                                onChange={(e) => handleMeasureCountChange(parseInt(e.target.value, 10))}
-                                className="w-12 bg-transparent text-text-primary text-xs focus:outline-none"
-                            />
-                        </div>
-
-                        <div
-                            className="flex items-center gap-1 text-[10px] text-text-muted bg-bg-tertiary/70 border border-border-subtle rounded px-1.5 py-0.5"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <span className="uppercase font-semibold tracking-wider text-[8px]">Meter</span>
-                            <select
-                                value={signatureValue}
-                                onChange={(e) => handleTimeSignatureChange(e.target.value)}
-                                className="bg-transparent text-text-primary text-xs focus:outline-none"
-                            >
-                                {timeSignatureOptions.map(([top, bottom]) => (
-                                    <option key={`${top}/${bottom}`} value={`${top}/${bottom}`} className="bg-bg-secondary text-text-primary">
-                                        {top}/{bottom}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
+                {/* Bars and Meter - visible in all views with compact styling */}
+                <div className={clsx("flex items-center", compactHeader ? "gap-1" : "gap-2")}>
+                    <div
+                        className={clsx(
+                            "flex items-center text-text-muted bg-bg-tertiary/70 border border-border-subtle rounded",
+                            compactHeader ? "gap-0 text-[8px] px-0.5 py-0" : "gap-0.5 text-[10px] px-1 py-0.5"
+                        )}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {!compactHeader && <span className="uppercase font-semibold tracking-wider text-[8px]">Bars</span>}
+                        <input
+                            type="number"
+                            min={1}
+                            max={32}
+                            value={measureCount}
+                            onChange={(e) => handleMeasureCountChange(parseInt(e.target.value, 10))}
+                            className={clsx(
+                                "bg-transparent text-text-primary focus:outline-none text-center",
+                                compactHeader ? "w-5 text-[8px]" : "w-8 text-xs"
+                            )}
+                        />
                     </div>
-                )}
 
-                <div className={clsx(
-                    "flex items-center gap-1",
-                    compactHeader ? "" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity"
-                )}>
+                    <div
+                        className={clsx(
+                            "flex items-center text-text-muted bg-bg-tertiary/70 border border-border-subtle rounded",
+                            compactHeader ? "gap-0 text-[8px] px-0.5 py-0" : "gap-1 text-[10px] px-1.5 py-0.5"
+                        )}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {!compactHeader && <span className="uppercase font-semibold tracking-wider text-[8px]">Meter</span>}
+                        <select
+                            value={signatureValue}
+                            onChange={(e) => handleTimeSignatureChange(e.target.value)}
+                            className={clsx(
+                                "bg-transparent text-text-primary focus:outline-none",
+                                compactHeader ? "text-[8px]" : "text-xs"
+                            )}
+                        >
+                            {timeSignatureOptions.map(([top, bottom]) => (
+                                <option key={`${top}/${bottom}`} value={`${top}/${bottom}`} className="bg-bg-secondary text-text-primary">
+                                    {top}/{bottom}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+
+                {/* Icons - always visible in all views */}
+                <div className="flex items-center gap-1">
                     <button
                         onClick={(e) => {
                             e.stopPropagation();
