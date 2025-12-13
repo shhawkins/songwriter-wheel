@@ -29,7 +29,7 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
     const colors = getWheelColors();
     const [previewVariant, setPreviewVariant] = useState<string | null>(null);
     const [previewNotes, setPreviewNotes] = useState<string[]>([]);
-    const [panelWidth, setPanelWidth] = useState(280);
+    const [panelWidth, setPanelWidth] = useState(320);
     const [isResizing, setIsResizing] = useState(false);
     const [showHelp, setShowHelp] = useState(false);
     const lastVariationClickTime = useRef<number>(0);
@@ -153,7 +153,7 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
 
         const handleMouseMove = (e: MouseEvent) => {
             const newWidth = window.innerWidth - e.clientX;
-            setPanelWidth(Math.max(288, Math.min(400, newWidth)));
+            setPanelWidth(Math.max(320, Math.min(450, newWidth)));
         };
 
         const handleMouseUp = () => {
@@ -369,20 +369,15 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
             <div className="flex-1 flex flex-col overflow-hidden min-w-0 relative">
                 {/* Consolidated Header - chord name, key, help, and hide button all in one row */}
                 <div className={`${isMobile && isDrawer ? 'px-5 py-3' : 'px-4 py-3'} border-b border-border-subtle flex justify-between items-center gap-4 shrink-0 ${isDrawer ? 'bg-bg-secondary/80 backdrop-blur-md' : ''}`}>
-                    <div className="flex items-center overflow-hidden flex-1 min-w-0" style={{ gap: '16px' }}>
-                        <span className="flex items-center shrink-0" style={{ gap: '12px' }}>
+                    <div className="flex items-center overflow-hidden flex-1 min-w-0" style={{ gap: '12px' }}>
+                        <span className="flex items-center shrink-0" style={{ gap: '8px' }}>
                             <span className={`${isMobile ? 'text-lg' : 'text-base sm:text-lg'} font-bold text-text-primary leading-none`}>
-                                {chord ? `${chord.root}${(previewVariant || chord.quality) === 'maj' ? '' : (previewVariant || chord.quality)}` : 'Chord Details'}
+                                {chord ? `${chord.root}${(previewVariant || chord.quality) === 'maj' ? '' : ' ' + (previewVariant || chord.quality)}` : 'Chord Details'}
                             </span>
                             {chord?.numeral && (
-                                <span className={`${isMobile ? 'text-xs' : 'text-[11px]'} font-serif italic text-text-secondary shrink-0`} style={{ marginLeft: '4px' }}>{chord.numeral}</span>
+                                <span className={`${isMobile ? 'text-sm' : 'text-xs'} font-serif italic text-text-muted shrink-0`}>{chord.numeral}</span>
                             )}
                         </span>
-                        {chord && (
-                            <span className={`${isMobile ? 'text-xs' : 'text-[10px]'} text-text-muted whitespace-nowrap`}>
-                                Key: <span className="font-semibold text-text-primary">{selectedKey}</span>
-                            </span>
-                        )}
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
                         {/* Inversion controls */}
@@ -468,36 +463,36 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
                                     }}
                                 >
                                     {/* Notes row - fixed height to prevent layout shift */}
-                                    <div className="text-[10px] font-semibold uppercase tracking-wide text-text-muted flex items-center" style={{ height: '28px' }}>Notes</div>
+                                    <div className="text-[10px] font-semibold uppercase tracking-wide text-text-muted flex items-center" style={{ height: '16px' }}>Notes</div>
                                     {displayNotes.map((note, i) => (
                                         <div
                                             key={`note-${i}`}
                                             className={`text-center ${isMobile ? 'text-xs' : 'text-sm'} font-bold text-text-primary flex items-center justify-center`}
-                                            style={{ height: '28px' }}
+                                            style={{ height: '16px' }}
                                         >
                                             {note}
                                         </div>
                                     ))}
 
                                     {/* Absolute row - fixed height to prevent layout shift */}
-                                    <div className="text-[10px] font-semibold uppercase tracking-wide text-text-muted flex items-center" style={{ height: '28px' }}>Absolute</div>
+                                    <div className="text-[10px] font-semibold uppercase tracking-wide text-text-muted flex items-center" style={{ height: '16px' }}>Absolute</div>
                                     {displayNotes.map((note, i) => (
                                         <div
                                             key={`abs-${i}`}
                                             className={`text-center ${isMobile ? 'text-[11px]' : 'text-xs'} text-text-primary font-semibold flex items-center justify-center`}
-                                            style={{ height: '28px' }}
+                                            style={{ height: '16px' }}
                                         >
                                             {getAbsoluteDegree(note)}
                                         </div>
                                     ))}
 
                                     {/* Relative to Key row - fixed height to prevent layout shift */}
-                                    <div className="text-[10px] font-semibold uppercase tracking-wide text-text-muted flex items-center" style={{ height: '28px' }}>Relative</div>
+                                    <div className="text-[10px] font-semibold uppercase tracking-wide text-text-muted flex items-center" style={{ height: '16px' }}>Relative</div>
                                     {displayNotes.map((note, i) => (
                                         <div
                                             key={`rel-${i}`}
                                             className={`text-center ${isMobile ? 'text-[11px]' : 'text-xs'} text-text-secondary flex items-center justify-center`}
-                                            style={{ height: '28px' }}
+                                            style={{ height: '16px' }}
                                         >
                                             {getIntervalFromKey(selectedKey, note).replace(/^1/, 'R')}
                                         </div>
@@ -507,14 +502,14 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
                         </div>
 
                         {/* Combined Guitar / Suggested section */}
-                        <div className={`${isMobile ? 'px-5 py-3' : 'px-5 py-4'} rounded-none`} style={{ backgroundColor: '#1e1e28', borderBottom: '1px solid #3a3a4a' }}>
+                        <div className={`${isMobile ? 'px-5 py-2' : 'px-5 py-2'} rounded-none`} style={{ backgroundColor: '#1e1e28', borderBottom: '1px solid #3a3a4a' }}>
                             <button
                                 onClick={() => isMobile && setShowGuitar(!showGuitar)}
-                                className={`w-full flex items-center justify-between ${showGuitar && isMobile ? 'mb-3' : 'mb-0'} ${isMobile ? 'cursor-pointer' : ''} rounded-none`}
+                                className={`w-full flex items-center justify-between ${showGuitar && isMobile ? 'mb-2' : 'mb-0'} ${isMobile ? 'cursor-pointer' : ''} rounded-none`}
                                 style={{ backgroundColor: 'transparent' }}
                             >
                                 <h3 className={`${isMobile ? 'text-[11px]' : 'text-[10px]'} font-semibold text-text-secondary uppercase tracking-wide whitespace-nowrap`}>
-                                    Guitar & Voicings for {chord.numeral || chord.symbol}
+                                    Guitar & Suggested Voicings for {chord.numeral || chord.symbol}
                                 </h3>
                                 {isMobile && (
                                     <ChevronDown
@@ -524,9 +519,9 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
                                 )}
                             </button>
                             {(!isMobile || showGuitar) && (
-                                <div className="flex flex-row gap-4" style={{ marginTop: '16px', paddingTop: '8px' }}>
-                                    {/* Left: Guitar (1/3 width) */}
-                                    <div className="w-1/3 min-w-[130px] flex justify-center items-start shrink-0">
+                                <div className="flex flex-row gap-2" style={{ marginTop: '8px' }}>
+                                    {/* Left: Guitar (compact) */}
+                                    <div className="flex justify-center items-start shrink-0" style={{ minWidth: '100px' }}>
                                         <GuitarChord
                                             root={chord.root}
                                             quality={previewVariant || chord.quality}
@@ -535,14 +530,14 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
                                     </div>
                                     {/* Vertical divider */}
                                     <div className="w-px bg-border-subtle self-stretch" />
-                                    {/* Right: Suggested Voicings (2/3 width) */}
-                                    <div className="flex-1 flex flex-col justify-start pl-2">
+                                    {/* Right: Suggested Voicings */}
+                                    <div className="flex-1 flex flex-col justify-start pl-1">
                                         {getSuggestedVoicings().extensions.length > 0 ? (
-                                            <div className={`flex flex-wrap ${isMobile ? 'gap-3' : 'gap-2.5'} mb-3`}>
+                                            <div className="grid grid-cols-2 mb-2" style={{ gap: isMobile ? '8px' : '6px' }}>
                                                 {getSuggestedVoicings().extensions.map((ext) => (
                                                     <button
                                                         key={ext}
-                                                        className={`relative group ${isMobile ? 'px-4 py-2.5 text-sm min-h-[44px]' : 'px-3 py-1.5 text-xs'} rounded font-semibold transition-colors touch-feedback`}
+                                                        className={`relative group ${isMobile ? 'px-2 py-2 text-xs min-h-[36px]' : 'px-1.5 py-1 text-[10px]'} rounded font-semibold transition-colors touch-feedback overflow-hidden text-ellipsis whitespace-nowrap`}
                                                         style={previewVariant === ext
                                                             ? { backgroundColor: '#4f46e5', color: '#ffffff', border: '1px solid #4f46e5' }
                                                             : { backgroundColor: '#282833', color: '#f0f0f5', border: '1px solid rgba(255,255,255,0.08)' }
@@ -573,55 +568,58 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
                                                 ))}
                                             </div>
                                         ) : null}
-                                        <p className={`${isMobile ? 'text-xs' : 'text-[10px]'} text-text-muted leading-relaxed mb-3`}>
+                                        <p className={`${isMobile ? 'text-xs' : 'text-[10px]'} text-text-muted leading-relaxed`}>
                                             {getSuggestedVoicings().description}
                                         </p>
-                                        {/* Inversion controls above staff */}
-                                        <div className="flex flex-col items-center mt-3 mb-2">
-                                            <span className="text-[9px] font-semibold uppercase tracking-wide text-text-muted mb-1.5">Inversion</span>
-                                            <div className="flex items-center gap-0.5 bg-bg-tertiary/50 rounded px-1 py-0.5" title="Chord inversion - which note is in the bass">
-                                                <button
-                                                    onClick={() => {
-                                                        const newInversion = Math.max(0, chordInversion - 1);
-                                                        setChordInversion(newInversion);
-                                                        const notes = invertChord(baseNotes, newInversion);
-                                                        playChord(notes);
-                                                    }}
-                                                    disabled={chordInversion <= 0}
-                                                    className={`${isMobile ? 'w-6 h-6' : 'w-5 h-5'} flex items-center justify-center hover:bg-accent-primary/20 rounded text-text-muted hover:text-accent-primary transition-colors touch-feedback disabled:opacity-40 disabled:cursor-not-allowed`}
-                                                    title="Previous inversion"
-                                                >
-                                                    <ChevronLeft size={isMobile ? 12 : 10} />
-                                                </button>
-                                                <span className={`${isMobile ? 'text-[10px]' : 'text-[9px]'} font-semibold text-text-secondary min-w-[28px] text-center`}>
-                                                    {getInversionName(chordInversion)}
-                                                </span>
-                                                <button
-                                                    onClick={() => {
-                                                        const newInversion = Math.min(maxInversion, chordInversion + 1);
-                                                        setChordInversion(newInversion);
-                                                        const notes = invertChord(baseNotes, newInversion);
-                                                        playChord(notes);
-                                                    }}
-                                                    disabled={chordInversion >= maxInversion}
-                                                    className={`${isMobile ? 'w-6 h-6' : 'w-5 h-5'} flex items-center justify-center hover:bg-accent-primary/20 rounded text-text-muted hover:text-accent-primary transition-colors touch-feedback disabled:opacity-40 disabled:cursor-not-allowed`}
-                                                    title="Next inversion"
-                                                >
-                                                    <ChevronRight size={isMobile ? 12 : 10} />
-                                                </button>
-                                            </div>
-                                        </div>
-                                        {/* Musical Staff Notation */}
-                                        <div className="mt-2">
-                                            <MusicStaff
-                                                notes={displayNotes}
-                                                rootNote={chord.root}
-                                                color={chordColor}
-                                            />
-                                        </div>
                                     </div>
                                 </div>
                             )}
+                            {/* Inversion controls + Staff in horizontal layout */}
+                            <div className="flex items-center mt-1 gap-2">
+                                {/* Left: Inversion controls (compact) */}
+                                <div className="flex flex-col items-center shrink-0">
+                                    <span className="text-[8px] font-semibold uppercase tracking-wide text-text-muted mb-0.5">Inversion</span>
+                                    <div className="flex items-center gap-0.5 bg-bg-tertiary/50 rounded px-1 py-0.5" title="Chord inversion - which note is in the bass">
+                                        <button
+                                            onClick={() => {
+                                                const newInversion = Math.max(0, chordInversion - 1);
+                                                setChordInversion(newInversion);
+                                                const notes = invertChord(baseNotes, newInversion);
+                                                playChord(notes);
+                                            }}
+                                            disabled={chordInversion <= 0}
+                                            className={`${isMobile ? 'w-6 h-6' : 'w-5 h-5'} flex items-center justify-center hover:bg-accent-primary/20 rounded text-text-muted hover:text-accent-primary transition-colors touch-feedback disabled:opacity-40 disabled:cursor-not-allowed`}
+                                            title="Previous inversion"
+                                        >
+                                            <ChevronLeft size={isMobile ? 12 : 10} />
+                                        </button>
+                                        <span className={`${isMobile ? 'text-[10px]' : 'text-[9px]'} font-semibold text-text-secondary min-w-[28px] text-center`}>
+                                            {getInversionName(chordInversion)}
+                                        </span>
+                                        <button
+                                            onClick={() => {
+                                                const newInversion = Math.min(maxInversion, chordInversion + 1);
+                                                setChordInversion(newInversion);
+                                                const notes = invertChord(baseNotes, newInversion);
+                                                playChord(notes);
+                                            }}
+                                            disabled={chordInversion >= maxInversion}
+                                            className={`${isMobile ? 'w-6 h-6' : 'w-5 h-5'} flex items-center justify-center hover:bg-accent-primary/20 rounded text-text-muted hover:text-accent-primary transition-colors touch-feedback disabled:opacity-40 disabled:cursor-not-allowed`}
+                                            title="Next inversion"
+                                        >
+                                            <ChevronRight size={isMobile ? 12 : 10} />
+                                        </button>
+                                    </div>
+                                </div>
+                                {/* Right: Musical Staff (takes ~80% width) */}
+                                <div className="flex-1">
+                                    <MusicStaff
+                                        notes={displayNotes}
+                                        rootNote={chord.root}
+                                        color={chordColor}
+                                    />
+                                </div>
+                            </div>
                         </div>
 
                         {/* Variations */}
@@ -718,6 +716,6 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
 
             {/* Help Modal */}
             <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
-        </div>
+        </div >
     );
 };

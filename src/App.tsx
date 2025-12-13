@@ -34,7 +34,7 @@ function App() {
   }, [isMuted]);
 
   // Resizable panel state - timeline height in pixels
-  const [timelineHeight, setTimelineHeight] = useState(180);
+  const [timelineHeight, setTimelineHeight] = useState(200);
   const [isResizing, setIsResizing] = useState(false);
   const [timelineScale, setTimelineScale] = useState(0.6);
 
@@ -775,13 +775,14 @@ function App() {
               <>
                 {/* Resize Handle with hide button */}
                 <div
-                  className={`h-7 bg-bg-secondary border-t border-border-subtle flex items-center justify-center group transition-colors ${isResizing ? 'bg-accent-primary/20' : ''}`}
+                  className={`bg-bg-secondary border-t border-border-subtle flex items-center justify-center group transition-colors ${isResizing ? 'bg-accent-primary/20' : ''}`}
+                  style={{ height: '16px' }}
                 >
                   <div
                     className="flex-1 h-full cursor-ns-resize flex items-center justify-center hover:bg-bg-tertiary transition-colors"
                     onMouseDown={handleMouseDown}
                   >
-                    <GripHorizontal size={14} className="text-text-muted group-hover:text-text-secondary" />
+                    <GripHorizontal size={10} className="text-text-muted group-hover:text-text-secondary" />
                   </div>
                 </div>
 
@@ -790,7 +791,7 @@ function App() {
                   className="shrink-0 bg-bg-secondary overflow-hidden"
                   style={{ height: timelineHeight }}
                 >
-                  <div className="flex items-center justify-between px-3 py-2 border-b border-border-subtle bg-bg-secondary/90 backdrop-blur-sm">
+                  <div className="flex items-center justify-between px-3 border-b border-border-subtle bg-bg-secondary/90 backdrop-blur-sm" style={{ paddingTop: '4px', paddingBottom: '4px' }}>
                     <div className="flex items-center gap-4">
                       <div className="flex items-center gap-2 text-[10px] text-text-muted">
                         <span className="uppercase font-bold tracking-wider text-[9px]">Scale</span>

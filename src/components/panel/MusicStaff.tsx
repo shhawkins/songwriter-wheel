@@ -62,10 +62,10 @@ export const MusicStaff: React.FC<MusicStaffProps> = ({
         return { line: position, accidental };
     };
 
-    // SVG dimensions - scaled down for compact display in combined panel
-    const defaultWidth = isMobile ? 200 : 220;
+    // SVG dimensions - scaled up for better visibility
+    const defaultWidth = isMobile ? 240 : 280;
     const width = propWidth || defaultWidth;
-    const height = isMobile ? 90 : 100;
+    const height = isMobile ? 110 : 120;
 
     // Adjust staff rendering based on available width
     // Keep a small 20px margin on each side (40px total)
