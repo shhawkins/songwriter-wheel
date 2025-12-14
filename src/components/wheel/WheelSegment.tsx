@@ -61,6 +61,8 @@ export const WheelSegment: React.FC<WheelSegmentProps> = ({
     // Track touch position to detect drags vs taps
     const touchStartPosRef = React.useRef<{ x: number; y: number } | null>(null);
     const hasDraggedRef = React.useRef(false);
+    // Track multi-touch gestures (like pinch-to-zoom) - these should not trigger chord playback
+    const wasMultiTouchRef = React.useRef(false);
 
     // All text is horizontal - counter-rotate to cancel wheel rotation
     const textRotation = -wheelRotation;
@@ -141,8 +143,14 @@ export const WheelSegment: React.FC<WheelSegmentProps> = ({
     // Handle touch events for mobile - detect single and double taps
     const handleTouchStart = (e: React.TouchEvent) => {
         setIsTouching(true);
-        // Record touch start position to detect drags
-        if (e.touches.length === 1) {
+        // If this is a multi-touch gesture (pinch zoom), mark it so we don't play on release
+        if (e.touches.length >= 2) {
+            wasMultiTouchRef.current = true;
+            touchStartPosRef.current = null;
+            return;
+        }
+        // Record touch start position to detect drags (only for single touches)
+        if (e.touches.length === 1 && !wasMultiTouchRef.current) {
             touchStartPosRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
             hasDraggedRef.current = false;
         }
@@ -150,7 +158,13 @@ export const WheelSegment: React.FC<WheelSegmentProps> = ({
 
     // Track touch movement to detect drags
     const handleTouchMove = (e: React.TouchEvent) => {
-        if (touchStartPosRef.current && e.touches.length === 1) {
+        // Mark as multi-touch if additional fingers are added during the gesture
+        if (e.touches.length >= 2) {
+            wasMultiTouchRef.current = true;
+            hasDraggedRef.current = true; // Also mark as dragged to be safe
+            return;
+        }
+        if (touchStartPosRef.current && e.touches.length === 1 && !wasMultiTouchRef.current) {
             const touch = e.touches[0];
             const dx = touch.clientX - touchStartPosRef.current.x;
             const dy = touch.clientY - touchStartPosRef.current.y;
@@ -167,13 +181,21 @@ export const WheelSegment: React.FC<WheelSegmentProps> = ({
         e.stopPropagation();
         setIsTouching(false);
 
+        // Check if this was part of a multi-touch gesture (like pinch-to-zoom)
+        const wasMultiTouch = wasMultiTouchRef.current;
+
         // Reset touch position ref
         const wasDrag = hasDraggedRef.current;
         touchStartPosRef.current = null;
         hasDraggedRef.current = false;
 
-        // If this was a drag gesture (wheel spin), don't treat it as a tap
-        if (wasDrag) {
+        // Reset multi-touch flag only when all fingers are lifted
+        if (e.touches.length === 0) {
+            wasMultiTouchRef.current = false;
+        }
+
+        // If this was a multi-touch gesture (pinch zoom) or drag, don't treat it as a tap
+        if (wasMultiTouch || wasDrag) {
             return;
         }
 
@@ -211,6 +233,7 @@ export const WheelSegment: React.FC<WheelSegmentProps> = ({
         setIsTouching(false);
         touchStartPosRef.current = null;
         hasDraggedRef.current = false;
+        wasMultiTouchRef.current = false;
         if (touchTimeoutRef.current) {
             clearTimeout(touchTimeoutRef.current);
             touchTimeoutRef.current = null;

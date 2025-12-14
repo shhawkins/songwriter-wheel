@@ -43,26 +43,20 @@ function App() {
   const [isResizing, setIsResizing] = useState(false);
   const [timelineScale, setTimelineScale] = useState(0.6);
 
-  // Wheel zoom state - start at 1.2 for better default visibility on mobile portrait
-  const [wheelZoom, setWheelZoom] = useState(1.2);
+  // Wheel zoom state - use different defaults for mobile vs desktop
+  // Mobile needs higher zoom to fill screen width, desktop uses 1.0
+  const [wheelZoom, setWheelZoom] = useState(() => {
+    if (typeof window === 'undefined') return 1;
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const isMobileInit = w < 768 || (h < 500 && h < w);
+    return isMobileInit ? 1.25 : 1;
+  });
   const [wheelZoomOrigin, setWheelZoomOrigin] = useState(50);
   // Wheel pan offset state - for user interaction
   const [wheelPanOffset, setWheelPanOffset] = useState({ x: 0, y: 0 });
   // Save zoom/origin before entering special centering modes (landscape or portrait with panel)
   const savedZoomStateRef = useRef<{ zoom: number; origin: number; pan: { x: number; y: number } } | null>(null);
-  // Initialize wheel size based on window - smaller for mobile
-  const [wheelBaseSize, setWheelBaseSize] = useState(() => {
-    if (typeof window === 'undefined') return 400;
-    const w = window.innerWidth;
-    const h = window.innerHeight;
-    const isMobileInit = w < 768 || (h < 500 && h < w);
-    if (isMobileInit) {
-      // Mobile: use nearly full width, no boost
-      return Math.max(280, w - 16);
-    }
-    // Desktop: larger default for better visibility
-    return Math.min(900, Math.max(500, h - 200));
-  });
 
   // Landscape-specific: width of the wheel container area (managed by state for reactivity)
   const [landscapeWheelWidth, setLandscapeWheelWidth] = useState(() => {
@@ -204,49 +198,10 @@ function App() {
       setIsMobile(mobile);
       setIsLandscape(landscape);
 
-      // On mobile, calculate wheel size differently based on orientation
-      if (mobile) {
-        if (landscape) {
-          // Landscape: wheel on left side - update container width
-          const containerWidth = Math.max(200, Math.floor(width * 0.33));
-          setLandscapeWheelWidth(containerWidth);
-
-          const availableWidth = width * 0.5; // Half screen width
-          const padding = 16;
-          const rawSize = Math.min(560, Math.max(280, availableWidth - padding, height - 120));
-          setWheelBaseSize(rawSize);
-        } else {
-          // Portrait: wheel takes up nearly full width of screen
-          const margin = 8; // Just a few px margin on each side
-          // Prioritize width - wheel should fill the viewport width
-          const targetSize = width - (margin * 2);
-          setWheelBaseSize(Math.max(280, targetSize));
-        }
-
-        // Auto-boost logic removed to ensure 100% zoom on load
-        /*
-        // Apply an initial zoom bump so boost is visible (without overriding user changes later)
-        if (!hasAppliedMobileBoost.current && wheelZoom === 1) {
-          const zoomBoost = Math.min(boost, 2.5);
-          setWheelZoom(zoomBoost);
-          setWheelZoomOrigin(zoomBoost > 1.3 ? 45 : 50);
-          hasAppliedMobileBoost.current = true;
-        }
-        */
-      } else {
-        // Desktop sizing - larger base size for better visibility
-        const padding = 80;
-        const headerHeight = 48;
-        const footerHeight = 56;
-        const timelineReserve = 100;
-        const zoomControlsHeight = 30; // Space for the zoom toolbar
-        const availableHeight = Math.max(400, height - headerHeight - footerHeight - timelineReserve - zoomControlsHeight);
-
-        const computedSize = Math.min(
-          900,
-          Math.max(400, Math.min(width - padding, availableHeight))
-        );
-        setWheelBaseSize(computedSize);
+      // On mobile landscape, update container width
+      if (mobile && landscape) {
+        const containerWidth = Math.max(200, Math.floor(width * 0.33));
+        setLandscapeWheelWidth(containerWidth);
       }
 
       // Initialize mobile settings on first load
@@ -341,10 +296,12 @@ function App() {
         setWheelPanOffset({ x: -40, y: 0 });
       } else {
         // Portrait with panel: zoomed & positioned to show highlighted chords above panel
-        setWheelZoom(1.5);
-        setWheelZoomOrigin(45);
+        // Reduced zoom by ~5% (from 1.5 to 1.42) and shifted up more to prevent bottom chords
+        // from being cut off by the timeline handle
+        setWheelZoom(1.42);
+        setWheelZoomOrigin(42);
         // Shift left and up to center the highlighted chords better
-        setWheelPanOffset({ x: -40, y: -10 });
+        setWheelPanOffset({ x: -35, y: -30 });
       }
     } else {
       // Exiting special centering mode - restore previous state
@@ -1004,20 +961,24 @@ function App() {
               <div
                 className="relative flex items-center justify-center"
                 style={{
-                  // All mobile modes: set explicit width/height so aspectRatio can work
+                  // All modes: set explicit width/height so aspectRatio can work
                   // Without explicit dimensions, aspectRatio has nothing to calculate from
-                  width: isMobile ? '100%' : undefined,
-                  height: isMobile ? '100%' : undefined,
+                  width: '100%',
+                  height: '100%',
                   maxWidth: isMobile && isLandscape
                     ? '100%'
                     : isMobile && !isLandscape && mobileImmersive
                       ? 'min(100vw - 8px, 55dvh)'
-                      : `${wheelBaseSize}px`,
+                      : isMobile && !isLandscape
+                        ? 'min(100vw - 16px, 85dvh)'  // Mobile portrait non-immersive: fill width
+                        : '100%',  // Desktop: fill container width
                   maxHeight: isMobile && isLandscape
                     ? '100%'
                     : isMobile && !isLandscape && mobileImmersive
                       ? 'min(100vw - 8px, 55dvh)'
-                      : `${wheelBaseSize}px`,
+                      : isMobile && !isLandscape
+                        ? 'min(100vw - 16px, 85dvh)'  // Mobile portrait non-immersive: fill width
+                        : '100%',  // Desktop: fill container height
                   aspectRatio: '1 / 1',
                 }}
               >

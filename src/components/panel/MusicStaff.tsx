@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import { useIsMobile } from '../../hooks/useIsMobile';
 
 interface MusicStaffProps {
@@ -6,8 +6,8 @@ interface MusicStaffProps {
     rootNote: string;
     color?: string;
     width?: number;
-    onClick?: () => void;
-    onDoubleClick?: () => void;
+    numerals?: string[]; // Absolute degrees (e.g., 'R', '3', '5', '7') for each note
+    onNotePlay?: (note: string, octave: number) => void; // Callback to play individual notes
 }
 
 export const MusicStaff: React.FC<MusicStaffProps> = ({
@@ -15,75 +15,10 @@ export const MusicStaff: React.FC<MusicStaffProps> = ({
     rootNote,
     color = '#6366f1',
     width: propWidth,
-    onClick,
-    onDoubleClick
+    numerals,
+    onNotePlay
 }) => {
     const isMobile = useIsMobile();
-
-    // Click handling refs for double-click detection
-    const lastClickTime = useRef(0);
-    const clickTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const lastTouchTime = useRef(0);
-    const touchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-    // Handle click with double-click detection
-    const handleClick = () => {
-        const now = Date.now();
-        const timeSinceLastClick = now - lastClickTime.current;
-
-        // Clear any pending single-click timeout
-        if (clickTimeout.current) {
-            clearTimeout(clickTimeout.current);
-            clickTimeout.current = null;
-        }
-
-        // Double-click detected (within 300ms)
-        if (timeSinceLastClick < 300 && timeSinceLastClick > 0) {
-            lastClickTime.current = 0;
-            if (onDoubleClick) {
-                onDoubleClick();
-            }
-        } else {
-            // Single click - wait to see if there's a second click
-            lastClickTime.current = now;
-            clickTimeout.current = setTimeout(() => {
-                if (onClick) onClick();
-                clickTimeout.current = null;
-            }, 300);
-        }
-    };
-
-    // Handle touch events for mobile double-tap detection
-    const handleTouchEnd = (e: React.TouchEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-
-        const now = Date.now();
-        const timeSinceLastTouch = now - lastTouchTime.current;
-
-        // Clear any pending single-tap timeout
-        if (touchTimeout.current) {
-            clearTimeout(touchTimeout.current);
-            touchTimeout.current = null;
-        }
-
-        // Double-tap detected (within 300ms)
-        if (timeSinceLastTouch < 300 && timeSinceLastTouch > 0) {
-            lastTouchTime.current = 0;
-            if (onDoubleClick) {
-                onDoubleClick();
-            }
-        } else {
-            // Single tap - wait to see if there's a second tap
-            lastTouchTime.current = now;
-            touchTimeout.current = setTimeout(() => {
-                if (onClick) onClick();
-                touchTimeout.current = null;
-            }, 300);
-        }
-    };
-
-    const isClickable = onClick || onDoubleClick;
 
     // Map notes to their position on the staff
     // Using treble clef: middle C (C4) is below the staff
@@ -131,26 +66,38 @@ export const MusicStaff: React.FC<MusicStaffProps> = ({
         return { line: position, accidental };
     };
 
-    // SVG dimensions - larger for better readability
+    // Handle note tap
+    const handleNoteTap = (note: string) => {
+        if (onNotePlay) {
+            // Default octave 4, but adjust based on position
+            onNotePlay(note, 4);
+        }
+    };
+
+    // SVG dimensions
     const defaultWidth = isMobile ? 280 : 340;
     const width = propWidth || defaultWidth;
-    const height = isMobile ? 105 : 110;
+    // Increased height to accommodate low notes and their labels
+    const height = isMobile ? 110 : 115;
 
     // Adjust staff rendering based on available width
     const margin = 12;
     const staffX = margin;
-    // Position staff higher to leave room for lower notes (like C) and their labels
-    const staffY = height * 0.30;
-    const lineSpacing = 10; // Increased from 6 for better spacing
+    // Position staff higher to leave room for low notes below
+    const staffY = height * 0.22;
+    const lineSpacing = 10;
     const staffWidth = Math.max(100, width - (margin * 2));
+
+    // Fixed Y positions for labels (below the lowest notes)
+    const noteLabelY = staffY + 50;
+    const numeralY = staffY + 62;
 
     // Calculate note positions
     const noteData = notes.map((note, index) => {
         const { line, accidental } = getNotePosition(note);
-        // Distribute notes evenly across the staff width, leaving some padding relative to staff start/end
-        // Start notes after the clef with comfortable spacing
+        // Distribute notes evenly across the staff width
         const clefOffset = 60;
-        const availableNoteWidth = staffWidth - clefOffset - 25; // 25px padding at end
+        const availableNoteWidth = staffWidth - clefOffset - 25;
 
         const x = staffX + clefOffset + (index * availableNoteWidth / Math.max(notes.length - 1, 1));
         const y = staffY - (line * lineSpacing / 2);
@@ -168,10 +115,9 @@ export const MusicStaff: React.FC<MusicStaffProps> = ({
     // Generate ledger lines for notes outside the staff
     const getLedgerLines = (noteInfo: typeof noteData[0]) => {
         const lines = [];
-        const ledgerWidth = 28; // Increased from 20 for better visibility
+        const ledgerWidth = 28;
 
         if (noteInfo.line < -4) {
-            // Below staff
             for (let i = -6; i >= noteInfo.line; i -= 2) {
                 if (i < -4) {
                     lines.push(
@@ -188,7 +134,6 @@ export const MusicStaff: React.FC<MusicStaffProps> = ({
                 }
             }
         } else if (noteInfo.line > 4) {
-            // Above staff
             for (let i = 6; i <= noteInfo.line; i += 2) {
                 if (i > 4) {
                     lines.push(
@@ -210,16 +155,11 @@ export const MusicStaff: React.FC<MusicStaffProps> = ({
     };
 
     return (
-        <div
-            className={`flex justify-center items-center w-full ${isClickable ? 'cursor-pointer touch-feedback hover:opacity-80 active:scale-95 transition-all' : ''}`}
-            onClick={isClickable ? handleClick : undefined}
-            onTouchEnd={isClickable ? handleTouchEnd : undefined}
-            onTouchStart={isClickable ? (e) => e.stopPropagation() : undefined}
-        >
+        <div className="flex justify-center items-center w-full">
             <svg
                 viewBox={`0 0 ${width} ${height}`}
                 className="w-full"
-                style={{ minHeight: isMobile ? 100 : 105, pointerEvents: isClickable ? 'none' : undefined }}
+                style={{ minHeight: isMobile ? 95 : 100 }}
             >
                 {/* Staff lines (5 lines of treble clef) */}
                 {[-2, -1, 0, 1, 2].map((lineIndex) => (
@@ -238,7 +178,7 @@ export const MusicStaff: React.FC<MusicStaffProps> = ({
                 <text
                     x={staffX - 3}
                     y={staffY + 20}
-                    fontSize={isMobile ? "60" : "66"}
+                    fontSize={isMobile ? "56" : "62"}
                     fill={color}
                     fontFamily="serif"
                     fontWeight="bold"
@@ -252,12 +192,12 @@ export const MusicStaff: React.FC<MusicStaffProps> = ({
                 {/* Notes */}
                 {noteData.map((noteInfo, index) => (
                     <g key={`note-${index}`}>
-                        {/* Accidental - positioned further left to avoid overlapping note */}
+                        {/* Accidental */}
                         {noteInfo.accidental && (
                             <text
-                                x={noteInfo.x - 24}
-                                y={noteInfo.y + 6}
-                                fontSize={isMobile ? "20" : "22"}
+                                x={noteInfo.x - 20}
+                                y={noteInfo.y + 5}
+                                fontSize={isMobile ? "18" : "20"}
                                 fill="#ccc"
                                 fontFamily="serif"
                                 fontWeight="bold"
@@ -266,37 +206,60 @@ export const MusicStaff: React.FC<MusicStaffProps> = ({
                             </text>
                         )}
 
-                        {/* Note head (whole note - hollow oval) */}
+                        {/* Invisible tap target (larger than note for easier tapping) */}
+                        {onNotePlay && (
+                            <circle
+                                cx={noteInfo.x}
+                                cy={noteInfo.y}
+                                r={16}
+                                fill="transparent"
+                                style={{ cursor: 'pointer' }}
+                                onClick={() => handleNoteTap(noteInfo.note)}
+                                onTouchEnd={(e) => {
+                                    e.preventDefault();
+                                    handleNoteTap(noteInfo.note);
+                                }}
+                            />
+                        )}
+
+                        {/* Note head - solid filled */}
                         <ellipse
                             cx={noteInfo.x}
                             cy={noteInfo.y}
-                            rx={9}
-                            ry={7}
-                            fill="none"
+                            rx={7}
+                            ry={5.5}
+                            fill={index === 0 ? color : '#ddd'}
                             stroke={index === 0 ? color : '#ddd'}
-                            strokeWidth={index === 0 ? 3 : 2.5}
+                            strokeWidth={1}
+                            style={onNotePlay ? { cursor: 'pointer' } : undefined}
+                            className={onNotePlay ? 'hover:opacity-80 active:scale-110 transition-transform' : ''}
                         />
 
-                        {/* Inner ellipse for whole note */}
-                        <ellipse
-                            cx={noteInfo.x}
-                            cy={noteInfo.y}
-                            rx={5}
-                            ry={4}
-                            fill="#1e1e28"
-                        />
-
-                        {/* Note name below (small label) - positioned relative to note y position for lower notes */}
+                        {/* Note name - fixed Y position for alignment */}
                         <text
                             x={noteInfo.x}
-                            y={Math.max(staffY + 40, noteInfo.y + 22)}
-                            fontSize={isMobile ? "11" : "12"}
+                            y={noteLabelY}
+                            fontSize={isMobile ? "10" : "11"}
                             fill="#999"
                             textAnchor="middle"
                             fontWeight="600"
                         >
                             {noteInfo.note}
                         </text>
+
+                        {/* Absolute degree numeral - fixed Y position for alignment */}
+                        {numerals && numerals[index] && (
+                            <text
+                                x={noteInfo.x}
+                                y={numeralY}
+                                fontSize={isMobile ? "9" : "10"}
+                                fill={index === 0 ? color : '#777'}
+                                textAnchor="middle"
+                                fontWeight="700"
+                            >
+                                {numerals[index]}
+                            </text>
+                        )}
                     </g>
                 ))}
             </svg>

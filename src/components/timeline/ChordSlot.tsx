@@ -16,7 +16,10 @@ interface ChordSlotProps {
 export const ChordSlot: React.FC<ChordSlotProps> = ({ slot, sectionId, size = 48, width }) => {
     const {
         selectedSlots,
-        setSelectedSlot,
+        selectedSlotId,
+        selectedSectionId,
+        selectSlotOnly,
+        setSelectedChord,
         toggleSlotSelection,
         selectRangeTo,
         setSelectedSlots,
@@ -67,7 +70,8 @@ export const ChordSlot: React.FC<ChordSlotProps> = ({ slot, sectionId, size = 48
                 ];
                 setSelectedSlots(reordered);
             } else {
-                setSelectedSlot(sectionId, slot.id);
+                // Use selectSlotOnly to preserve global chord selection
+                selectSlotOnly(sectionId, slot.id);
             }
         }
     };
@@ -78,6 +82,7 @@ export const ChordSlot: React.FC<ChordSlotProps> = ({ slot, sectionId, size = 48
     };
 
     // Play chord on click if no significant movement occurred (not a drag)
+    // Two-click behavior: first click plays chord, second click updates global chord selection
     const handleChordClick = (e: React.MouseEvent) => {
         e.stopPropagation();
 
@@ -98,6 +103,12 @@ export const ChordSlot: React.FC<ChordSlotProps> = ({ slot, sectionId, size = 48
         // Play the chord
         if (slot.chord.notes && slot.chord.notes.length > 0) {
             playChord(slot.chord.notes);
+        }
+
+        // Only update global chord selection on SECOND click (when slot was already selected)
+        const isCurrentlySelected = selectedSectionId === sectionId && selectedSlotId === slot.id;
+        if (isCurrentlySelected) {
+            setSelectedChord(slot.chord);
         }
     };
 

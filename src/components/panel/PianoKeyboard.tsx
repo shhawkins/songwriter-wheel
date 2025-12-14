@@ -3,6 +3,7 @@ import React from 'react';
 interface PianoKeyboardProps {
     highlightedNotes: string[]; // e.g., ['C', 'E', 'G']
     rootNote?: string;
+    bassNote?: string; // The actual bass note (first note in inverted chord)
     color?: string;
     octave?: number;
     onNotePlay?: (note: string, octave: number) => void;
@@ -11,6 +12,7 @@ interface PianoKeyboardProps {
 export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
     highlightedNotes,
     rootNote,
+    bassNote,
     color = '#6366f1',
     octave = 4,
     onNotePlay
@@ -39,6 +41,7 @@ export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
 
     const highlightedPitchClasses = highlightedNotes.map(n => noteToPitchClass(n));
     const rootPitchClass = rootNote ? noteToPitchClass(rootNote) : -1;
+    const bassPitchClass = bassNote ? noteToPitchClass(bassNote) : -1;
 
     const getIsHighlighted = (note: string) => {
         const pc = noteToPitchClass(note);
@@ -48,6 +51,11 @@ export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
     const getIsRoot = (note: string) => {
         if (rootPitchClass === -1) return false;
         return noteToPitchClass(note) === rootPitchClass;
+    };
+
+    const getIsBass = (note: string) => {
+        if (bassPitchClass === -1) return false;
+        return noteToPitchClass(note) === bassPitchClass;
     };
 
     const handleKeyClick = (note: string, keyOctave: number) => {
@@ -65,6 +73,7 @@ export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
             whiteKeys.forEach((note) => {
                 const isHighlighted = getIsHighlighted(note);
                 const isRoot = getIsRoot(note);
+                const isBass = getIsBass(note);
 
                 keys.push(
                     <div
@@ -79,18 +88,39 @@ export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
                     >
                         {/* Dot indicator for highlighted notes */}
                         {isHighlighted && (
-                            <div
-                                className="absolute left-1/2 rounded-full pointer-events-none"
-                                style={{
-                                    bottom: '6px',
-                                    transform: 'translateX(-50%)',
-                                    width: isRoot ? '12px' : '9px',
-                                    height: isRoot ? '12px' : '9px',
-                                    background: color,
-                                    border: '2px solid #000',
-                                    boxShadow: `0 0 6px ${color}80`
-                                }}
-                            />
+                            <>
+                                {/* Outer glow ring for root note */}
+                                {isRoot && (
+                                    <div
+                                        className="absolute left-1/2 rounded-full pointer-events-none animate-pulse"
+                                        style={{
+                                            bottom: '3px',
+                                            transform: 'translateX(-50%)',
+                                            width: '18px',
+                                            height: '18px',
+                                            background: 'transparent',
+                                            border: `2px solid ${color}`,
+                                            boxShadow: `0 0 8px ${color}, 0 0 12px ${color}60`,
+                                            opacity: 0.9
+                                        }}
+                                    />
+                                )}
+                                {/* Main dot */}
+                                <div
+                                    className="absolute left-1/2 rounded-full pointer-events-none"
+                                    style={{
+                                        bottom: '6px',
+                                        transform: 'translateX(-50%)',
+                                        width: isBass ? '14px' : isRoot ? '12px' : '9px',
+                                        height: isBass ? '14px' : isRoot ? '12px' : '9px',
+                                        background: isBass ? color : color,
+                                        border: isBass ? '3px solid #000' : '2px solid #000',
+                                        boxShadow: isBass
+                                            ? `0 0 10px ${color}, 0 0 4px ${color}`
+                                            : `0 0 6px ${color}80`
+                                    }}
+                                />
+                            </>
                         )}
                     </div>
                 );
@@ -116,6 +146,7 @@ export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
             blackKeyPositions.forEach(({ note, offset }) => {
                 const isHighlighted = getIsHighlighted(note);
                 const isRoot = getIsRoot(note);
+                const isBass = getIsBass(note);
                 const leftPos = octaveOffset + offset;
 
                 keys.push(
@@ -135,18 +166,39 @@ export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
                     >
                         {/* Dot indicator for highlighted notes */}
                         {isHighlighted && (
-                            <div
-                                className="absolute left-1/2 rounded-full pointer-events-none"
-                                style={{
-                                    bottom: '4px',
-                                    transform: 'translateX(-50%)',
-                                    width: isRoot ? '10px' : '8px',
-                                    height: isRoot ? '10px' : '8px',
-                                    background: color,
-                                    border: '2px solid #fff',
-                                    boxShadow: `0 0 6px ${color}80`
-                                }}
-                            />
+                            <>
+                                {/* Outer glow ring for root note */}
+                                {isRoot && (
+                                    <div
+                                        className="absolute left-1/2 rounded-full pointer-events-none animate-pulse"
+                                        style={{
+                                            bottom: '1px',
+                                            transform: 'translateX(-50%)',
+                                            width: '16px',
+                                            height: '16px',
+                                            background: 'transparent',
+                                            border: `2px solid ${color}`,
+                                            boxShadow: `0 0 8px ${color}, 0 0 12px ${color}60`,
+                                            opacity: 0.9
+                                        }}
+                                    />
+                                )}
+                                {/* Main dot */}
+                                <div
+                                    className="absolute left-1/2 rounded-full pointer-events-none"
+                                    style={{
+                                        bottom: '4px',
+                                        transform: 'translateX(-50%)',
+                                        width: isBass ? '12px' : isRoot ? '10px' : '8px',
+                                        height: isBass ? '12px' : isRoot ? '10px' : '8px',
+                                        background: color,
+                                        border: isBass ? '3px solid #fff' : '2px solid #fff',
+                                        boxShadow: isBass
+                                            ? `0 0 10px ${color}, 0 0 4px ${color}`
+                                            : `0 0 6px ${color}80`
+                                    }}
+                                />
+                            </>
                         )}
                     </div>
                 );

@@ -49,6 +49,7 @@ interface SongState {
 
     setSelectedChord: (chord: Chord | null) => void;
     setSelectedSlot: (sectionId: string | null, slotId: string | null) => void;
+    selectSlotOnly: (sectionId: string | null, slotId: string | null) => void; // Selects slot without changing global chord
     setSelectedSlots: (slots: SelectionSlot[]) => void;
     toggleSlotSelection: (sectionId: string, slotId: string) => void;
     selectRangeTo: (sectionId: string, slotId: string) => void;
@@ -381,6 +382,28 @@ export const useSongStore = create<SongState>()(
                     selectedSlots: [slot],
                     selectionAnchor: slot,
                     selectedChord: chord ?? null
+                };
+            }),
+            // Select slot without updating the global chord - for timeline browsing
+            selectSlotOnly: (sectionId, slotId) => set(() => {
+                if (!sectionId || !slotId) {
+                    return {
+                        selectedSectionId: null,
+                        selectedSlotId: null,
+                        selectedSlots: [],
+                        selectionAnchor: null
+                        // Note: selectedChord is NOT reset here
+                    };
+                }
+
+                const slot = { sectionId, slotId };
+
+                return {
+                    selectedSectionId: sectionId,
+                    selectedSlotId: slotId,
+                    selectedSlots: [slot],
+                    selectionAnchor: slot
+                    // Note: selectedChord is NOT updated here
                 };
             }),
             setSelectedSlots: (slots) => set((state) => {

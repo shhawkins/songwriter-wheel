@@ -31,6 +31,7 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
         selectedSectionId,
         selectedSlotId,
         setSelectedSlot,
+        selectSlotOnly,
         setSelectedChord,
         playingSectionId,
         playingSlotId,
@@ -113,13 +114,24 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
     };
 
     const handleSlotClick = (sectionId: string, slotId: string, chord: any) => {
-        setSelectedSlot(sectionId, slotId);
+        const isCurrentlySelected = selectedSectionId === sectionId && selectedSlotId === slotId;
+
         if (chord) {
-            setSelectedChord(chord);
             // Play chord preview
             if (chord.notes && chord.notes.length > 0) {
                 playChord(chord.notes);
             }
+
+            // On SECOND tap (when slot was already selected), update global chord selection
+            if (isCurrentlySelected) {
+                setSelectedChord(chord);
+            } else {
+                // First tap: select slot only (don't change global chord)
+                selectSlotOnly(sectionId, slotId);
+            }
+        } else {
+            // Empty slot - just select it
+            selectSlotOnly(sectionId, slotId);
         }
     };
 
@@ -163,18 +175,15 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                 transition: swipeOffset === 0 ? 'all 0.2s ease-out' : 'none'
             }}
         >
-            {/* Drag handle with persistent title - hidden in landscape */}
+            {/* Drag handle - title hidden when open to save vertical space */}
             {!hideCloseButton && (
                 <div
-                    className="flex flex-col items-center pt-1.5 pb-1 cursor-grab active:cursor-grabbing shrink-0"
+                    className="flex flex-col items-center pt-1.5 pb-0.5 cursor-grab active:cursor-grabbing shrink-0"
                     onTouchStart={handleTouchStart}
                     onTouchMove={handleTouchMove}
                     onTouchEnd={handleTouchEnd}
                 >
-                    <div className="w-10 h-1 rounded-full bg-text-muted/40 mb-1.5" />
-                    <span className="text-[9px] font-medium text-text-muted uppercase tracking-wider">
-                        Timeline
-                    </span>
+                    <div className="w-10 h-1 rounded-full bg-text-muted/40" />
                 </div>
             )}
 
