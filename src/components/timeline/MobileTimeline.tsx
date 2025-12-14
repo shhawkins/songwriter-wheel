@@ -2,12 +2,13 @@ import React, { useRef, useEffect } from 'react';
 import { useSongStore } from '../../store/useSongStore';
 import { getWheelColors, normalizeNote, getContrastingTextColor } from '../../utils/musicTheory';
 import { playChord } from '../../utils/audioEngine';
-import { ChevronDown, Plus, Play, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Play, ChevronLeft, ChevronRight, PanelRightClose } from 'lucide-react';
 import clsx from 'clsx';
 
 interface MobileTimelineProps {
     isOpen: boolean;
     onToggle: () => void;
+    hideCloseButton?: boolean;
 }
 
 /**
@@ -21,7 +22,7 @@ interface MobileTimelineProps {
  * - Swipe down to close
  * - Max height ~140px to leave room for chord details
  */
-export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle }) => {
+export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle, hideCloseButton = false }) => {
     const {
         currentSong,
         selectedSectionId,
@@ -148,15 +149,17 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                 transition: swipeOffset === 0 ? 'all 0.2s ease-out' : 'none'
             }}
         >
-            {/* Drag handle */}
-            <div
-                className="flex flex-col items-center pt-1.5 pb-1 cursor-grab active:cursor-grabbing shrink-0"
-                onTouchStart={handleTouchStart}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleTouchEnd}
-            >
-                <div className="w-10 h-1 rounded-full bg-text-muted/40" />
-            </div>
+            {/* Drag handle - hidden in landscape */}
+            {!hideCloseButton && (
+                <div
+                    className="flex flex-col items-center pt-1.5 pb-1 cursor-grab active:cursor-grabbing shrink-0"
+                    onTouchStart={handleTouchStart}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
+                >
+                    <div className="w-10 h-1 rounded-full bg-text-muted/40" />
+                </div>
+            )}
 
             {/* Section navigator */}
             <div className="flex items-center justify-between px-2 pb-1.5 shrink-0">
@@ -208,6 +211,17 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                 >
                     <ChevronRight size={16} />
                 </button>
+
+                {/* Close button - alternative to swiping */}
+                {!hideCloseButton && (
+                    <button
+                        onClick={onToggle}
+                        className="p-2 min-w-[40px] min-h-[40px] hover:bg-bg-tertiary rounded transition-colors touch-feedback flex items-center justify-center ml-1"
+                        title="Close timeline"
+                    >
+                        <PanelRightClose size={18} className="text-text-muted rotate-90" />
+                    </button>
+                )}
             </div>
 
             {/* Chord slots for active section */}
@@ -273,14 +287,6 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                     </div>
                 )}
             </div>
-
-            {/* Collapse button */}
-            <button
-                onClick={onToggle}
-                className="absolute top-1 right-2 p-1 text-text-muted hover:text-text-primary touch-feedback"
-            >
-                <ChevronDown size={14} />
-            </button>
         </div>
     );
 };

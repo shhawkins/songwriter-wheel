@@ -7,10 +7,10 @@ import { PanelRightClose, PanelRight, GripVertical, HelpCircle, ChevronDown, Che
 import { playChord, playNote } from '../../utils/audioEngine';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { HelpModal } from '../HelpModal';
-import { useIsMobile } from '../../hooks/useIsMobile';
+import { useMobileLayout } from '../../hooks/useIsMobile';
 
 interface ChordDetailsProps {
-    variant?: 'sidebar' | 'drawer' | 'landscape-panel';
+    variant?: 'sidebar' | 'drawer' | 'landscape-panel' | 'landscape-expanded';
 }
 
 export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' }) => {
@@ -36,7 +36,8 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
     const isDrawer = variant === 'drawer';
     const [persistedChord, setPersistedChord] = useState(selectedChord);
     const chord = selectedChord ?? persistedChord;
-    const isMobile = useIsMobile();
+    const { isMobile } = useMobileLayout();
+    const isLandscapeVariant = variant === 'landscape-panel' || variant === 'landscape-expanded';
 
 
     // Collapsible sections state - all collapsed by default on mobile for compact view
@@ -453,16 +454,19 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
 
 
     const isLandscapePanel = variant === 'landscape-panel';
+    const isLandscapeExpanded = variant === 'landscape-expanded';
 
     return (
         <div
-            className={isLandscapePanel
+            className={isLandscapeExpanded
                 ? "h-full w-full flex flex-col bg-bg-secondary overflow-hidden"
-                : isDrawer
-                    ? `${isMobile ? 'relative w-full' : 'fixed inset-x-3 bottom-[88px]'} ${isMobile ? 'max-h-[60vh]' : 'max-h-[70vh]'} bg-bg-secondary ${isMobile ? 'border-x-2 border-t-2' : 'border-2'} border-border-subtle rounded-2xl shadow-2xl overflow-hidden ${isMobile ? '' : 'z-40'} flex`
-                    : "h-full flex bg-bg-secondary border-l border-border-subtle shrink-0"
+                : isLandscapePanel
+                    ? "h-full w-full flex flex-col bg-bg-secondary overflow-hidden"
+                    : isDrawer
+                        ? `${isMobile ? 'relative w-full' : 'fixed inset-x-3 bottom-[88px]'} ${isMobile ? 'max-h-[60vh]' : 'max-h-[70vh]'} bg-bg-secondary ${isMobile ? 'border-t-2 border-border-subtle' : 'border-2 border-border-subtle rounded-2xl'} shadow-2xl overflow-hidden ${isMobile ? '' : 'z-40'} flex`
+                        : "h-full flex bg-bg-secondary border-l border-border-subtle shrink-0"
             }
-            style={!isDrawer && !isLandscapePanel ? { width: panelWidth, minWidth: panelWidth } : isDrawer ? {
+            style={!isDrawer && !isLandscapePanel && !isLandscapeExpanded ? { width: panelWidth, minWidth: panelWidth } : isDrawer ? {
                 transform: swipeOffset > 0 ? `translateY(${swipeOffset}px)` : undefined,
                 opacity: swipeOffset > 0 ? Math.max(0, 1 - (swipeOffset / 300)) : 1,
                 // Enable transitions for: initial open, snap-back, and slide-out animation (swipeOffset >= 150)
@@ -496,14 +500,14 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
                     </div>
                 )}
                 {/* Consolidated Header - chord name, key, help, and hide button all in one row */}
-                <div className={`${isMobile && isDrawer ? 'px-5 py-2' : 'px-4 py-3'} border-b border-border-subtle flex justify-between items-center gap-4 shrink-0 ${isDrawer ? 'bg-bg-secondary/80 backdrop-blur-md' : ''}`}>
-                    <div className="flex items-center overflow-hidden flex-1 min-w-0" style={{ gap: '12px' }}>
-                        <span className="flex items-center shrink-0 min-w-0" style={{ gap: '8px' }}>
-                            <span className={`${isMobile ? 'text-base' : 'text-base sm:text-lg'} font-bold text-text-primary leading-none truncate max-w-[120px] sm:max-w-none`}>
-                                {isMobile && isDrawer ? getShortChordName() : (chord ? `${chord.root}${(previewVariant || chord.quality) === 'maj' ? '' : ' ' + (previewVariant || chord.quality)}` : 'Chord Details')}
+                <div className={`${isLandscapeVariant ? 'px-3 py-2' : isMobile && isDrawer ? 'px-2 py-2' : 'px-4 py-3'} border-b border-border-subtle flex justify-between items-center gap-2 shrink-0 ${isDrawer ? 'bg-bg-secondary/80 backdrop-blur-md' : ''}`}>
+                    <div className="flex items-center overflow-hidden flex-1 min-w-0" style={{ gap: '8px' }}>
+                        <span className="flex items-center shrink-0 min-w-0" style={{ gap: '6px' }}>
+                            <span className={`${isLandscapeVariant ? 'text-lg' : isMobile ? 'text-base' : 'text-base sm:text-lg'} font-bold text-text-primary leading-none truncate`}>
+                                {isLandscapeVariant || (isMobile && isDrawer) ? getShortChordName() : (chord ? `${chord.root}${(previewVariant || chord.quality) === 'maj' ? '' : ' ' + (previewVariant || chord.quality)}` : 'Chord Details')}
                             </span>
                             {chord?.numeral && (
-                                <span className={`${isMobile ? 'text-xs' : 'text-xs'} font-serif italic text-text-muted shrink-0`}>{chord.numeral}</span>
+                                <span className={`${isLandscapeVariant ? 'text-sm' : 'text-xs'} font-serif italic text-text-muted shrink-0`}>{chord.numeral}</span>
                             )}
                         </span>
                     </div>
@@ -554,17 +558,20 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
                                 <HelpCircle size={isMobile ? 16 : 14} />
                             </button>
                         )}
-                        <button
-                            onClick={toggleChordPanel}
-                            className={`${isMobile ? 'p-2 min-w-[40px] min-h-[40px]' : 'p-1'} hover:bg-bg-tertiary rounded transition-colors touch-feedback flex items-center justify-center`}
-                            title="Hide panel"
-                        >
-                            {/* Rotate icon to point down on mobile drawer mode */}
-                            <PanelRightClose
-                                size={isMobile ? 18 : 16}
-                                className={`text-text-muted ${isMobile && isDrawer ? 'rotate-90' : ''}`}
-                            />
-                        </button>
+                        {/* Hide close button in landscape variants - use handle instead */}
+                        {!isLandscapeVariant && (
+                            <button
+                                onClick={toggleChordPanel}
+                                className={`${isMobile ? 'p-2 min-w-[40px] min-h-[40px]' : 'p-1'} hover:bg-bg-tertiary rounded transition-colors touch-feedback flex items-center justify-center`}
+                                title="Hide panel"
+                            >
+                                {/* Rotate icon to point down on mobile drawer mode */}
+                                <PanelRightClose
+                                    size={isMobile ? 18 : 16}
+                                    className={`text-text-muted ${isMobile && isDrawer ? 'rotate-90' : ''}`}
+                                />
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -576,302 +583,310 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
                         </p>
                     </div>
                 ) : (
-                    <div ref={scrollContainerRef} className="flex-1 overflow-y-auto min-h-0 overscroll-contain">
-                        {/* Piano & Voicing Section */}
-                        <div className={`${isMobile ? 'px-5 pt-4 pb-4' : 'px-5 py-4'} border-b border-border-subtle`}>
-                            <PianoKeyboard
-                                highlightedNotes={displayNotes}
-                                rootNote={chord.root}
-                                color={chordColor}
-                                octave={pianoOctave}
-                                onNotePlay={handleNotePlay}
-                            />
-                            {/* Notes display with CSS Grid for proper column alignment */}
-                            <div className={`${isMobile ? 'mt-4' : 'mt-5'} w-full`}>
-                                <div
-                                    className="grid gap-1"
-                                    style={{
-                                        gridTemplateColumns: `${isMobile ? '56px' : '72px'} repeat(${displayNotes.length}, minmax(0, 1fr))`
-                                    }}
-                                >
-                                    {/* Notes row - fixed height to prevent layout shift */}
-                                    <div className="text-[10px] font-semibold uppercase tracking-wide text-text-muted flex items-center" style={{ height: '16px' }}>Notes</div>
-                                    {displayNotes.map((note, i) => (
-                                        <div
-                                            key={`note-${i}`}
-                                            className={`text-center ${isMobile ? 'text-xs' : 'text-sm'} font-bold text-text-primary flex items-center justify-center`}
-                                            style={{ height: '16px' }}
-                                        >
-                                            {note}
-                                        </div>
-                                    ))}
+                    <div ref={scrollContainerRef} className={`flex-1 ${isLandscapeExpanded ? 'flex flex-row overflow-hidden' : 'overflow-y-auto'} min-h-0 overscroll-contain`}>
+                        {/* Piano & Voicing Section - hidden in landscape-expanded to save space */}
+                        {!isLandscapeExpanded && (
+                            <div className={`${isMobile ? 'px-5 pt-4 pb-4' : 'px-5 py-4'} border-b border-border-subtle`}>
+                                <PianoKeyboard
+                                    highlightedNotes={displayNotes}
+                                    rootNote={chord.root}
+                                    color={chordColor}
+                                    octave={pianoOctave}
+                                    onNotePlay={handleNotePlay}
+                                />
+                                {/* Notes display with CSS Grid for proper column alignment */}
+                                <div className={`${isMobile ? 'mt-4' : 'mt-5'} w-full`}>
+                                    <div
+                                        className="grid gap-1"
+                                        style={{
+                                            gridTemplateColumns: `${isMobile ? '56px' : '72px'} repeat(${displayNotes.length}, minmax(0, 1fr))`
+                                        }}
+                                    >
+                                        {/* Notes row - fixed height to prevent layout shift */}
+                                        <div className="text-[10px] font-semibold uppercase tracking-wide text-text-muted flex items-center" style={{ height: '16px' }}>Notes</div>
+                                        {displayNotes.map((note, i) => (
+                                            <div
+                                                key={`note-${i}`}
+                                                className={`text-center ${isMobile ? 'text-xs' : 'text-sm'} font-bold text-text-primary flex items-center justify-center`}
+                                                style={{ height: '16px' }}
+                                            >
+                                                {note}
+                                            </div>
+                                        ))}
 
-                                    {/* Absolute row - fixed height to prevent layout shift */}
-                                    <div className="text-[10px] font-semibold uppercase tracking-wide text-text-muted flex items-center" style={{ height: '16px' }}>Absolute</div>
-                                    {displayNotes.map((note, i) => (
-                                        <div
-                                            key={`abs-${i}`}
-                                            className={`text-center ${isMobile ? 'text-[11px]' : 'text-xs'} text-text-primary font-semibold flex items-center justify-center`}
-                                            style={{ height: '16px' }}
-                                        >
-                                            {getAbsoluteDegree(note)}
-                                        </div>
-                                    ))}
+                                        {/* Absolute row - fixed height to prevent layout shift */}
+                                        <div className="text-[10px] font-semibold uppercase tracking-wide text-text-muted flex items-center" style={{ height: '16px' }}>Absolute</div>
+                                        {displayNotes.map((note, i) => (
+                                            <div
+                                                key={`abs-${i}`}
+                                                className={`text-center ${isMobile ? 'text-[11px]' : 'text-xs'} text-text-primary font-semibold flex items-center justify-center`}
+                                                style={{ height: '16px' }}
+                                            >
+                                                {getAbsoluteDegree(note)}
+                                            </div>
+                                        ))}
 
-                                    {/* Relative to Key row - fixed height to prevent layout shift */}
-                                    <div className="text-[10px] font-semibold uppercase tracking-wide text-text-muted flex items-center" style={{ height: '16px' }}>Relative</div>
-                                    {displayNotes.map((note, i) => (
-                                        <div
-                                            key={`rel-${i}`}
-                                            className={`text-center ${isMobile ? 'text-[11px]' : 'text-xs'} text-text-secondary flex items-center justify-center`}
-                                            style={{ height: '16px' }}
-                                        >
-                                            {getIntervalFromKey(selectedKey, note).replace(/^1/, 'R')}
-                                        </div>
-                                    ))}
+                                        {/* Relative to Key row - fixed height to prevent layout shift */}
+                                        <div className="text-[10px] font-semibold uppercase tracking-wide text-text-muted flex items-center" style={{ height: '16px' }}>Relative</div>
+                                        {displayNotes.map((note, i) => (
+                                            <div
+                                                key={`rel-${i}`}
+                                                className={`text-center ${isMobile ? 'text-[11px]' : 'text-xs'} text-text-secondary flex items-center justify-center`}
+                                                style={{ height: '16px' }}
+                                            >
+                                                {getIntervalFromKey(selectedKey, note).replace(/^1/, 'R')}
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        )}
 
-                        {/* Combined Guitar / Suggested section */}
-                        <div
-                            ref={guitarSectionRef}
-                            className={`${isMobile ? 'px-5 py-1' : 'px-5 py-1'} rounded-none`}
-                            style={{ backgroundColor: '#1e1e28', borderBottom: '1px solid #3a3a4a', scrollMarginTop: '60px' }}
-                        >
-                            <button
-                                onClick={() => {
-                                    const newState = !showGuitar;
-                                    setShowGuitar(newState);
-                                    if (newState) {
-                                        setTimeout(() => scrollSectionIntoView(guitarSectionRef), 50);
-                                    }
-                                }}
-                                className={`w-full flex items-center justify-between ${showGuitar ? 'mb-2' : 'mb-0'} cursor-pointer rounded-none`}
-                                style={{ backgroundColor: 'transparent' }}
+                        {/* Collapsible Sections Container - vertical layout in all modes */}
+                        <div className={`flex flex-col ${isLandscapeExpanded ? 'flex-1 overflow-y-auto' : ''}`}>
+
+                            {/* Combined Guitar / Suggested section */}
+                            <div
+                                ref={guitarSectionRef}
+                                className={`${isLandscapeExpanded ? 'px-3 py-1' : isMobile ? 'px-5 py-1' : 'px-5 py-1'} rounded-none`}
+                                style={{ backgroundColor: '#1e1e28', borderBottom: '1px solid #3a3a4a', scrollMarginTop: '60px' }}
                             >
-                                <h3 className={`${isMobile ? 'text-[11px]' : 'text-[10px]'} font-semibold text-text-secondary uppercase tracking-wide whitespace-nowrap`}>
-                                    Guitar & Suggested Voicings for {chord.numeral || chord.symbol}
-                                </h3>
-                                <ChevronDown
-                                    size={14}
-                                    className={`text-text-secondary transition-transform ${showGuitar ? 'rotate-180' : ''}`}
-                                />
-                            </button>
-                            {showGuitar && (
-                                <>
-                                    <div className="flex flex-row gap-2" style={{ marginTop: '8px' }}>
-                                        {/* Left: Guitar (compact) */}
-                                        <div className="flex justify-center items-start shrink-0" style={{ minWidth: '100px' }}>
-                                            <GuitarChord
-                                                root={chord.root}
-                                                quality={previewVariant || chord.quality}
-                                                color={chordColor}
-                                            />
-                                        </div>
-                                        {/* Vertical divider */}
-                                        <div className="w-px bg-border-subtle self-stretch" />
-                                        {/* Right: Suggested Voicings */}
-                                        <div className="flex-1 flex flex-col justify-start pl-1">
-                                            {getSuggestedVoicings().extensions.length > 0 ? (
-                                                <div className="grid grid-cols-2 mb-2" style={{ gap: isMobile ? '8px' : '6px' }}>
-                                                    {getSuggestedVoicings().extensions.map((ext) => (
-                                                        <button
-                                                            key={ext}
-                                                            className={`relative group ${isMobile ? 'px-2 py-2 text-xs min-h-[36px]' : 'px-1.5 py-1 text-[10px]'} rounded font-semibold transition-colors touch-feedback overflow-hidden text-ellipsis whitespace-nowrap`}
-                                                            style={previewVariant === ext
-                                                                ? { backgroundColor: '#4f46e5', color: '#ffffff', border: '1px solid #4f46e5' }
-                                                                : { backgroundColor: '#282833', color: '#f0f0f5', border: '1px solid rgba(255,255,255,0.08)' }
-                                                            }
-                                                            onClick={() => handleVariationClick(ext)}
-                                                            onDoubleClick={() => handleVariationDoubleClick(ext)}
-                                                        >
-                                                            {chord.root}{ext}
-                                                            {!isMobile && voicingTooltips[ext] && (
-                                                                <span
-                                                                    className="pointer-events-none absolute -top-6 -translate-y-full left-1/2 -translate-x-1/2 whitespace-normal text-[10px] leading-tight bg-black text-white px-3 py-2 rounded border border-white/10 shadow-xl opacity-0 group-hover:opacity-100 group-active:opacity-0 group-focus:opacity-0 transition-opacity duration-150 group-hover:delay-1000 z-50 w-44 text-left"
-                                                                    style={{
-                                                                        backgroundColor: '#000',
-                                                                        color: '#fff',
-                                                                        padding: '8px 10px'
-                                                                    }}
-                                                                >
-                                                                    {voicingTooltips[ext] ? (
-                                                                        <>
-                                                                            {voicingTooltips[ext]}
-                                                                            <div className="h-px bg-white/20 my-1.5" />
-                                                                        </>
-                                                                    ) : null}
-                                                                    Double-click to add to timeline
-                                                                </span>
-                                                            )}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            ) : null}
-                                            {/* Display selected voicing description */}
-                                            <p className={`${isMobile ? 'text-xs' : 'text-[10px]'} text-text-muted leading-relaxed`}>
-                                                {voicingTooltips[previewVariant || chord.quality] || 'Select a voicing to see its description.'}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    {/* Inversion controls + Staff in horizontal layout */}
-                                    <div className="flex items-center mt-2 gap-1">
-                                        {/* Left: Inversion controls (ultra-compact) */}
-                                        <div className="flex flex-col items-center shrink-0">
-                                            <span className="text-[7px] font-semibold uppercase tracking-wide text-text-muted mb-0">Inv</span>
-                                            <div className="flex items-center gap-0 bg-bg-tertiary/50 rounded" title="Chord inversion - which note is in the bass">
-                                                <button
-                                                    onClick={() => {
-                                                        const newInversion = Math.max(0, chordInversion - 1);
-                                                        setChordInversion(newInversion);
-                                                        const notes = invertChord(baseNotes, newInversion);
-                                                        playChord(notes);
-                                                    }}
-                                                    disabled={chordInversion <= 0}
-                                                    className={`${isMobile ? 'w-5 h-5' : 'w-4 h-4'} flex items-center justify-center hover:bg-accent-primary/20 rounded text-text-muted hover:text-accent-primary transition-colors touch-feedback disabled:opacity-40 disabled:cursor-not-allowed`}
-                                                    title="Previous inversion"
-                                                >
-                                                    <ChevronLeft size={isMobile ? 10 : 8} />
-                                                </button>
-                                                <span className={`${isMobile ? 'text-[9px]' : 'text-[8px]'} font-semibold text-text-secondary min-w-[20px] text-center`}>
-                                                    {getInversionName(chordInversion)}
-                                                </span>
-                                                <button
-                                                    onClick={() => {
-                                                        const newInversion = Math.min(maxInversion, chordInversion + 1);
-                                                        setChordInversion(newInversion);
-                                                        const notes = invertChord(baseNotes, newInversion);
-                                                        playChord(notes);
-                                                    }}
-                                                    disabled={chordInversion >= maxInversion}
-                                                    className={`${isMobile ? 'w-5 h-5' : 'w-4 h-4'} flex items-center justify-center hover:bg-accent-primary/20 rounded text-text-muted hover:text-accent-primary transition-colors touch-feedback disabled:opacity-40 disabled:cursor-not-allowed`}
-                                                    title="Next inversion"
-                                                >
-                                                    <ChevronRight size={isMobile ? 10 : 8} />
-                                                </button>
+                                <button
+                                    onClick={() => {
+                                        const newState = !showGuitar;
+                                        setShowGuitar(newState);
+                                        if (newState) {
+                                            setTimeout(() => scrollSectionIntoView(guitarSectionRef), 50);
+                                        }
+                                    }}
+                                    className={`w-full flex items-center justify-between ${showGuitar ? 'mb-2' : 'mb-0'} cursor-pointer rounded-none`}
+                                    style={{ backgroundColor: 'transparent' }}
+                                >
+                                    <h3 className={`${isMobile ? 'text-[11px]' : 'text-[10px]'} font-semibold text-text-secondary uppercase tracking-wide whitespace-nowrap`}>
+                                        Guitar & Suggested Voicings for {chord.numeral || chord.symbol}
+                                    </h3>
+                                    <ChevronDown
+                                        size={14}
+                                        className={`text-text-secondary transition-transform ${showGuitar ? 'rotate-180' : ''}`}
+                                    />
+                                </button>
+                                {showGuitar && (
+                                    <>
+                                        <div className="flex flex-row gap-2" style={{ marginTop: '8px' }}>
+                                            {/* Left: Guitar (compact) */}
+                                            <div className="flex justify-center items-start shrink-0" style={{ minWidth: '100px' }}>
+                                                <GuitarChord
+                                                    root={chord.root}
+                                                    quality={previewVariant || chord.quality}
+                                                    color={chordColor}
+                                                />
+                                            </div>
+                                            {/* Vertical divider */}
+                                            <div className="w-px bg-border-subtle self-stretch" />
+                                            {/* Right: Suggested Voicings */}
+                                            <div className="flex-1 flex flex-col justify-start pl-1">
+                                                {getSuggestedVoicings().extensions.length > 0 ? (
+                                                    <div className="grid grid-cols-2 mb-2" style={{ gap: isMobile ? '8px' : '6px' }}>
+                                                        {getSuggestedVoicings().extensions.map((ext) => (
+                                                            <button
+                                                                key={ext}
+                                                                className={`relative group ${isMobile ? 'px-2 py-2 text-xs min-h-[36px]' : 'px-1.5 py-1 text-[10px]'} rounded font-semibold transition-colors touch-feedback overflow-hidden text-ellipsis whitespace-nowrap`}
+                                                                style={previewVariant === ext
+                                                                    ? { backgroundColor: '#4f46e5', color: '#ffffff', border: '1px solid #4f46e5' }
+                                                                    : { backgroundColor: '#282833', color: '#f0f0f5', border: '1px solid rgba(255,255,255,0.08)' }
+                                                                }
+                                                                onClick={() => handleVariationClick(ext)}
+                                                                onDoubleClick={() => handleVariationDoubleClick(ext)}
+                                                            >
+                                                                {chord.root}{ext}
+                                                                {!isMobile && voicingTooltips[ext] && (
+                                                                    <span
+                                                                        className="pointer-events-none absolute -top-6 -translate-y-full left-1/2 -translate-x-1/2 whitespace-normal text-[10px] leading-tight bg-black text-white px-3 py-2 rounded border border-white/10 shadow-xl opacity-0 group-hover:opacity-100 group-active:opacity-0 group-focus:opacity-0 transition-opacity duration-150 group-hover:delay-1000 z-50 w-44 text-left"
+                                                                        style={{
+                                                                            backgroundColor: '#000',
+                                                                            color: '#fff',
+                                                                            padding: '8px 10px'
+                                                                        }}
+                                                                    >
+                                                                        {voicingTooltips[ext] ? (
+                                                                            <>
+                                                                                {voicingTooltips[ext]}
+                                                                                <div className="h-px bg-white/20 my-1.5" />
+                                                                            </>
+                                                                        ) : null}
+                                                                        Double-click to add to timeline
+                                                                    </span>
+                                                                )}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                ) : null}
+                                                {/* Display selected voicing description */}
+                                                <p className={`${isMobile ? 'text-xs' : 'text-[10px]'} text-text-muted leading-relaxed`}>
+                                                    {voicingTooltips[previewVariant || chord.quality] || 'Select a voicing to see its description.'}
+                                                </p>
                                             </div>
                                         </div>
-                                        {/* Right: Musical Staff (takes maximum width) */}
-                                        <div className="flex-1">
-                                            <MusicStaff
-                                                notes={displayNotes}
-                                                rootNote={chord.root}
-                                                color={chordColor}
-                                            />
-                                        </div>
-                                    </div>
-                                    {/* Chord role description - below the staff */}
-                                    <p className={`${isMobile ? 'text-xs' : 'text-[10px]'} text-text-secondary leading-relaxed italic`}>
-                                        {getSuggestedVoicings().description}
-                                    </p>
-                                </>
-                            )}
-                        </div>
-
-                        {/* Variations */}
-                        <div
-                            ref={voicingsSectionRef}
-                            className={`${isMobile ? 'px-5 py-1 mt-2' : 'px-5 py-1'} rounded-none`}
-                            style={{ backgroundColor: '#1e1e28', borderBottom: '1px solid #3a3a4a', scrollMarginTop: '60px' }}
-                        >
-                            <button
-                                onClick={() => {
-                                    const newState = !showVariations;
-                                    setShowVariations(newState);
-                                    if (newState) {
-                                        setTimeout(() => scrollSectionIntoView(voicingsSectionRef), 50);
-                                    }
-                                }}
-                                className={`w-full flex items-center justify-between ${showVariations ? 'mb-3' : 'mb-0'} cursor-pointer rounded-none`}
-                                style={{ backgroundColor: 'transparent' }}
-                            >
-                                <h3 className={`${isMobile ? 'text-[11px]' : 'text-[10px]'} font-semibold text-text-secondary uppercase tracking-wide`}>
-                                    Voicings
-                                </h3>
-                                <ChevronDown
-                                    size={14}
-                                    className={`text-text-secondary transition-transform ${showVariations ? 'rotate-180' : ''}`}
-                                />
-                            </button>
-                            {showVariations && (
-                                <div className={`grid ${isMobile ? 'grid-cols-3' : 'grid-cols-2 sm:grid-cols-3'} ${isMobile ? 'gap-3' : 'gap-2.5'}`}>
-                                    {voicingOptions.map((ext, idx) => {
-                                        const isLeftCol = idx % 2 === 0;
-                                        const tooltipPositionStyle = isLeftCol
-                                            ? { left: 'calc(100% + 10px)' }
-                                            : { right: 'calc(100% + 10px)' };
-
-                                        return (
-                                            <button
-                                                key={ext}
-                                                className={`relative group ${isMobile ? 'px-3 py-3 min-h-[48px] text-xs' : 'px-2 py-1.5 text-[10px]'} rounded font-medium transition-colors touch-feedback`}
-                                                style={previewVariant === ext
-                                                    ? { backgroundColor: '#4f46e5', color: '#ffffff', border: '1px solid #4f46e5' }
-                                                    : { backgroundColor: '#282833', color: '#9898a6', border: '1px solid rgba(255,255,255,0.08)' }
-                                                }
-                                                onClick={() => handleVariationClick(ext)}
-                                                onDoubleClick={() => handleVariationDoubleClick(ext)}
-                                            >
-                                                {ext}
-                                                {!isMobile && voicingTooltips[ext] && (
-                                                    <span
-                                                        className="pointer-events-none absolute top-1/2 -translate-y-1/2 whitespace-normal text-[10px] leading-tight bg-black text-white px-3 py-2 rounded border border-white/10 shadow-xl opacity-0 group-hover:opacity-100 group-active:opacity-0 group-focus:opacity-0 transition-opacity duration-150 group-hover:delay-1000 z-50 w-44 text-left"
-                                                        style={{
-                                                            ...tooltipPositionStyle,
-                                                            backgroundColor: '#000',
-                                                            color: '#fff',
-                                                            padding: '8px 10px'
+                                        {/* Inversion controls + Staff in horizontal layout */}
+                                        <div className="flex items-center mt-2 gap-1">
+                                            {/* Left: Inversion controls (ultra-compact) */}
+                                            <div className="flex flex-col items-center shrink-0">
+                                                <span className="text-[7px] font-semibold uppercase tracking-wide text-text-muted mb-0">Inv</span>
+                                                <div className="flex items-center gap-0 bg-bg-tertiary/50 rounded" title="Chord inversion - which note is in the bass">
+                                                    <button
+                                                        onClick={() => {
+                                                            const newInversion = Math.max(0, chordInversion - 1);
+                                                            setChordInversion(newInversion);
+                                                            const notes = invertChord(baseNotes, newInversion);
+                                                            playChord(notes);
                                                         }}
+                                                        disabled={chordInversion <= 0}
+                                                        className={`${isMobile ? 'w-5 h-5' : 'w-4 h-4'} flex items-center justify-center hover:bg-accent-primary/20 rounded text-text-muted hover:text-accent-primary transition-colors touch-feedback disabled:opacity-40 disabled:cursor-not-allowed`}
+                                                        title="Previous inversion"
                                                     >
-                                                        {voicingTooltips[ext] ? (
-                                                            <>
-                                                                {voicingTooltips[ext]}
-                                                                <div className="h-px bg-white/20 my-1.5" />
-                                                            </>
-                                                        ) : null}
-                                                        Double-click to add to timeline
+                                                        <ChevronLeft size={isMobile ? 10 : 8} />
+                                                    </button>
+                                                    <span className={`${isMobile ? 'text-[9px]' : 'text-[8px]'} font-semibold text-text-secondary min-w-[20px] text-center`}>
+                                                        {getInversionName(chordInversion)}
                                                     </span>
-                                                )}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                        </div>
+                                                    <button
+                                                        onClick={() => {
+                                                            const newInversion = Math.min(maxInversion, chordInversion + 1);
+                                                            setChordInversion(newInversion);
+                                                            const notes = invertChord(baseNotes, newInversion);
+                                                            playChord(notes);
+                                                        }}
+                                                        disabled={chordInversion >= maxInversion}
+                                                        className={`${isMobile ? 'w-5 h-5' : 'w-4 h-4'} flex items-center justify-center hover:bg-accent-primary/20 rounded text-text-muted hover:text-accent-primary transition-colors touch-feedback disabled:opacity-40 disabled:cursor-not-allowed`}
+                                                        title="Next inversion"
+                                                    >
+                                                        <ChevronRight size={isMobile ? 10 : 8} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            {/* Right: Musical Staff (takes maximum width) */}
+                                            <div className="flex-1">
+                                                <MusicStaff
+                                                    notes={displayNotes}
+                                                    rootNote={chord.root}
+                                                    color={chordColor}
+                                                />
+                                            </div>
+                                        </div>
+                                        {/* Chord role description - below the staff */}
+                                        <p className={`${isMobile ? 'text-xs' : 'text-[10px]'} text-text-secondary leading-relaxed italic`}>
+                                            {getSuggestedVoicings().description}
+                                        </p>
+                                    </>
+                                )}
+                            </div>
 
-                        {/* Theory Note - with proper text wrapping */}
-                        <div
-                            ref={theorySectionRef}
-                            className={`${isMobile ? 'px-5 py-1 mt-2' : 'px-5 py-1'} rounded-none`}
-                            style={{ backgroundColor: '#1e1e28', borderBottom: '1px solid #3a3a4a', scrollMarginTop: '60px' }}
-                        >
-                            <button
-                                onClick={() => {
-                                    const newState = !showTheory;
-                                    setShowTheory(newState);
-                                    if (newState) {
-                                        setTimeout(() => scrollSectionIntoView(theorySectionRef), 50);
-                                    }
-                                }}
-                                className={`w-full flex items-center justify-between cursor-pointer ${showTheory ? 'mb-3' : 'mb-0'} rounded-none`}
-                                style={{ backgroundColor: 'transparent' }}
+                            {/* Variations */}
+                            <div
+                                ref={voicingsSectionRef}
+                                className={`${isLandscapeExpanded ? 'px-3 py-1' : isMobile ? 'px-5 py-1 mt-2' : 'px-5 py-1'} rounded-none`}
+                                style={{ backgroundColor: '#1e1e28', borderBottom: '1px solid #3a3a4a', scrollMarginTop: '60px' }}
                             >
-                                <h3 className={`${isMobile ? 'text-[11px]' : 'text-[10px]'} font-semibold text-text-secondary uppercase tracking-wide`}>
-                                    Theory
-                                </h3>
-                                <ChevronDown
-                                    size={14}
-                                    className={`text-text-secondary transition-transform ${showTheory ? 'rotate-180' : ''}`}
-                                />
-                            </button>
-                            {showTheory && (
-                                <div className={`${isMobile ? 'p-3' : 'p-4'} bg-bg-elevated rounded-none`}>
-                                    <p className={`${isMobile ? 'text-sm' : 'text-xs'} text-text-secondary leading-relaxed`}>
-                                        {getTheoryNote()}
-                                    </p>
-                                </div>
-                            )}
+                                <button
+                                    onClick={() => {
+                                        const newState = !showVariations;
+                                        setShowVariations(newState);
+                                        if (newState) {
+                                            setTimeout(() => scrollSectionIntoView(voicingsSectionRef), 50);
+                                        }
+                                    }}
+                                    className={`w-full flex items-center justify-between ${showVariations ? 'mb-3' : 'mb-0'} cursor-pointer rounded-none`}
+                                    style={{ backgroundColor: 'transparent' }}
+                                >
+                                    <h3 className={`${isMobile ? 'text-[11px]' : 'text-[10px]'} font-semibold text-text-secondary uppercase tracking-wide`}>
+                                        Voicings
+                                    </h3>
+                                    <ChevronDown
+                                        size={14}
+                                        className={`text-text-secondary transition-transform ${showVariations ? 'rotate-180' : ''}`}
+                                    />
+                                </button>
+                                {showVariations && (
+                                    <div className={`grid ${isMobile ? 'grid-cols-3' : 'grid-cols-2 sm:grid-cols-3'} ${isMobile ? 'gap-3' : 'gap-2.5'}`}>
+                                        {voicingOptions.map((ext, idx) => {
+                                            const isLeftCol = idx % 2 === 0;
+                                            const tooltipPositionStyle = isLeftCol
+                                                ? { left: 'calc(100% + 10px)' }
+                                                : { right: 'calc(100% + 10px)' };
+
+                                            return (
+                                                <button
+                                                    key={ext}
+                                                    className={`relative group ${isMobile ? 'px-3 py-3 min-h-[48px] text-xs' : 'px-2 py-1.5 text-[10px]'} rounded font-medium transition-colors touch-feedback`}
+                                                    style={previewVariant === ext
+                                                        ? { backgroundColor: '#4f46e5', color: '#ffffff', border: '1px solid #4f46e5' }
+                                                        : { backgroundColor: '#282833', color: '#9898a6', border: '1px solid rgba(255,255,255,0.08)' }
+                                                    }
+                                                    onClick={() => handleVariationClick(ext)}
+                                                    onDoubleClick={() => handleVariationDoubleClick(ext)}
+                                                >
+                                                    {ext}
+                                                    {!isMobile && voicingTooltips[ext] && (
+                                                        <span
+                                                            className="pointer-events-none absolute top-1/2 -translate-y-1/2 whitespace-normal text-[10px] leading-tight bg-black text-white px-3 py-2 rounded border border-white/10 shadow-xl opacity-0 group-hover:opacity-100 group-active:opacity-0 group-focus:opacity-0 transition-opacity duration-150 group-hover:delay-1000 z-50 w-44 text-left"
+                                                            style={{
+                                                                ...tooltipPositionStyle,
+                                                                backgroundColor: '#000',
+                                                                color: '#fff',
+                                                                padding: '8px 10px'
+                                                            }}
+                                                        >
+                                                            {voicingTooltips[ext] ? (
+                                                                <>
+                                                                    {voicingTooltips[ext]}
+                                                                    <div className="h-px bg-white/20 my-1.5" />
+                                                                </>
+                                                            ) : null}
+                                                            Double-click to add to timeline
+                                                        </span>
+                                                    )}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Theory Note - with proper text wrapping */}
+                            <div
+                                ref={theorySectionRef}
+                                className={`${isLandscapeExpanded ? 'px-3 py-1' : isMobile ? 'px-5 py-1 mt-2' : 'px-5 py-1'} rounded-none`}
+                                style={{ backgroundColor: '#1e1e28', borderBottom: '1px solid #3a3a4a', scrollMarginTop: '60px' }}
+                            >
+                                <button
+                                    onClick={() => {
+                                        const newState = !showTheory;
+                                        setShowTheory(newState);
+                                        if (newState) {
+                                            setTimeout(() => scrollSectionIntoView(theorySectionRef), 50);
+                                        }
+                                    }}
+                                    className={`w-full flex items-center justify-between cursor-pointer ${showTheory ? 'mb-3' : 'mb-0'} rounded-none`}
+                                    style={{ backgroundColor: 'transparent' }}
+                                >
+                                    <h3 className={`${isMobile ? 'text-[11px]' : 'text-[10px]'} font-semibold text-text-secondary uppercase tracking-wide`}>
+                                        Theory
+                                    </h3>
+                                    <ChevronDown
+                                        size={14}
+                                        className={`text-text-secondary transition-transform ${showTheory ? 'rotate-180' : ''}`}
+                                    />
+                                </button>
+                                {showTheory && (
+                                    <div className={`${isMobile ? 'p-3' : 'p-4'} bg-bg-elevated rounded-none`}>
+                                        <p className={`${isMobile ? 'text-sm' : 'text-xs'} text-text-secondary leading-relaxed`}>
+                                            {getTheoryNote()}
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* End of Collapsible Sections Container */}
                         </div>
 
                         {/* Safe area spacer for Safari bottom toolbar */}
