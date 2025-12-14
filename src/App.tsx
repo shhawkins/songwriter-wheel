@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { ChordWheel } from './components/wheel/ChordWheel';
 import { Timeline } from './components/timeline/Timeline';
+import { MobileTimeline } from './components/timeline/MobileTimeline';
 import { ChordDetails } from './components/panel/ChordDetails';
 import { PlaybackControls } from './components/playback/PlaybackControls';
 import { useSongStore } from './store/useSongStore';
@@ -56,6 +57,13 @@ function App() {
   // Start in non-immersive mode to show toolbars on page load
   const [mobileImmersive, setMobileImmersive] = useState(false);
   const immersiveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Mobile timeline drawer state (separate from desktop timeline)
+  const [mobileTimelineOpen, setMobileTimelineOpen] = useState(false);
+
+  // Landscape split view - draggable divider position (percentage for left/wheel side)
+  const [landscapeSplit, setLandscapeSplit] = useState(45); // 45% wheel, 55% timeline
+  const [isDraggingSplit, setIsDraggingSplit] = useState(false);
 
   // Auto-enter immersive mode after inactivity on mobile
   useEffect(() => {
@@ -122,15 +130,13 @@ function App() {
           const boosted = Math.min(rawSize * boost, availableWidth - padding + 12, height - 120 + 12, 560);
           setWheelBaseSize(boosted);
         } else {
-          // Portrait: wheel takes up top half of screen (priority on wheel visibility)
-          const padding = 8; // Minimal margin for edge-to-edge feel
-          // Target: wheel should fill ~50% of viewport height minimum
-          const targetWheelHeight = height * 0.5;
+          // Portrait: wheel takes up nearly full width of screen
+          const margin = 8; // Just a few px margin on each side
+          // Prioritize width - wheel should fill the viewport width
+          const targetSize = width - (margin * 2);
 
-          // Calculate size based on viewport, prioritizing the half-screen height target
-          const maxDimension = Math.min(width - padding, targetWheelHeight);
-          const rawSize = Math.min(maxDimension, 600); // Allow larger wheels
-          const boosted = Math.min(rawSize * boost, width - padding, 600);
+          // Apply boost and set the size (no arbitrary cap, let viewport control it)
+          const boosted = targetSize * boost;
           setWheelBaseSize(Math.max(280, boosted));
         }
 
@@ -808,7 +814,7 @@ function App() {
       {/* Main Content Area */}
       <div className={`flex-1 flex ${isMobile ? (isLandscape ? 'flex-row' : 'flex-col') : 'flex-row'} overflow-hidden min-h-0`}>
         {/* Left/Top: Wheel + Timeline */}
-        <div className={`flex flex-col min-w-0 min-h-0 ${isMobile ? (isLandscape ? 'w-1/2' : 'flex-1') : 'flex-1'} ${isMobile && !isLandscape ? 'overflow-hidden' : 'overflow-hidden'} bg-gradient-to-b from-bg-primary to-bg-secondary/30`}>
+        <div className={`flex flex-col min-w-0 min-h-0 ${isMobile && !isLandscape ? 'flex-1' : 'flex-1'} ${isMobile && !isLandscape ? 'overflow-hidden' : 'overflow-hidden'} bg-gradient-to-b from-bg-primary to-bg-secondary/30`} style={isMobile && isLandscape ? { width: `${landscapeSplit}%` } : undefined}>
           {/* Wheel Area */}
           <div className={`${isMobile && !isLandscape ? 'flex-1' : 'flex-1'} flex flex-col ${isMobile && !isLandscape ? 'justify-center' : ''} overflow-hidden`}>
             {/* Zoom toolbar - always show on desktop, hide on mobile portrait to save space */}
@@ -977,23 +983,96 @@ function App() {
 
         {/* Right Side: Chord Details Panel (Desktop) or Timeline (Mobile Landscape) */}
         {isMobile && isLandscape ? (
-          /* Mobile Landscape: Right side with timeline only - maximize space */
-          <div className="w-1/2 flex flex-col overflow-hidden border-l border-border-subtle bg-bg-secondary">
-            <Timeline height={300} scale={0.8} />
-          </div>
+          /* Mobile Landscape: Right side with optimized timeline */
+          <>
+            {/* Draggable divider */}
+            <div
+              className="w-2 flex items-center justify-center cursor-ew-resize hover:bg-accent-primary/30 active:bg-accent-primary/50 transition-colors touch-none"
+              style={{ backgroundColor: isDraggingSplit ? 'rgba(99, 102, 241, 0.3)' : undefined }}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                setIsDraggingSplit(true);
+                const handleMouseMove = (moveE: MouseEvent) => {
+                  const newSplit = (moveE.clientX / window.innerWidth) * 100;
+                  setLandscapeSplit(Math.max(30, Math.min(60, newSplit)));
+                };
+                const handleMouseUp = () => {
+                  setIsDraggingSplit(false);
+                  document.removeEventListener('mousemove', handleMouseMove);
+                  document.removeEventListener('mouseup', handleMouseUp);
+                };
+                document.addEventListener('mousemove', handleMouseMove);
+                document.addEventListener('mouseup', handleMouseUp);
+              }}
+              onTouchStart={() => {
+                setIsDraggingSplit(true);
+                const handleTouchMove = (moveE: TouchEvent) => {
+                  const touch = moveE.touches[0];
+                  const newSplit = (touch.clientX / window.innerWidth) * 100;
+                  setLandscapeSplit(Math.max(30, Math.min(60, newSplit)));
+                };
+                const handleTouchEnd = () => {
+                  setIsDraggingSplit(false);
+                  document.removeEventListener('touchmove', handleTouchMove);
+                  document.removeEventListener('touchend', handleTouchEnd);
+                };
+                document.addEventListener('touchmove', handleTouchMove);
+                document.addEventListener('touchend', handleTouchEnd);
+              }}
+            >
+              <div className="w-1 h-8 bg-border-medium rounded-full" />
+            </div>
+            {/* Timeline panel */}
+            <div
+              className="flex flex-col overflow-hidden bg-bg-secondary"
+              style={{ width: `${100 - landscapeSplit}%` }}
+            >
+              {/* Timeline header with controls */}
+              <div className="flex items-center justify-between px-2 py-1.5 border-b border-border-subtle bg-bg-elevated shrink-0">
+                <span className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">Timeline</span>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="range"
+                    min="0.4"
+                    max="1.2"
+                    step="0.1"
+                    value={timelineScale}
+                    onChange={(e) => setTimelineScale(parseFloat(e.target.value))}
+                    className="w-16 h-1 bg-bg-tertiary rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-accent-primary [&::-webkit-slider-thumb]:rounded-full"
+                    title="Timeline scale"
+                  />
+                  <span className="text-[9px] text-text-muted w-8">{Math.round(timelineScale * 100)}%</span>
+                </div>
+              </div>
+              {/* Timeline content - uses available height */}
+              <div className="flex-1 overflow-hidden">
+                <Timeline height={window.innerHeight - 100} scale={timelineScale} />
+              </div>
+            </div>
+          </>
         ) : !isMobile ? (
           /* Desktop: Sidebar */
           <ChordDetails variant="sidebar" />
         ) : null}
       </div>
 
-      {/* Mobile Portrait: Bottom area for chord details */}
+      {/* Mobile Portrait: Bottom drawers - Timeline above Chord Details */}
       {isMobile && !isLandscape && (
-        <div
-          data-chord-details
-          className={`shrink-0 bg-bg-primary ${chordPanelVisible ? 'px-3 pb-2' : ''} overflow-hidden max-h-[55vh]`}
-        >
-          <ChordDetails variant="drawer" />
+        <div className="shrink-0 flex flex-col overflow-hidden" style={{ maxHeight: '65vh' }}>
+          {/* Mobile Timeline Drawer - sits above Chord Details */}
+          <MobileTimeline
+            isOpen={mobileTimelineOpen}
+            onToggle={() => setMobileTimelineOpen(!mobileTimelineOpen)}
+          />
+
+          {/* Chord Details Drawer */}
+          <div
+            data-chord-details
+            className={`shrink-0 bg-bg-primary ${chordPanelVisible ? 'px-3 pb-2' : ''} overflow-hidden`}
+            style={{ maxHeight: mobileTimelineOpen ? '45vh' : '55vh' }}
+          >
+            <ChordDetails variant="drawer" />
+          </div>
         </div>
       )}
 
