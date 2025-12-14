@@ -21,7 +21,7 @@ import { ConfirmDialog } from './components/ui/ConfirmDialog';
 unmuteAudio();
 
 function App() {
-  const { currentSong, selectedKey, timelineVisible, toggleTimeline, selectedSectionId, selectedSlotId, clearSlot, clearTimeline, setTitle, loadSong: loadSongToStore, newSong, instrument, volume, isMuted, undo, redo, canUndo, canRedo } = useSongStore();
+  const { currentSong, selectedKey, timelineVisible, toggleTimeline, selectedSectionId, selectedSlotId, clearSlot, clearTimeline, setTitle, loadSong: loadSongToStore, newSong, instrument, volume, isMuted, undo, redo, canUndo, canRedo, chordPanelVisible } = useSongStore();
 
   // Audio Sync Logic
   useEffect(() => {
@@ -41,8 +41,8 @@ function App() {
   const [isResizing, setIsResizing] = useState(false);
   const [timelineScale, setTimelineScale] = useState(0.6);
 
-  // Wheel zoom state - start slightly zoomed out on mobile to show all chords
-  const [wheelZoom, setWheelZoom] = useState(0.85);
+  // Wheel zoom state - start at 100% by default
+  const [wheelZoom, setWheelZoom] = useState(1.0);
   const [wheelZoomOrigin, setWheelZoomOrigin] = useState(50);
   const [wheelBaseSize, setWheelBaseSize] = useState(720);
 
@@ -53,7 +53,8 @@ function App() {
   const hasInitializedMobile = useRef(false);
 
   // Mobile immersive mode - hide header/footer to maximize wheel visibility
-  const [mobileImmersive, setMobileImmersive] = useState(true); // Start in immersive mode
+  // Start in non-immersive mode to show toolbars on page load
+  const [mobileImmersive, setMobileImmersive] = useState(false);
   const immersiveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Auto-enter immersive mode after inactivity on mobile
@@ -68,8 +69,8 @@ function App() {
       if (immersiveTimeoutRef.current) {
         clearTimeout(immersiveTimeoutRef.current);
       }
-      // Re-enter immersive after 3 seconds of inactivity
-      immersiveTimeoutRef.current = setTimeout(enterImmersive, 3000);
+      // Re-enter immersive after 30 seconds of inactivity (screensaver-like behavior)
+      immersiveTimeoutRef.current = setTimeout(enterImmersive, 30000);
     };
 
     // Only exit immersive on touch in the wheel background area, not chord details
@@ -672,9 +673,9 @@ function App() {
 
   return (
     <div className="h-full w-full flex flex-col bg-bg-primary text-text-primary overflow-hidden">
-      {/* Header - slides up when in mobile immersive mode */}
+      {/* Header - slides up when in mobile immersive mode or when chord panel is open */}
       <header
-        className={`${isMobile ? 'h-14' : 'h-12'} border-b border-border-subtle grid grid-cols-[1fr_auto_1fr] items-center ${isMobile ? 'px-4' : 'px-3'} bg-bg-secondary shrink-0 z-20 transition-all duration-300 ease-out ${isMobile && !isLandscape && mobileImmersive
+        className={`${isMobile ? 'h-14' : 'h-12'} border-b border-border-subtle grid grid-cols-[1fr_auto_1fr] items-center ${isMobile ? 'px-4' : 'px-3'} bg-bg-secondary shrink-0 z-20 transition-all duration-300 ease-out ${isMobile && !isLandscape && (mobileImmersive || chordPanelVisible)
           ? 'opacity-0 -translate-y-full pointer-events-none absolute top-0 left-0 right-0'
           : 'relative'
           }`}
@@ -990,14 +991,14 @@ function App() {
       {isMobile && !isLandscape && (
         <div
           data-chord-details
-          className="shrink-0 px-4 pb-2 bg-bg-primary border-t border-border-subtle overflow-y-auto max-h-[55vh]"
+          className={`shrink-0 bg-bg-primary ${chordPanelVisible ? 'px-4 pb-2 border-t border-border-subtle' : ''} overflow-y-auto max-h-[55vh]`}
         >
           <ChordDetails variant="drawer" />
         </div>
       )}
 
-      {/* Footer: Playback - completely hidden in mobile immersive mode */}
-      {!(isMobile && !isLandscape && mobileImmersive) && (
+      {/* Footer: Playback - hidden in mobile immersive mode or when chord panel is open */}
+      {!(isMobile && !isLandscape && (mobileImmersive || chordPanelVisible)) && (
         <div
           className="shrink-0 z-30 relative"
           style={{

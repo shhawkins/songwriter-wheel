@@ -65,13 +65,13 @@ export const MusicStaff: React.FC<MusicStaffProps> = ({
     // SVG dimensions - larger for better readability
     const defaultWidth = isMobile ? 280 : 340;
     const width = propWidth || defaultWidth;
-    const height = isMobile ? 110 : 120;
+    const height = isMobile ? 140 : 150;
 
     // Adjust staff rendering based on available width
     const margin = 12;
     const staffX = margin;
     // Position staff higher to leave room for lower notes (like C) and their labels
-    const staffY = height * 0.38;
+    const staffY = height * 0.30;
     const lineSpacing = 10; // Increased from 6 for better spacing
     const staffWidth = Math.max(100, width - (margin * 2));
 
@@ -79,8 +79,8 @@ export const MusicStaff: React.FC<MusicStaffProps> = ({
     const noteData = notes.map((note, index) => {
         const { line, accidental } = getNotePosition(note);
         // Distribute notes evenly across the staff width, leaving some padding relative to staff start/end
-        // Start notes after the clef (approx 45px offset for larger clef)
-        const clefOffset = 45;
+        // Start notes after the clef with comfortable spacing
+        const clefOffset = 60;
         const availableNoteWidth = staffWidth - clefOffset - 25; // 25px padding at end
 
         const x = staffX + clefOffset + (index * availableNoteWidth / Math.max(notes.length - 1, 1));
@@ -145,7 +145,7 @@ export const MusicStaff: React.FC<MusicStaffProps> = ({
             <svg
                 viewBox={`0 0 ${width} ${height}`}
                 className="w-full"
-                style={{ minHeight: isMobile ? 90 : 100 }}
+                style={{ minHeight: isMobile ? 120 : 130 }}
             >
                 {/* Staff lines (5 lines of treble clef) */}
                 {[-2, -1, 0, 1, 2].map((lineIndex) => (
@@ -162,9 +162,9 @@ export const MusicStaff: React.FC<MusicStaffProps> = ({
 
                 {/* Treble clef symbol (using Unicode) */}
                 <text
-                    x={staffX - 5}
-                    y={staffY + 16}
-                    fontSize={isMobile ? "50" : "54"}
+                    x={staffX - 3}
+                    y={staffY + 20}
+                    fontSize={isMobile ? "60" : "66"}
                     fill={color}
                     fontFamily="serif"
                     fontWeight="bold"
@@ -178,12 +178,12 @@ export const MusicStaff: React.FC<MusicStaffProps> = ({
                 {/* Notes */}
                 {noteData.map((noteInfo, index) => (
                     <g key={`note-${index}`}>
-                        {/* Accidental */}
+                        {/* Accidental - positioned further left to avoid overlapping note */}
                         {noteInfo.accidental && (
                             <text
-                                x={noteInfo.x - 16}
+                                x={noteInfo.x - 24}
                                 y={noteInfo.y + 6}
-                                fontSize={isMobile ? "22" : "24"}
+                                fontSize={isMobile ? "20" : "22"}
                                 fill="#ccc"
                                 fontFamily="serif"
                                 fontWeight="bold"
@@ -212,10 +212,10 @@ export const MusicStaff: React.FC<MusicStaffProps> = ({
                             fill="#1e1e28"
                         />
 
-                        {/* Note name below (small label) */}
+                        {/* Note name below (small label) - positioned relative to note y position for lower notes */}
                         <text
                             x={noteInfo.x}
-                            y={staffY + 35}
+                            y={Math.max(staffY + 40, noteInfo.y + 22)}
                             fontSize={isMobile ? "11" : "12"}
                             fill="#999"
                             textAnchor="middle"

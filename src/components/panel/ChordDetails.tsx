@@ -3,7 +3,7 @@ import { PianoKeyboard } from './PianoKeyboard';
 import { GuitarChord } from './GuitarChord';
 import { MusicStaff } from './MusicStaff';
 import { getWheelColors, getChordNotes, getIntervalFromKey, invertChord, getMaxInversion, getInversionName, getChordSymbolWithInversion } from '../../utils/musicTheory';
-import { PanelRightClose, PanelRight, GripVertical, HelpCircle, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { PanelRightClose, PanelRight, GripVertical, HelpCircle, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { playChord, playNote } from '../../utils/audioEngine';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { HelpModal } from '../HelpModal';
@@ -69,11 +69,18 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
 
     const handleTouchEnd = useCallback(() => {
         if (!isDrawer || !isMobile) return;
-        // If swiped more than 80px, close the panel
+        // If swiped more than 80px, close the panel with a slide-out animation
         if (swipeOffset > 80) {
-            toggleChordPanel();
+            // First animate fully off-screen, then toggle after animation completes
+            setSwipeOffset(300); // Slide fully down
+            setTimeout(() => {
+                toggleChordPanel();
+                setSwipeOffset(0); // Reset for next open
+            }, 200); // Match the CSS transition duration
+        } else {
+            // Snap back if not enough swipe
+            setSwipeOffset(0);
         }
-        setSwipeOffset(0);
     }, [isDrawer, isMobile, swipeOffset, toggleChordPanel]);
 
     // Get shortened chord name for mobile display
@@ -382,15 +389,33 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
     // Collapsed state - show appropriate reopen control
     if (!chordPanelVisible) {
         if (isDrawer) {
+            // Drawer handle styled as the top edge of a drawer - swipe up or tap to open
             return (
-                <button
+                <div
+                    className={`w-full ${isMobile ? 'h-10' : 'h-9'} flex flex-col items-center justify-center bg-bg-secondary border-t border-border-subtle cursor-pointer touch-feedback active:bg-bg-tertiary`}
                     onClick={toggleChordPanel}
-                    className={`w-full ${isMobile ? 'h-16 min-h-[64px]' : 'h-11'} flex items-center justify-center gap-2 bg-bg-secondary border-2 border-border-subtle rounded-2xl ${isMobile ? 'text-base' : 'text-[11px]'} font-bold text-text-primary shadow-lg hover:border-accent-primary transition-all touch-feedback active:scale-[0.97]`}
-                    title="Show chord details"
+                    onTouchStart={(e) => {
+                        touchStartY.current = e.touches[0].clientY;
+                        touchCurrentY.current = e.touches[0].clientY;
+                    }}
+                    onTouchMove={(e) => {
+                        touchCurrentY.current = e.touches[0].clientY;
+                    }}
+                    onTouchEnd={() => {
+                        const deltaY = touchStartY.current - touchCurrentY.current;
+                        // Swipe up (negative delta means finger moved up) - if moved more than 30px up, open
+                        if (deltaY > 30) {
+                            toggleChordPanel();
+                        }
+                    }}
+                    title="Swipe up or tap to open"
                 >
-                    <ChevronUp size={isMobile ? 20 : 14} />
-                    <span>Open Chord Details</span>
-                </button>
+                    {/* Pill-shaped drag handle */}
+                    <div className="w-10 h-1 rounded-full bg-text-muted/40 mb-0.5" />
+                    <span className={`${isMobile ? 'text-[10px]' : 'text-[9px]'} font-medium text-text-muted uppercase tracking-wider`}>
+                        Chord Details
+                    </span>
+                </div>
             );
         }
 
@@ -413,8 +438,9 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
             }
             style={!isDrawer ? { width: panelWidth, minWidth: panelWidth } : {
                 transform: swipeOffset > 0 ? `translateY(${swipeOffset}px)` : undefined,
-                opacity: swipeOffset > 0 ? 1 - (swipeOffset / 200) : 1,
-                transition: swipeOffset > 0 ? 'none' : 'all 0.3s ease-out'
+                opacity: swipeOffset > 0 ? Math.max(0, 1 - (swipeOffset / 300)) : 1,
+                // Enable transitions for: initial open, snap-back, and slide-out animation (swipeOffset >= 150)
+                transition: swipeOffset === 0 || swipeOffset >= 150 ? 'all 0.2s ease-out' : 'none'
             }}
         >
             {/* Resize handle (sidebar only) */}
