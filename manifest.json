@@ -1,0 +1,18 @@
+{
+    "name": "Songwriter's Wheel",
+    "short_name": "Chord Wheel",
+    "description": "Interactive chord wheel for songwriting and music theory",
+    "start_url": "/",
+    "display": "standalone",
+    "orientation": "portrait-primary",
+    "background_color": "#0d0d12",
+    "theme_color": "#0d0d12",
+    "icons": [
+        {
+            "src": "/favicon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        }
+    ]
+}
