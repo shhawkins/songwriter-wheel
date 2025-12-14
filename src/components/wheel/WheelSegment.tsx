@@ -1,6 +1,7 @@
 import React from 'react';
 import { describeSector, polarToCartesian, describeArcReversed } from '../../utils/geometry';
 import type { Chord } from '../../utils/musicTheory';
+import { formatChordForDisplay } from '../../utils/musicTheory';
 import clsx from 'clsx';
 import * as Tone from 'tone';
 
@@ -56,6 +57,10 @@ export const WheelSegment: React.FC<WheelSegmentProps> = ({
     const lastTouchTimeRef = React.useRef<number>(0);
     const touchTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
     const [isTouching, setIsTouching] = React.useState(false);
+
+    // Track touch position to detect drags vs taps
+    const touchStartPosRef = React.useRef<{ x: number; y: number } | null>(null);
+    const hasDraggedRef = React.useRef(false);
 
     // All text is horizontal - counter-rotate to cancel wheel rotation
     const textRotation = -wheelRotation;
@@ -134,14 +139,43 @@ export const WheelSegment: React.FC<WheelSegmentProps> = ({
     const glowOpacity = isHighlighted ? 1 : 0.95;
 
     // Handle touch events for mobile - detect single and double taps
-    const handleTouchStart = () => {
+    const handleTouchStart = (e: React.TouchEvent) => {
         setIsTouching(true);
+        // Record touch start position to detect drags
+        if (e.touches.length === 1) {
+            touchStartPosRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            hasDraggedRef.current = false;
+        }
+    };
+
+    // Track touch movement to detect drags
+    const handleTouchMove = (e: React.TouchEvent) => {
+        if (touchStartPosRef.current && e.touches.length === 1) {
+            const touch = e.touches[0];
+            const dx = touch.clientX - touchStartPosRef.current.x;
+            const dy = touch.clientY - touchStartPosRef.current.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            // If moved more than 15px, it's a drag not a tap
+            if (distance > 15) {
+                hasDraggedRef.current = true;
+            }
+        }
     };
 
     const handleTouchEnd = async (e: React.TouchEvent) => {
         e.preventDefault();
         e.stopPropagation();
         setIsTouching(false);
+
+        // Reset touch position ref
+        const wasDrag = hasDraggedRef.current;
+        touchStartPosRef.current = null;
+        hasDraggedRef.current = false;
+
+        // If this was a drag gesture (wheel spin), don't treat it as a tap
+        if (wasDrag) {
+            return;
+        }
 
         // Start audio context on first touch (required for iOS)
         if (Tone.context.state !== 'running') {
@@ -175,6 +209,8 @@ export const WheelSegment: React.FC<WheelSegmentProps> = ({
 
     const handleTouchCancel = () => {
         setIsTouching(false);
+        touchStartPosRef.current = null;
+        hasDraggedRef.current = false;
         if (touchTimeoutRef.current) {
             clearTimeout(touchTimeoutRef.current);
             touchTimeoutRef.current = null;
@@ -245,6 +281,7 @@ export const WheelSegment: React.FC<WheelSegmentProps> = ({
             onClick={handleMouseClick}
             onDoubleClick={handleMouseDoubleClick}
             onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
             onTouchCancel={handleTouchCancel}
             onMouseEnter={handleMouseEnter}
@@ -361,7 +398,7 @@ export const WheelSegment: React.FC<WheelSegmentProps> = ({
                 className="pointer-events-none select-none"
                 transform={`rotate(${textRotation}, ${chordPos.x}, ${chordPos.y})`}
             >
-                {label}
+                {formatChordForDisplay(label)}
             </text>
 
             {/* Roman numeral - BOTTOM of cell (inner edge) */}

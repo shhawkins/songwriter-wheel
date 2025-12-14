@@ -1,27 +1,93 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { getGuitarChord, type GuitarChordShape } from '../../utils/guitarChordData';
-import { getContrastingTextColor } from '../../utils/musicTheory';
+import { getContrastingTextColor, formatChordForDisplay } from '../../utils/musicTheory';
 import { useIsMobile } from '../../hooks/useIsMobile';
 
 interface GuitarChordProps {
     root: string;
     quality: string;
     color?: string;
+    onClick?: () => void;
+    onDoubleClick?: () => void;
 }
 
 export const GuitarChord: React.FC<GuitarChordProps> = ({
     root,
     quality,
-    color = '#6366f1'
+    color = '#6366f1',
+    onClick,
+    onDoubleClick
 }) => {
     const isMobile = useIsMobile();
     const chord = getGuitarChord(root, quality);
+    const lastClickTime = useRef(0);
+    const clickTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // Format chord name
-    const chordName = `${root}${quality === 'maj' ? '' : quality}`;
+    // Format chord name with proper flat symbols
+    const chordName = formatChordForDisplay(`${root}${quality === 'maj' ? '' : quality}`);
 
     // Get contrasting text color for the chord badge
     const textColor = getContrastingTextColor(color);
+
+    // Handle click with double-click detection
+    const handleClick = () => {
+        const now = Date.now();
+        const timeSinceLastClick = now - lastClickTime.current;
+
+        // Clear any pending single-click timeout
+        if (clickTimeout.current) {
+            clearTimeout(clickTimeout.current);
+            clickTimeout.current = null;
+        }
+
+        // Double-click detected (within 300ms)
+        if (timeSinceLastClick < 300 && timeSinceLastClick > 0) {
+            lastClickTime.current = 0;
+            if (onDoubleClick) {
+                onDoubleClick();
+            }
+        } else {
+            // Single click - wait to see if there's a second click
+            lastClickTime.current = now;
+            clickTimeout.current = setTimeout(() => {
+                if (onClick) onClick();
+                clickTimeout.current = null;
+            }, 300);
+        }
+    };
+
+    // Handle touch events for mobile double-tap detection
+    const lastTouchTime = useRef(0);
+    const touchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const handleTouchEnd = (e: React.TouchEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const now = Date.now();
+        const timeSinceLastTouch = now - lastTouchTime.current;
+
+        // Clear any pending single-tap timeout
+        if (touchTimeout.current) {
+            clearTimeout(touchTimeout.current);
+            touchTimeout.current = null;
+        }
+
+        // Double-tap detected (within 300ms)
+        if (timeSinceLastTouch < 300 && timeSinceLastTouch > 0) {
+            lastTouchTime.current = 0;
+            if (onDoubleClick) {
+                onDoubleClick();
+            }
+        } else {
+            // Single tap - wait to see if there's a second tap
+            lastTouchTime.current = now;
+            touchTimeout.current = setTimeout(() => {
+                if (onClick) onClick();
+                touchTimeout.current = null;
+            }, 300);
+        }
+    };
 
     if (!chord) {
         return (
@@ -31,8 +97,15 @@ export const GuitarChord: React.FC<GuitarChordProps> = ({
         );
     }
 
+    const isClickable = onClick || onDoubleClick;
+
     return (
-        <div className="flex flex-col items-center">
+        <div
+            className={`flex flex-col items-center ${isClickable ? 'cursor-pointer touch-feedback hover:opacity-80 active:scale-95 transition-all' : ''}`}
+            onClick={isClickable ? handleClick : undefined}
+            onTouchEnd={isClickable ? handleTouchEnd : undefined}
+            onTouchStart={isClickable ? (e) => e.stopPropagation() : undefined}
+        >
             <span
                 className={`${isMobile ? 'text-xs' : 'text-[11px]'} font-bold mb-1 text-center`}
                 style={{
@@ -47,7 +120,7 @@ export const GuitarChord: React.FC<GuitarChordProps> = ({
             <svg
                 viewBox="0 0 100 120"
                 className={`w-full ${isMobile ? 'max-w-[110px]' : 'max-w-[120px]'}`}
-                style={{ minHeight: isMobile ? 110 : 120 }}
+                style={{ minHeight: isMobile ? 110 : 120, pointerEvents: 'none' }}
             >
                 <ChordDiagram chord={chord} color={color} />
             </svg>

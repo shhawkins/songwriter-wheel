@@ -372,6 +372,19 @@ export function getIntervalFromKey(keyRoot: string, note: string): string {
  * Get contrasting text color (black or white) for a given background color
  * Assumes background is an HSL string or hex code
  */
+/**
+ * Format a chord symbol/name for display by replacing 'b' flat notation with proper ♭ symbol.
+ * This prevents issues when text is styled with CSS uppercase (e.g., "Bb" becoming "BB" instead of "B♭").
+ * @param text - Chord name, symbol, or any music text containing flat notes
+ * @returns Text with 'b' flats replaced by ♭ symbols
+ */
+export function formatChordForDisplay(text: string): string {
+    if (!text) return text;
+    // Replace 'b' that comes after a letter A-G (indicating a flat note)
+    // This handles: Bb, Db, Eb, Gb, Ab and also Bbm, Db7, etc.
+    return text.replace(/([A-G])b/g, '$1♭');
+}
+
 export function getContrastingTextColor(backgroundColor: string): string {
     // Check for HSL format: hsl(H, S%, L%)
     const hslMatch = backgroundColor.match(/hsl\((\d+),\s*(\d+)%,\s*(\d+)%\)/);

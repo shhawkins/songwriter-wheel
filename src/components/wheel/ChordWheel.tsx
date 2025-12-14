@@ -6,6 +6,7 @@ import {
     getChordNotes,
     getKeySignature,
     CIRCLE_OF_FIFTHS,
+    formatChordForDisplay,
     type Chord
 } from '../../utils/musicTheory';
 import { WheelSegment } from './WheelSegment';
@@ -17,6 +18,12 @@ interface ChordWheelProps {
     zoomScale: number;
     zoomOriginY: number;
     onZoomChange: (scale: number, originY: number) => void;
+    panOffset?: { x: number; y: number };
+    onPanChange?: (offset: { x: number; y: number }) => void;
+    /** Additional rotation offset in degrees (e.g., 90 to put key at 3 o'clock) */
+    rotationOffset?: number;
+    /** Disable the wheel mode toggle button (used during portrait panel centering) */
+    disableModeToggle?: boolean;
 }
 
 type WheelChord = Chord & {
@@ -25,7 +32,15 @@ type WheelChord = Chord & {
     positionIndex: number;
 };
 
-export const ChordWheel: React.FC<ChordWheelProps> = ({ zoomScale, zoomOriginY, onZoomChange }) => {
+export const ChordWheel: React.FC<ChordWheelProps> = ({
+    zoomScale,
+    zoomOriginY,
+    onZoomChange,
+    panOffset: externalPanOffset,
+    onPanChange,
+    rotationOffset = 0,
+    disableModeToggle = false
+}) => {
     const {
         selectedKey,
         setKey,
@@ -43,14 +58,43 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({ zoomScale, zoomOriginY, 
         setSelectedSlot
     } = useSongStore();
 
-    // In fixed mode, wheel doesn't rotate - calculate highlight offset instead
-    const effectiveRotation = wheelMode === 'rotating' ? wheelRotation : 0;
+    // Calculate wheel rotation
+    // In fixed mode, the wheel doesn't rotate (C stays at top, highlighting moves)
+    // In rotating mode, the wheel rotates to put the selected key at top
+    // When rotationOffset is provided, we override this behavior to put the key
+    // at a specific clock position (e.g., 90 = 3 o'clock for portrait panel centering)
     const keyIndex = CIRCLE_OF_FIFTHS.indexOf(selectedKey);
+    const keyRotation = -(keyIndex * 30); // Rotation needed to put selected key at 12 o'clock
+
+    let effectiveRotation: number;
+    if (rotationOffset !== 0) {
+        // When an offset is provided, put the selected key at that position
+        // (This is used for portrait panel centering where we want the key at 3 o'clock)
+        effectiveRotation = keyRotation + rotationOffset;
+    } else if (wheelMode === 'rotating') {
+        // Normal rotating mode - use stored rotation
+        effectiveRotation = wheelRotation;
+    } else {
+        // Fixed mode - wheel doesn't rotate
+        effectiveRotation = 0;
+    }
 
     const lastTouchDistance = useRef<number | null>(null);
     const lastPanCenter = useRef<{ x: number; y: number } | null>(null);
     const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
-    const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+    const [internalPanOffset, setInternalPanOffset] = useState({ x: 0, y: 0 });
+
+    // Use external pan offset if provided, otherwise use internal state
+    const panOffset = externalPanOffset ?? internalPanOffset;
+
+    // Helper to update pan offset - handles both internal and external modes
+    const updatePanOffset = useCallback((newOffset: { x: number; y: number }) => {
+        if (onPanChange) {
+            onPanChange(newOffset);
+        } else {
+            setInternalPanOffset(newOffset);
+        }
+    }, [onPanChange]);
 
     // Mobile detection using centralized hook
     const isMobile = useIsMobile();
@@ -267,8 +311,8 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({ zoomScale, zoomOriginY, 
     }, []);
 
     useEffect(() => {
-        setPanOffset((prev) => clampPan(prev.x, prev.y, zoomScale));
-    }, [zoomScale, clampPan]);
+        updatePanOffset(clampPan(panOffset.x, panOffset.y, zoomScale));
+    }, [zoomScale, clampPan, panOffset.x, panOffset.y, updatePanOffset]);
 
     // Pan handlers for desktop (defined after clampPan)
     const handlePanMove = useCallback((e: MouseEvent) => {
@@ -277,9 +321,9 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({ zoomScale, zoomOriginY, 
         const deltaX = e.clientX - panStartPos.current.x;
         const deltaY = e.clientY - panStartPos.current.y;
 
-        setPanOffset((prev) => clampPan(prev.x + deltaX, prev.y + deltaY, zoomScale));
+        updatePanOffset(clampPan(panOffset.x + deltaX, panOffset.y + deltaY, zoomScale));
         panStartPos.current = { x: e.clientX, y: e.clientY };
-    }, [isPanning, zoomScale, clampPan]);
+    }, [isPanning, zoomScale, clampPan, panOffset, updatePanOffset]);
 
     const handlePanEnd = useCallback(() => {
         setIsPanning(false);
@@ -335,7 +379,7 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({ zoomScale, zoomOriginY, 
             if (lastPanCenter.current) {
                 const deltaX = center.x - lastPanCenter.current.x;
                 const deltaY = center.y - lastPanCenter.current.y;
-                setPanOffset((prev) => clampPan(prev.x + deltaX, prev.y + deltaY, newScale));
+                updatePanOffset(clampPan(panOffset.x + deltaX, panOffset.y + deltaY, newScale));
             }
 
             // Update for next frame
@@ -343,7 +387,7 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({ zoomScale, zoomOriginY, 
             lastPanCenter.current = center;
             onZoomChange(newScale, newOriginY);
         }
-    }, [zoomScale, onZoomChange, clampPan]);
+    }, [zoomScale, onZoomChange, clampPan, panOffset, updatePanOffset]);
 
     const handleTouchEnd = useCallback((e: React.TouchEvent) => {
         lastTouchDistance.current = null;
@@ -877,7 +921,7 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({ zoomScale, zoomOriginY, 
 
                     {/* Key Name */}
                     <text x={cx} y={cy + 3} textAnchor="middle" fill="white" fontSize="26" fontWeight="bold">
-                        {selectedKey}
+                        {formatChordForDisplay(selectedKey)}
                     </text>
 
                     {/* Key Signature */}
@@ -922,32 +966,39 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({ zoomScale, zoomOriginY, 
                     {/* Wheel Mode Toggle - Google Maps style compass */}
                     <g
                         transform={`translate(${cx}, ${cy + 40})`}
-                        onClick={toggleWheelMode}
-                        onTouchEnd={(e) => {
+                        onClick={disableModeToggle ? undefined : toggleWheelMode}
+                        onTouchEnd={disableModeToggle ? undefined : (e) => {
                             e.preventDefault();
                             e.stopPropagation();
                             toggleWheelMode();
                         }}
-                        className="cursor-pointer"
-                        style={{ pointerEvents: 'all', cursor: 'pointer' }}
+                        className={disableModeToggle ? '' : 'cursor-pointer'}
+                        style={{
+                            pointerEvents: disableModeToggle ? 'none' : 'all',
+                            cursor: disableModeToggle ? 'default' : 'pointer',
+                            opacity: disableModeToggle ? 0.5 : 1
+                        }}
                     >
                         {/* Circular background - slightly larger than rotate buttons */}
                         <circle
                             r={isMobile ? 16 : 11}
-                            fill={wheelMode === 'rotating' ? '#252535' : '#3f2e2e'}
+                            fill={disableModeToggle ? '#252535' : (wheelMode === 'rotating' ? '#252535' : '#3f2e2e')}
                             className="transition-colors"
                             style={{
-                                pointerEvents: 'all',
+                                pointerEvents: disableModeToggle ? 'none' : 'all',
                                 transition: 'fill 0.3s ease'
                             }}
                         >
-                            <title>{wheelMode === 'rotating' ? 'Lock wheel (C at top)' : 'Pin current key to top'}</title>
+                            <title>{disableModeToggle ? 'Mode locked in this view' : (wheelMode === 'rotating' ? 'Lock wheel (C at top)' : 'Pin current key to top')}</title>
                         </circle>
                         <g
                             style={{
                                 pointerEvents: 'none',
                                 transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                                transform: wheelMode === 'rotating' ? 'rotate(0deg)' : `rotate(${keyIndex * 30}deg)`,
+                                // In portrait panel centering mode, add rotationOffset to point compass at 3 o'clock
+                                transform: rotationOffset !== 0
+                                    ? `rotate(${rotationOffset}deg)`
+                                    : (wheelMode === 'rotating' ? 'rotate(0deg)' : `rotate(${keyIndex * 30}deg)`),
                                 transformOrigin: '0px 0px'
                             }}
                         >

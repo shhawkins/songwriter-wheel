@@ -1,14 +1,17 @@
 import React, { useRef, useEffect } from 'react';
 import { useSongStore } from '../../store/useSongStore';
-import { getWheelColors, normalizeNote, getContrastingTextColor } from '../../utils/musicTheory';
+import { getWheelColors, normalizeNote, getContrastingTextColor, formatChordForDisplay } from '../../utils/musicTheory';
 import { playChord } from '../../utils/audioEngine';
-import { Plus, Play, ChevronLeft, ChevronRight, PanelRightClose } from 'lucide-react';
+import { Plus, Play, ChevronLeft, ChevronRight, PanelRightClose, Map } from 'lucide-react';
+import { SectionOptionsPopup } from './SectionOptionsPopup';
+import { SongOverview } from './SongOverview';
 import clsx from 'clsx';
 
 interface MobileTimelineProps {
     isOpen: boolean;
     onToggle: () => void;
     hideCloseButton?: boolean;
+    isCompact?: boolean; // True when both panels are open in landscape (very narrow space)
 }
 
 /**
@@ -22,7 +25,7 @@ interface MobileTimelineProps {
  * - Swipe down to close
  * - Max height ~140px to leave room for chord details
  */
-export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle, hideCloseButton = false }) => {
+export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle, hideCloseButton = false, isCompact = false }) => {
     const {
         currentSong,
         selectedSectionId,
@@ -31,8 +34,15 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
         setSelectedChord,
         playingSectionId,
         playingSlotId,
-        addSection
+        addSection,
+        setSectionTimeSignature,
+        setSectionMeasures,
+        removeSection,
+        duplicateSection,
+        setMeasureSubdivision
     } = useSongStore();
+
+    const songTimeSignature = currentSong.timeSignature;
 
     const colors = getWheelColors();
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -44,6 +54,10 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
     // Swipe gesture handling
     const touchStartY = useRef<number>(0);
     const [swipeOffset, setSwipeOffset] = React.useState(0);
+
+    // Feature state
+    const [editingSectionId, setEditingSectionId] = React.useState<string | null>(null);
+    const [isSongOverviewOpen, setIsSongOverviewOpen] = React.useState(false);
 
     // Auto-scroll to selected section when it changes
     useEffect(() => {
@@ -131,7 +145,7 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                 className="w-full h-9 flex flex-col items-center justify-center bg-bg-secondary border-t border-border-subtle cursor-pointer touch-feedback active:bg-bg-tertiary"
                 onClick={onToggle}
             >
-                <div className="w-10 h-1 rounded-full bg-text-muted/40 mb-0.5" />
+                <div className="w-10 h-1 rounded-full bg-text-muted/40 mb-1.5" />
                 <span className="text-[9px] font-medium text-text-muted uppercase tracking-wider">
                     Timeline
                 </span>
@@ -143,13 +157,13 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
         <div
             className="relative w-full bg-bg-secondary border-t-2 border-border-subtle overflow-hidden flex flex-col mobile-timeline-drawer"
             style={{
-                maxHeight: '140px',
+                maxHeight: isCompact ? '100px' : '140px', // More compact when both panels open
                 transform: swipeOffset > 0 ? `translateY(${swipeOffset}px)` : undefined,
                 opacity: swipeOffset > 0 ? Math.max(0.5, 1 - (swipeOffset / 150)) : 1,
                 transition: swipeOffset === 0 ? 'all 0.2s ease-out' : 'none'
             }}
         >
-            {/* Drag handle - hidden in landscape */}
+            {/* Drag handle with persistent title - hidden in landscape */}
             {!hideCloseButton && (
                 <div
                     className="flex flex-col items-center pt-1.5 pb-1 cursor-grab active:cursor-grabbing shrink-0"
@@ -157,36 +171,51 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                     onTouchMove={handleTouchMove}
                     onTouchEnd={handleTouchEnd}
                 >
-                    <div className="w-10 h-1 rounded-full bg-text-muted/40" />
+                    <div className="w-10 h-1 rounded-full bg-text-muted/40 mb-1.5" />
+                    <span className="text-[9px] font-medium text-text-muted uppercase tracking-wider">
+                        Timeline
+                    </span>
                 </div>
             )}
 
             {/* Section navigator */}
-            <div className="flex items-center justify-between px-2 pb-1.5 shrink-0">
+            <div className={`flex items-center justify-between shrink-0 ${isCompact ? 'px-1 pb-1' : 'px-2 pb-1.5'}`}>
+                <button
+                    onClick={() => setIsSongOverviewOpen(true)}
+                    className={`rounded text-text-muted hover:text-accent-primary touch-feedback shrink-0 ${isCompact ? 'p-1 mr-0' : 'p-1.5 mr-0.5'}`}
+                    title="Song Overview"
+                >
+                    <Map size={isCompact ? 14 : 16} />
+                </button>
                 <button
                     onClick={() => navigateSection('prev')}
                     disabled={activeSectionIndex === 0}
-                    className="p-1.5 rounded text-text-muted hover:text-text-primary disabled:opacity-30 disabled:cursor-not-allowed touch-feedback"
+                    className={`rounded text-text-muted hover:text-text-primary disabled:opacity-30 disabled:cursor-not-allowed touch-feedback ${isCompact ? 'p-1' : 'p-1.5'}`}
                 >
-                    <ChevronLeft size={16} />
+                    <ChevronLeft size={isCompact ? 14 : 16} />
                 </button>
 
                 {/* Section tabs - horizontal scroll */}
                 <div
                     ref={sectionTabsRef}
-                    className="flex-1 flex items-center gap-1.5 overflow-x-auto px-1 scrollbar-hide"
+                    className={`flex-1 flex items-center overflow-x-auto scrollbar-hide ${isCompact ? 'gap-1 px-0.5 mx-0.5' : 'gap-1.5 px-1 mx-1'}`}
                 >
                     {currentSong.sections.map((section, idx) => (
                         <button
                             key={section.id}
                             onClick={() => {
+                                if (idx === activeSectionIndex) {
+                                    setEditingSectionId(section.id);
+                                    return;
+                                }
                                 setActiveSectionIndex(idx);
                                 if (section.measures[0]?.beats[0]) {
                                     setSelectedSlot(section.id, section.measures[0].beats[0].id);
                                 }
                             }}
                             className={clsx(
-                                "px-2.5 py-1 rounded-full text-[10px] font-semibold whitespace-nowrap transition-all touch-feedback",
+                                "rounded-full font-semibold whitespace-nowrap transition-all touch-feedback",
+                                isCompact ? "px-2 py-0.5 text-[9px]" : "px-2.5 py-1 text-[10px]",
                                 idx === activeSectionIndex
                                     ? "bg-accent-primary text-white"
                                     : "bg-bg-tertiary text-text-secondary hover:text-text-primary"
@@ -207,9 +236,9 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                 <button
                     onClick={() => navigateSection('next')}
                     disabled={activeSectionIndex === currentSong.sections.length - 1}
-                    className="p-1.5 rounded text-text-muted hover:text-text-primary disabled:opacity-30 disabled:cursor-not-allowed touch-feedback"
+                    className={`rounded text-text-muted hover:text-text-primary disabled:opacity-30 disabled:cursor-not-allowed touch-feedback ${isCompact ? 'p-1' : 'p-1.5'}`}
                 >
-                    <ChevronRight size={16} />
+                    <ChevronRight size={isCompact ? 14 : 16} />
                 </button>
 
                 {/* Close button - alternative to swiping */}
@@ -227,55 +256,84 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
             {/* Chord slots for active section */}
             <div
                 ref={scrollRef}
-                className="flex-1 overflow-x-auto overflow-y-hidden px-2 pb-2"
+                className={`flex-1 overflow-x-auto overflow-y-hidden ${isCompact ? 'px-1 pb-1' : 'px-2 pb-2'}`}
             >
                 {activeSection && (
-                    <div className="flex gap-1 min-w-max h-full items-center">
+                    <div className={`flex min-w-max h-full items-center ${isCompact ? 'gap-0.5' : 'gap-1'}`}>
                         {activeSection.measures.map((measure, measureIdx) => (
                             <React.Fragment key={measure.id}>
                                 {/* Measure group */}
-                                <div className="flex gap-0.5 items-center">
-                                    {measure.beats.map((beat) => {
-                                        const isSelected = selectedSectionId === activeSection.id && selectedSlotId === beat.id;
-                                        const isPlaying = playingSectionId === activeSection.id && playingSlotId === beat.id;
-                                        const chordColor = beat.chord ? getChordColor(beat.chord.root) : undefined;
+                                <div className="flex flex-col gap-1">
+                                    <div className="flex gap-0.5 items-center">
+                                        {measure.beats.map((beat) => {
+                                            const isSelected = selectedSectionId === activeSection.id && selectedSlotId === beat.id;
+                                            const isPlaying = playingSectionId === activeSection.id && playingSlotId === beat.id;
+                                            const chordColor = beat.chord ? getChordColor(beat.chord.root) : undefined;
 
-                                        return (
-                                            <button
-                                                key={beat.id}
-                                                data-slot-id={beat.id}
-                                                onClick={() => handleSlotClick(activeSection.id, beat.id, beat.chord)}
-                                                className={clsx(
-                                                    "relative flex items-center justify-center rounded-md transition-all touch-feedback",
-                                                    "min-w-[40px] h-[36px]",
-                                                    isPlaying && "ring-2 ring-green-500 ring-offset-1 ring-offset-bg-primary shadow-[0_0_12px_rgba(34,197,94,0.5)] scale-105 z-10",
-                                                    isSelected && !isPlaying && "ring-2 ring-accent-primary ring-offset-1 ring-offset-bg-primary",
-                                                    !beat.chord && "border-2 border-dashed border-border-medium bg-bg-elevated hover:border-text-muted"
-                                                )}
-                                                style={beat.chord ? {
-                                                    backgroundColor: chordColor,
-                                                } : undefined}
+                                            return (
+                                                <button
+                                                    key={beat.id}
+                                                    data-slot-id={beat.id}
+                                                    onClick={() => handleSlotClick(activeSection.id, beat.id, beat.chord)}
+                                                    className={clsx(
+                                                        "relative flex items-center justify-center rounded-md transition-all touch-feedback",
+                                                        isCompact ? "min-w-[30px] h-[28px]" : "min-w-[40px] h-[36px]",
+                                                        isPlaying && "ring-2 ring-green-500 ring-offset-1 ring-offset-bg-primary shadow-[0_0_12px_rgba(34,197,94,0.5)] scale-105 z-10",
+                                                        isSelected && !isPlaying && "ring-2 ring-accent-primary ring-offset-1 ring-offset-bg-primary",
+                                                        !beat.chord && "border-2 border-dashed border-border-medium bg-bg-elevated hover:border-text-muted"
+                                                    )}
+                                                    style={beat.chord ? {
+                                                        backgroundColor: chordColor,
+                                                    } : undefined}
+                                                >
+                                                    {beat.chord ? (
+                                                        <span
+                                                            className={`font-bold px-1 truncate ${isCompact ? 'text-[10px]' : 'text-[11px]'}`}
+                                                            style={{ color: getContrastingTextColor(chordColor || '') }}
+                                                        >
+                                                            {formatChordForDisplay(beat.chord.symbol)}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-text-muted text-lg font-light">+</span>
+                                                    )}
+
+                                                    {/* Playing indicator */}
+                                                    {isPlaying && (
+                                                        <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-green-500 flex items-center justify-center">
+                                                            <Play size={6} fill="white" className="text-white" />
+                                                        </div>
+                                                    )}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+
+                                    {/* Step Count Dropdown - hide in compact mode to save space */}
+                                    {!isCompact && (
+                                        <div className="flex justify-center">
+                                            <select
+                                                value={measure.beats.length}
+                                                onChange={(e) => setMeasureSubdivision(activeSection.id, measure.id, parseInt(e.target.value, 10))}
+                                                className="appearance-none bg-bg-tertiary/50 text-text-muted hover:text-text-primary text-[9px] font-mono py-0.5 px-0 rounded cursor-pointer border border-transparent hover:border-border-subtle transition-colors text-center w-8 focus:outline-none focus:bg-bg-elevated"
+                                                title="Steps per measure"
                                             >
-                                                {beat.chord ? (
-                                                    <span
-                                                        className="text-[11px] font-bold px-1 truncate"
-                                                        style={{ color: getContrastingTextColor(chordColor || '') }}
-                                                    >
-                                                        {beat.chord.symbol}
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-text-muted text-lg font-light">+</span>
-                                                )}
-
-                                                {/* Playing indicator */}
-                                                {isPlaying && (
-                                                    <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-green-500 flex items-center justify-center">
-                                                        <Play size={6} fill="white" className="text-white" />
-                                                    </div>
-                                                )}
-                                            </button>
-                                        );
-                                    })}
+                                                {[1, 2, 3, 4, 6, 8, 12, 16]
+                                                    .filter(steps => {
+                                                        // Filter to show reasonable subdivisions based on time signature
+                                                        // E.g. 4/4 -> 1, 2, 4, 8, 16
+                                                        // 3/4 -> 1, 3, 6, 12
+                                                        const numerator = activeSection.timeSignature?.[0] || 4;
+                                                        if (numerator % 3 === 0) return steps % 3 === 0 || steps === 1;
+                                                        return steps === 1 || steps % 2 === 0 || steps === numerator;
+                                                    })
+                                                    .map(steps => (
+                                                        <option key={steps} value={steps} className="bg-bg-elevated text-text-primary">
+                                                            {steps}
+                                                        </option>
+                                                    ))}
+                                            </select>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Measure separator */}
@@ -287,6 +345,41 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                     </div>
                 )}
             </div>
+            {/* Options Popup */}
+            {editingSectionId && (
+                <SectionOptionsPopup
+                    section={currentSong.sections.find(s => s.id === editingSectionId)!}
+                    isOpen={true}
+                    onClose={() => setEditingSectionId(null)}
+                    onTimeSignatureChange={(val) => {
+                        const [top, bottom] = val.split('/').map(n => parseInt(n, 10));
+                        if (top && bottom && editingSectionId) setSectionTimeSignature(editingSectionId, [top, bottom]);
+                    }}
+                    onBarsChange={(val) => {
+                        if (editingSectionId) setSectionMeasures(editingSectionId, val);
+                    }}
+                    onCopy={() => {
+                        if (editingSectionId) duplicateSection(editingSectionId);
+                    }}
+                    onDelete={() => {
+                        if (editingSectionId) removeSection(editingSectionId);
+                    }}
+                    songTimeSignature={songTimeSignature || [4, 4]}
+                />
+            )}
+
+            {/* Song Overview Modal */}
+            <SongOverview
+                isOpen={isSongOverviewOpen}
+                onClose={() => setIsSongOverviewOpen(false)}
+                onSectionSelect={(index) => {
+                    setActiveSectionIndex(index);
+                    const section = currentSong.sections[index];
+                    if (section && section.measures[0]?.beats[0]) {
+                        setSelectedSlot(section.id, section.measures[0].beats[0].id);
+                    }
+                }}
+            />
         </div>
     );
 };

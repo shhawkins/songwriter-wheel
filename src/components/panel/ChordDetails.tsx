@@ -2,7 +2,7 @@ import { useSongStore } from '../../store/useSongStore';
 import { PianoKeyboard } from './PianoKeyboard';
 import { GuitarChord } from './GuitarChord';
 import { MusicStaff } from './MusicStaff';
-import { getWheelColors, getChordNotes, getIntervalFromKey, invertChord, getMaxInversion, getInversionName, getChordSymbolWithInversion } from '../../utils/musicTheory';
+import { getWheelColors, getChordNotes, getIntervalFromKey, invertChord, getMaxInversion, getInversionName, getChordSymbolWithInversion, formatChordForDisplay, getContrastingTextColor } from '../../utils/musicTheory';
 import { PanelRightClose, PanelRight, GripVertical, HelpCircle, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { playChord, playNote } from '../../utils/audioEngine';
 import { useState, useCallback, useEffect, useRef } from 'react';
@@ -38,12 +38,14 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
     const chord = selectedChord ?? persistedChord;
     const { isMobile } = useMobileLayout();
     const isLandscapeVariant = variant === 'landscape-panel' || variant === 'landscape-expanded';
+    const isCompactLandscape = variant === 'landscape-panel'; // Only compact when both timeline AND chord details are open
+
 
 
     // Collapsible sections state - all collapsed by default on mobile for compact view
     const [showVariations, setShowVariations] = useState(false); // Collapsed by default
     const [showTheory, setShowTheory] = useState(false); // Collapsed by default
-    const [showGuitar, setShowGuitar] = useState(!isMobile); // Collapsed on mobile, expanded on desktop
+    const [showGuitar, setShowGuitar] = useState(!isMobile || isLandscapeVariant); // Collapsed on mobile (except landscape), expanded on desktop
     const [chordInversion, setChordInversion] = useState(0); // Chord inversion (0 = root position)
     const pianoOctave = 4; // Fixed octave for piano keyboard
 
@@ -109,15 +111,15 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
     const getShortChordName = (): string => {
         if (!chord) return 'Chord Details';
         const quality = previewVariant || chord.quality;
-        // Shorten quality names for mobile
+        // Shorten quality names for mobile, use proper flat symbols
         if (quality === 'major' || quality === 'maj') {
-            return chord.root; // Just 'C' instead of 'C major'
+            return formatChordForDisplay(chord.root); // Just 'C' instead of 'C major'
         } else if (quality === 'minor' || quality === 'm') {
-            return `${chord.root}m`; // 'Cm' instead of 'C minor'
+            return formatChordForDisplay(`${chord.root}m`); // 'Cm' instead of 'C minor'
         } else if (quality === 'diminished' || quality === 'dim') {
-            return `${chord.root}dim`;
+            return formatChordForDisplay(`${chord.root}dim`);
         }
-        return `${chord.root}${quality}`;
+        return formatChordForDisplay(`${chord.root}${quality}`);
     };
 
     const handleNotePlay = useCallback((note: string, octave: number) => {
@@ -269,6 +271,26 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
         setChordInversion(0); // Reset inversion for new chord
     }, [chord?.root, chord?.quality]);
 
+    // Auto-scroll to Guitar section in landscape view when it's open
+    useEffect(() => {
+        if (isLandscapeVariant && showGuitar && guitarSectionRef.current && scrollContainerRef.current) {
+            // Small delay to ensure DOM is ready
+            setTimeout(() => {
+                if (guitarSectionRef.current && scrollContainerRef.current) {
+                    const section = guitarSectionRef.current;
+                    const container = scrollContainerRef.current;
+                    // Scroll past the section header so it's not visible (add offset to hide the title)
+                    const sectionTop = section.offsetTop - container.offsetTop;
+                    const headerOffset = 35; // Scroll past the header completely
+                    container.scrollTo({
+                        top: sectionTop + headerOffset,
+                        behavior: 'smooth'
+                    });
+                }
+            }, 100);
+        }
+    }, [isLandscapeVariant, showGuitar]); // Only run when switching to landscape or when section opens
+
     const chordColor = chord
         ? (colors[chord.root as keyof typeof colors] || '#6366f1')
         : '#6366f1';
@@ -328,7 +350,71 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
         }
     };
 
+    // Handler for clicking on guitar chord or music staff - plays the currently displayed chord
+    const handleDiagramClick = useCallback(() => {
+        if (!chord) return;
+        const currentVariant = previewVariant || chord.quality;
+        const variantNotes = getChordNotes(chord.root, currentVariant);
+        const invertedNotes = invertChord(variantNotes, chordInversion);
+        playChord(invertedNotes);
+    }, [chord, previewVariant, chordInversion]);
 
+    // Handler for double-clicking on guitar chord or music staff - adds to timeline
+    const handleDiagramDoubleClick = useCallback(() => {
+        if (!chord || !selectedSectionId || !selectedSlotId) return;
+
+        const currentVariant = previewVariant || chord.quality;
+        const variantNotes = getChordNotes(chord.root, currentVariant);
+        const chordSymbol = getChordSymbolWithInversion(chord.root, currentVariant, variantNotes, chordInversion);
+
+        const newChord = {
+            ...chord,
+            quality: currentVariant as any,
+            symbol: chordSymbol,
+            notes: variantNotes,
+            inversion: chordInversion
+        };
+
+        addChordToSlot(newChord, selectedSectionId, selectedSlotId);
+        const advanced = selectNextSlotAfter(selectedSectionId, selectedSlotId);
+
+        if (!advanced) {
+            setSelectedSlot(selectedSectionId, selectedSlotId);
+            setSelectedChord(newChord);
+        }
+    }, [chord, previewVariant, chordInversion, selectedSectionId, selectedSlotId, addChordToSlot, selectNextSlotAfter, setSelectedSlot, setSelectedChord]);
+
+    // Touch event handling for chord title (for proper double-tap and bounce effect)
+    const titleLastTouchTime = useRef(0);
+    const titleTouchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const handleTitleTouchEnd = useCallback((e: React.TouchEvent) => {
+        if (!chord) return;
+        e.preventDefault();
+        e.stopPropagation();
+
+        const now = Date.now();
+        const timeSinceLastTouch = now - titleLastTouchTime.current;
+
+        // Clear any pending single-tap timeout
+        if (titleTouchTimeout.current) {
+            clearTimeout(titleTouchTimeout.current);
+            titleTouchTimeout.current = null;
+        }
+
+        // Double-tap detected (within 300ms)
+        if (timeSinceLastTouch < 300 && timeSinceLastTouch > 0) {
+            titleLastTouchTime.current = 0;
+            handleDiagramDoubleClick();
+        } else {
+            // Single tap - wait to see if there's a second tap
+            titleLastTouchTime.current = now;
+            titleTouchTimeout.current = setTimeout(() => {
+                handleDiagramClick();
+                titleTouchTimeout.current = null;
+            }, 300);
+        }
+    }, [chord, handleDiagramClick, handleDiagramDoubleClick]);
 
     // Get theory note
     const getTheoryNote = () => {
@@ -433,7 +519,7 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
                     title="Swipe up or tap to open"
                 >
                     {/* Pill-shaped drag handle */}
-                    <div className="w-10 h-1 rounded-full bg-text-muted/40 mb-0.5" />
+                    <div className="w-10 h-1 rounded-full bg-text-muted/40 mb-1.5" />
                     <span className={`${isMobile ? 'text-[10px]' : 'text-[9px]'} font-medium text-text-muted uppercase tracking-wider`}>
                         Chord Details
                     </span>
@@ -493,27 +579,64 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
                         onTouchMove={handleTouchMove}
                         onTouchEnd={handleTouchEnd}
                     >
-                        {/* Drag handle indicator */}
-                        <div className="pt-2 pb-1">
-                            <div className="w-10 h-1 rounded-full bg-text-muted/40" />
+                        {/* Drag handle indicator with persistent title */}
+                        <div className="pt-2 pb-1 flex flex-col items-center">
+                            <div className="w-10 h-1 rounded-full bg-text-muted/40 mb-1.5" />
+                            <span className="text-[9px] font-medium text-text-muted uppercase tracking-wider">
+                                Chord Details
+                            </span>
                         </div>
                     </div>
                 )}
                 {/* Consolidated Header - chord name, key, help, and hide button all in one row */}
                 <div className={`${isLandscapeVariant ? 'px-3 py-2' : isMobile && isDrawer ? 'px-2 py-2' : 'px-4 py-3'} border-b border-border-subtle flex justify-between items-center gap-2 shrink-0 ${isDrawer ? 'bg-bg-secondary/80 backdrop-blur-md' : ''}`}>
                     <div className="flex items-center overflow-hidden flex-1 min-w-0" style={{ gap: '8px' }}>
-                        <span className="flex items-center shrink-0 min-w-0" style={{ gap: '6px' }}>
-                            <span className={`${isLandscapeVariant ? 'text-lg' : isMobile ? 'text-base' : 'text-base sm:text-lg'} font-bold text-text-primary leading-none truncate`}>
-                                {isLandscapeVariant || (isMobile && isDrawer) ? getShortChordName() : (chord ? `${chord.root}${(previewVariant || chord.quality) === 'maj' ? '' : ' ' + (previewVariant || chord.quality)}` : 'Chord Details')}
-                            </span>
-                            {chord?.numeral && (
-                                <span className={`${isLandscapeVariant ? 'text-sm' : 'text-xs'} font-serif italic text-text-muted shrink-0`}>{chord.numeral}</span>
-                            )}
-                        </span>
+                        {isCompactLandscape && chord ? (
+                            <>
+                                {/* Landscape view: show chord badge and numeral */}
+                                <div className="flex items-center gap-2">
+                                    <span
+                                        className="text-xs font-bold cursor-pointer touch-feedback hover:opacity-80 active:scale-95 transition-all"
+                                        style={{
+                                            backgroundColor: chordColor,
+                                            color: getContrastingTextColor(chordColor),
+                                            padding: '4px 10px',
+                                            borderRadius: '8px'
+                                        }}
+                                        onClick={handleDiagramClick}
+                                        onDoubleClick={handleDiagramDoubleClick}
+                                    >
+                                        {getShortChordName()}
+                                    </span>
+                                    {chord.numeral && (
+                                        <span className="text-sm font-serif italic text-text-muted shrink-0">{formatChordForDisplay(chord.numeral)}</span>
+                                    )}
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                {/* Non-landscape view: regular title */}
+                                <span
+                                    className={`flex items-center shrink-0 min-w-0 ${chord ? 'cursor-pointer touch-feedback hover:opacity-80 active:scale-95 transition-all' : ''}`}
+                                    style={{ gap: '6px' }}
+                                    onClick={chord ? handleDiagramClick : undefined}
+                                    onDoubleClick={chord ? handleDiagramDoubleClick : undefined}
+                                    onTouchEnd={chord ? handleTitleTouchEnd : undefined}
+                                    onTouchStart={chord ? (e) => e.stopPropagation() : undefined}
+                                >
+                                    <span className={`${isLandscapeVariant ? 'text-lg' : isMobile ? 'text-base' : 'text-base sm:text-lg'} font-bold text-text-primary leading-none truncate`}>
+                                        {(isMobile && isDrawer) ? getShortChordName() : (chord ? formatChordForDisplay(`${chord.root}${(previewVariant || chord.quality) === 'maj' ? '' : ' ' + (previewVariant || chord.quality)}`) : 'Chord Details')}
+                                    </span>
+                                    {chord?.numeral && (
+                                        <span className={`${isLandscapeVariant ? 'text-sm' : 'text-xs'} font-serif italic text-text-muted shrink-0`}>{formatChordForDisplay(chord.numeral)}</span>
+                                    )}
+                                </span>
+                            </>
+                        )}
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
                         {/* Inversion controls */}
-                        {chord && (
+                        {chord && !isLandscapeVariant && (
                             <div className="flex items-center gap-0.5 bg-bg-tertiary/50 rounded px-1 py-0.5" title="Chord inversion - which note is in the bass">
                                 <button
                                     onClick={() => {
@@ -548,8 +671,8 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
                                 </button>
                             </div>
                         )}
-                        {/* Help button moved to header */}
-                        {chord && (
+                        {/* Help button moved to header - hide in landscape view */}
+                        {chord && !isLandscapeVariant && (
                             <button
                                 onClick={() => setShowHelp(true)}
                                 className={`${isMobile ? 'w-10 h-10 min-w-[40px] min-h-[40px]' : 'w-8 h-8'} flex items-center justify-center hover:bg-accent-primary/20 rounded-md text-text-muted hover:text-accent-primary transition-colors touch-feedback`}
@@ -648,7 +771,7 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
                             {/* Combined Guitar / Suggested section */}
                             <div
                                 ref={guitarSectionRef}
-                                className={`${isLandscapeExpanded ? 'px-3 py-1' : isMobile ? 'px-5 py-1' : 'px-5 py-1'} rounded-none`}
+                                className={`${isLandscapeVariant ? 'px-2 py-1' : isMobile ? 'px-5 py-1' : 'px-5 py-1'} rounded-none`}
                                 style={{ backgroundColor: '#1e1e28', borderBottom: '1px solid #3a3a4a', scrollMarginTop: '60px' }}
                             >
                                 <button
@@ -662,23 +785,25 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
                                     className={`w-full flex items-center justify-between ${showGuitar ? 'mb-2' : 'mb-0'} cursor-pointer rounded-none`}
                                     style={{ backgroundColor: 'transparent' }}
                                 >
-                                    <h3 className={`${isMobile ? 'text-[11px]' : 'text-[10px]'} font-semibold text-text-secondary uppercase tracking-wide whitespace-nowrap`}>
-                                        Guitar & Suggested Voicings for {chord.numeral || chord.symbol}
+                                    <h3 className={`${isCompactLandscape ? 'text-[9px]' : isMobile ? 'text-[11px]' : 'text-[10px]'} font-semibold text-text-secondary uppercase tracking-wide whitespace-nowrap`}>
+                                        {isCompactLandscape ? 'Guitar & Suggested' : `Guitar & Suggested Voicings for ${formatChordForDisplay(chord.numeral || chord.symbol)}`}
                                     </h3>
                                     <ChevronDown
-                                        size={14}
+                                        size={isCompactLandscape ? 8 : isMobile ? 14 : 12}
                                         className={`text-text-secondary transition-transform ${showGuitar ? 'rotate-180' : ''}`}
                                     />
                                 </button>
                                 {showGuitar && (
                                     <>
-                                        <div className="flex flex-row gap-2" style={{ marginTop: '8px' }}>
+                                        <div className={`flex items-start ${isCompactLandscape ? 'gap-1' : 'gap-2'} px-3`} style={{ marginTop: isCompactLandscape ? '4px' : '8px' }}>
                                             {/* Left: Guitar (compact) */}
-                                            <div className="flex justify-center items-start shrink-0" style={{ minWidth: '100px' }}>
+                                            <div className="flex justify-center items-start shrink-0" style={{ minWidth: isCompactLandscape ? '70px' : '100px' }}>
                                                 <GuitarChord
                                                     root={chord.root}
                                                     quality={previewVariant || chord.quality}
                                                     color={chordColor}
+                                                    onClick={handleDiagramClick}
+                                                    onDoubleClick={handleDiagramDoubleClick}
                                                 />
                                             </div>
                                             {/* Vertical divider */}
@@ -686,11 +811,11 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
                                             {/* Right: Suggested Voicings */}
                                             <div className="flex-1 flex flex-col justify-start pl-1">
                                                 {getSuggestedVoicings().extensions.length > 0 ? (
-                                                    <div className="grid grid-cols-2 mb-2" style={{ gap: isMobile ? '8px' : '6px' }}>
+                                                    <div className={`grid ${isCompactLandscape ? 'grid-cols-1' : 'grid-cols-2'}`} style={{ gap: isCompactLandscape ? '3px' : isMobile ? '8px' : '6px', marginBottom: isCompactLandscape ? '4px' : '8px' }}>
                                                         {getSuggestedVoicings().extensions.map((ext) => (
                                                             <button
                                                                 key={ext}
-                                                                className={`relative group ${isMobile ? 'px-2 py-2 text-xs min-h-[36px]' : 'px-1.5 py-1 text-[10px]'} rounded font-semibold transition-colors touch-feedback overflow-hidden text-ellipsis whitespace-nowrap`}
+                                                                className={`relative group ${isCompactLandscape ? 'px-1 py-0.5 text-[8px] min-h-[20px]' : isMobile ? 'px-2 py-2 text-xs min-h-[36px]' : 'px-1.5 py-1 text-[10px]'} rounded font-semibold transition-colors touch-feedback overflow-hidden text-ellipsis whitespace-nowrap`}
                                                                 style={previewVariant === ext
                                                                     ? { backgroundColor: '#4f46e5', color: '#ffffff', border: '1px solid #4f46e5' }
                                                                     : { backgroundColor: '#282833', color: '#f0f0f5', border: '1px solid rgba(255,255,255,0.08)' }
@@ -698,7 +823,7 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
                                                                 onClick={() => handleVariationClick(ext)}
                                                                 onDoubleClick={() => handleVariationDoubleClick(ext)}
                                                             >
-                                                                {chord.root}{ext}
+                                                                {formatChordForDisplay(`${chord.root}${ext}`)}
                                                                 {!isMobile && voicingTooltips[ext] && (
                                                                     <span
                                                                         className="pointer-events-none absolute -top-6 -translate-y-full left-1/2 -translate-x-1/2 whitespace-normal text-[10px] leading-tight bg-black text-white px-3 py-2 rounded border border-white/10 shadow-xl opacity-0 group-hover:opacity-100 group-active:opacity-0 group-focus:opacity-0 transition-opacity duration-150 group-hover:delay-1000 z-50 w-44 text-left"
@@ -721,62 +846,70 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
                                                         ))}
                                                     </div>
                                                 ) : null}
-                                                {/* Display selected voicing description */}
-                                                <p className={`${isMobile ? 'text-xs' : 'text-[10px]'} text-text-muted leading-relaxed`}>
-                                                    {voicingTooltips[previewVariant || chord.quality] || 'Select a voicing to see its description.'}
-                                                </p>
+                                                {/* Display selected voicing description - hide in landscape mode */}
+                                                {!isCompactLandscape && (
+                                                    <p className={`${isMobile ? 'text-xs' : 'text-[10px]'} text-text-muted leading-relaxed`}>
+                                                        {voicingTooltips[previewVariant || chord.quality] || 'Select a voicing to see its description.'}
+                                                    </p>
+                                                )}
                                             </div>
                                         </div>
                                         {/* Inversion controls + Staff in horizontal layout */}
-                                        <div className="flex items-center mt-2 gap-1">
-                                            {/* Left: Inversion controls (ultra-compact) */}
-                                            <div className="flex flex-col items-center shrink-0">
-                                                <span className="text-[7px] font-semibold uppercase tracking-wide text-text-muted mb-0">Inv</span>
-                                                <div className="flex items-center gap-0 bg-bg-tertiary/50 rounded" title="Chord inversion - which note is in the bass">
-                                                    <button
-                                                        onClick={() => {
-                                                            const newInversion = Math.max(0, chordInversion - 1);
-                                                            setChordInversion(newInversion);
-                                                            const notes = invertChord(baseNotes, newInversion);
-                                                            playChord(notes);
-                                                        }}
-                                                        disabled={chordInversion <= 0}
-                                                        className={`${isMobile ? 'w-5 h-5' : 'w-4 h-4'} flex items-center justify-center hover:bg-accent-primary/20 rounded text-text-muted hover:text-accent-primary transition-colors touch-feedback disabled:opacity-40 disabled:cursor-not-allowed`}
-                                                        title="Previous inversion"
-                                                    >
-                                                        <ChevronLeft size={isMobile ? 10 : 8} />
-                                                    </button>
-                                                    <span className={`${isMobile ? 'text-[9px]' : 'text-[8px]'} font-semibold text-text-secondary min-w-[20px] text-center`}>
-                                                        {getInversionName(chordInversion)}
-                                                    </span>
-                                                    <button
-                                                        onClick={() => {
-                                                            const newInversion = Math.min(maxInversion, chordInversion + 1);
-                                                            setChordInversion(newInversion);
-                                                            const notes = invertChord(baseNotes, newInversion);
-                                                            playChord(notes);
-                                                        }}
-                                                        disabled={chordInversion >= maxInversion}
-                                                        className={`${isMobile ? 'w-5 h-5' : 'w-4 h-4'} flex items-center justify-center hover:bg-accent-primary/20 rounded text-text-muted hover:text-accent-primary transition-colors touch-feedback disabled:opacity-40 disabled:cursor-not-allowed`}
-                                                        title="Next inversion"
-                                                    >
-                                                        <ChevronRight size={isMobile ? 10 : 8} />
-                                                    </button>
+                                        <div className={`flex items-center gap-1`} style={{ marginTop: isCompactLandscape ? '4px' : '8px' }}>
+                                            {/* Left: Inversion controls (ultra-compact) - hide when all 3 panels open */}
+                                            {!isCompactLandscape && (
+                                                <div className="flex flex-col items-center shrink-0">
+                                                    <span className="text-[7px] font-semibold uppercase tracking-wide text-text-muted mb-0">Inv</span>
+                                                    <div className="flex items-center gap-0 bg-bg-tertiary/50 rounded" title="Chord inversion - which note is in the bass">
+                                                        <button
+                                                            onClick={() => {
+                                                                const newInversion = Math.max(0, chordInversion - 1);
+                                                                setChordInversion(newInversion);
+                                                                const notes = invertChord(baseNotes, newInversion);
+                                                                playChord(notes);
+                                                            }}
+                                                            disabled={chordInversion <= 0}
+                                                            className={`${isMobile ? 'w-5 h-5' : 'w-4 h-4'} flex items-center justify-center hover:bg-accent-primary/20 rounded text-text-muted hover:text-accent-primary transition-colors touch-feedback disabled:opacity-40 disabled:cursor-not-allowed`}
+                                                            title="Previous inversion"
+                                                        >
+                                                            <ChevronLeft size={isMobile ? 10 : 8} />
+                                                        </button>
+                                                        <span className={`${isMobile ? 'text-[9px] min-w-[20px]' : 'text-[8px] min-w-[20px]'} font-semibold text-text-secondary text-center`}>
+                                                            {getInversionName(chordInversion)}
+                                                        </span>
+                                                        <button
+                                                            onClick={() => {
+                                                                const newInversion = Math.min(maxInversion, chordInversion + 1);
+                                                                setChordInversion(newInversion);
+                                                                const notes = invertChord(baseNotes, newInversion);
+                                                                playChord(notes);
+                                                            }}
+                                                            disabled={chordInversion >= maxInversion}
+                                                            className={`${isMobile ? 'w-5 h-5' : 'w-4 h-4'} flex items-center justify-center hover:bg-accent-primary/20 rounded text-text-muted hover:text-accent-primary transition-colors touch-feedback disabled:opacity-40 disabled:cursor-not-allowed`}
+                                                            title="Next inversion"
+                                                        >
+                                                            <ChevronRight size={isMobile ? 10 : 8} />
+                                                        </button>
+                                                    </div>
                                                 </div>
-                                            </div>
+                                            )}
                                             {/* Right: Musical Staff (takes maximum width) */}
                                             <div className="flex-1">
                                                 <MusicStaff
                                                     notes={displayNotes}
                                                     rootNote={chord.root}
                                                     color={chordColor}
+                                                    onClick={handleDiagramClick}
+                                                    onDoubleClick={handleDiagramDoubleClick}
                                                 />
                                             </div>
                                         </div>
-                                        {/* Chord role description - below the staff */}
-                                        <p className={`${isMobile ? 'text-xs' : 'text-[10px]'} text-text-secondary leading-relaxed italic`}>
-                                            {getSuggestedVoicings().description}
-                                        </p>
+                                        {/* Chord role description - below the staff - hide in landscape mode */}
+                                        {!isCompactLandscape && (
+                                            <p className={`${isMobile ? 'text-xs' : 'text-[10px]'} text-text-secondary leading-relaxed italic`}>
+                                                {getSuggestedVoicings().description}
+                                            </p>
+                                        )}
                                     </>
                                 )}
                             </div>
@@ -795,7 +928,7 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
                                             setTimeout(() => scrollSectionIntoView(voicingsSectionRef), 50);
                                         }
                                     }}
-                                    className={`w-full flex items-center justify-between ${showVariations ? 'mb-3' : 'mb-0'} cursor-pointer rounded-none`}
+                                    className={`px-3 flex gap-1 items-center justify-between shrink-0 ${isCompactLandscape ? 'py-0.5' : 'py-1'} cursor-pointer rounded-none`}
                                     style={{ backgroundColor: 'transparent' }}
                                 >
                                     <h3 className={`${isMobile ? 'text-[11px]' : 'text-[10px]'} font-semibold text-text-secondary uppercase tracking-wide`}>

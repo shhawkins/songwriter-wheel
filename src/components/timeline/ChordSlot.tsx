@@ -3,7 +3,7 @@ import { useDraggable, useDroppable } from '@dnd-kit/core';
 import type { ChordSlot as IChordSlot } from '../../types';
 import clsx from 'clsx';
 import { useSongStore } from '../../store/useSongStore';
-import { getWheelColors, normalizeNote, getContrastingTextColor } from '../../utils/musicTheory';
+import { getWheelColors, normalizeNote, getContrastingTextColor, formatChordForDisplay } from '../../utils/musicTheory';
 import { playChord } from '../../utils/audioEngine';
 
 interface ChordSlotProps {
@@ -172,7 +172,7 @@ export const ChordSlot: React.FC<ChordSlotProps> = ({ slot, sectionId, size = 48
                         }}
                         className="truncate px-0.5 text-center font-bold"
                     >
-                        {slot.chord.symbol}
+                        {formatChordForDisplay(slot.chord.symbol)}
                     </span>
                 </div>
             )}

@@ -14,6 +14,7 @@ import { saveSong, getSavedSongs, deleteSong } from './utils/storage';
 import { getGuitarChord, type GuitarChordShape } from './utils/guitarChordData';
 import type { Song } from './types';
 import { setInstrument, setVolume, setMute, initAudio } from './utils/audioEngine';
+import { formatChordForDisplay } from './utils/musicTheory';
 
 // Enable Web Audio even with iOS mute switch on
 // This must be called early in the page lifecycle
@@ -42,9 +43,13 @@ function App() {
   const [isResizing, setIsResizing] = useState(false);
   const [timelineScale, setTimelineScale] = useState(0.6);
 
-  // Wheel zoom state - start at 100% by default
-  const [wheelZoom, setWheelZoom] = useState(1.0);
+  // Wheel zoom state - start at 1.2 for better default visibility on mobile portrait
+  const [wheelZoom, setWheelZoom] = useState(1.2);
   const [wheelZoomOrigin, setWheelZoomOrigin] = useState(50);
+  // Wheel pan offset state - for user interaction
+  const [wheelPanOffset, setWheelPanOffset] = useState({ x: 0, y: 0 });
+  // Save zoom/origin before entering special centering modes (landscape or portrait with panel)
+  const savedZoomStateRef = useRef<{ zoom: number; origin: number; pan: { x: number; y: number } } | null>(null);
   // Initialize wheel size based on window - smaller for mobile
   const [wheelBaseSize, setWheelBaseSize] = useState(() => {
     if (typeof window === 'undefined') return 400;
@@ -52,11 +57,11 @@ function App() {
     const h = window.innerHeight;
     const isMobileInit = w < 768 || (h < 500 && h < w);
     if (isMobileInit) {
-      // Mobile: use nearly full width
-      return Math.max(280, (w - 16) * 1.2);
+      // Mobile: use nearly full width, no boost
+      return Math.max(280, w - 16);
     }
-    // Desktop: reasonable default
-    return Math.min(600, Math.max(400, h - 300));
+    // Desktop: larger default for better visibility
+    return Math.min(900, Math.max(500, h - 200));
   });
 
   // Landscape-specific: width of the wheel container area (managed by state for reactivity)
@@ -82,17 +87,41 @@ function App() {
   // Auto-enter immersive mode after inactivity on mobile (both portrait and landscape)
   // In landscape, header is hidden by default (starts in immersive mode)
   // Also open both drawers by default in landscape
+  // Track whether chord panel was open before entering landscape to restore on exit
+  const chordPanelOpenBeforeLandscape = useRef<boolean | null>(null);
+  const wasInLandscape = useRef(false);
+
   useEffect(() => {
     if (!isMobile) return;
 
-    // In landscape, start with immersive mode ON (header hidden) and both drawers OPEN
-    if (isLandscape) {
+    // Entering landscape mode
+    if (isLandscape && !wasInLandscape.current) {
+      wasInLandscape.current = true;
+      // Save current panel state before auto-opening
+      chordPanelOpenBeforeLandscape.current = useSongStore.getState().chordPanelVisible;
+
       setMobileImmersive(true);
       setMobileTimelineOpen(true);
       // Open chord panel via store
       if (!useSongStore.getState().chordPanelVisible) {
         useSongStore.getState().toggleChordPanel();
       }
+    }
+    // Exiting landscape mode (returning to portrait)
+    else if (!isLandscape && wasInLandscape.current) {
+      wasInLandscape.current = false;
+
+      // Restore panel state to what it was before landscape
+      const currentlyOpen = useSongStore.getState().chordPanelVisible;
+      const wasOpenBefore = chordPanelOpenBeforeLandscape.current;
+
+      if (wasOpenBefore !== null && currentlyOpen !== wasOpenBefore) {
+        useSongStore.getState().toggleChordPanel();
+      }
+
+      // Also close mobile timeline since we're back in portrait
+      setMobileTimelineOpen(false);
+      chordPanelOpenBeforeLandscape.current = null;
     }
 
     const enterImmersive = () => {
@@ -177,7 +206,6 @@ function App() {
 
       // On mobile, calculate wheel size differently based on orientation
       if (mobile) {
-        const boost = 1.2; // Default mobile boost; user can raise if desired
         if (landscape) {
           // Landscape: wheel on left side - update container width
           const containerWidth = Math.max(200, Math.floor(width * 0.33));
@@ -186,17 +214,13 @@ function App() {
           const availableWidth = width * 0.5; // Half screen width
           const padding = 16;
           const rawSize = Math.min(560, Math.max(280, availableWidth - padding, height - 120));
-          const boosted = Math.min(rawSize * boost, availableWidth - padding + 12, height - 120 + 12, 560);
-          setWheelBaseSize(boosted);
+          setWheelBaseSize(rawSize);
         } else {
           // Portrait: wheel takes up nearly full width of screen
           const margin = 8; // Just a few px margin on each side
           // Prioritize width - wheel should fill the viewport width
           const targetSize = width - (margin * 2);
-
-          // Apply boost and set the size (no arbitrary cap, let viewport control it)
-          const boosted = targetSize * boost;
-          setWheelBaseSize(Math.max(280, boosted));
+          setWheelBaseSize(Math.max(280, targetSize));
         }
 
         // Auto-boost logic removed to ensure 100% zoom on load
@@ -210,17 +234,17 @@ function App() {
         }
         */
       } else {
-        // Desktop sizing
-        const padding = 120;
+        // Desktop sizing - larger base size for better visibility
+        const padding = 80;
         const headerHeight = 48;
         const footerHeight = 56;
-        const timelineReserve = 140;
-        const zoomControlsHeight = 50; // Space for the zoom toolbar
-        const availableHeight = Math.max(360, height - headerHeight - footerHeight - timelineReserve - zoomControlsHeight);
+        const timelineReserve = 100;
+        const zoomControlsHeight = 30; // Space for the zoom toolbar
+        const availableHeight = Math.max(400, height - headerHeight - footerHeight - timelineReserve - zoomControlsHeight);
 
         const computedSize = Math.min(
-          720,
-          Math.max(320, Math.min(width - padding, availableHeight))
+          900,
+          Math.max(400, Math.min(width - padding, availableHeight))
         );
         setWheelBaseSize(computedSize);
       }
@@ -261,16 +285,77 @@ function App() {
   }, []);
 
   const handleZoomIn = useCallback(() => {
-    const newScale = Math.min(2.5, wheelZoom + 0.3);
+    const newScale = Math.min(2.5, wheelZoom + 0.2);
     setWheelZoom(newScale);
     setWheelZoomOrigin(newScale > 1.3 ? 38 : 50);
   }, [wheelZoom]);
 
   const handleZoomOut = useCallback(() => {
-    const newScale = Math.max(0.2, wheelZoom - 0.15);
+    const newScale = Math.max(0.2, wheelZoom - 0.2);
     setWheelZoom(newScale);
     setWheelZoomOrigin(newScale > 1.3 ? 38 : 50);
   }, [wheelZoom]);
+
+  // Handle pan offset change from ChordWheel
+  const handlePanChange = useCallback((offset: { x: number; y: number }) => {
+    setWheelPanOffset(offset);
+  }, []);
+
+  // Compute wheel rotation offset for mobile centering
+  // Rotate the wheel 90 degrees so the selected key appears at 3 o'clock
+  // This keeps all highlighted in-key chords visible:
+  // - In landscape mode: always (wheel is on the left side)
+  // - In portrait mode: when chord details panel is open (chords visible above panel)
+  const wheelRotationOffset = useMemo(() => {
+    if (isMobile && (isLandscape || chordPanelVisible)) {
+      return 90; // Rotate 90 degrees clockwise to put key at 3 o'clock
+    }
+    return 0;
+  }, [isMobile, isLandscape, chordPanelVisible]);
+
+  // Whether we're in a special centering mode (landscape or portrait with panel)
+  const isInSpecialCenteringMode = isMobile && (isLandscape || chordPanelVisible);
+
+  // Manage zoom states for the three different views:
+  // - Default portrait: 1.2 zoom, origin 50 (full wheel visible, centered)
+  // - Special portrait (panel open): 1.5 zoom, origin 48 (zoomed & positioned to maximize highlighted chord visibility)
+  // - Landscape: 1.6 zoom, origin 42 (heavily zoomed to show highlighted chords large)
+  useEffect(() => {
+    if (!isMobile) return;
+
+    if (isInSpecialCenteringMode) {
+      // Entering special centering mode - save current state and apply appropriate zoom
+      if (!savedZoomStateRef.current) {
+        savedZoomStateRef.current = {
+          zoom: wheelZoom,
+          origin: wheelZoomOrigin,
+          pan: { ...wheelPanOffset }
+        };
+      }
+
+      if (isLandscape) {
+        // Landscape view: heavy zoom to maximize highlighted chord visibility
+        setWheelZoom(1.85); // Increased ~15% from 1.6
+        setWheelZoomOrigin(42);
+        // Shift left to center the highlighted chords better
+        setWheelPanOffset({ x: -40, y: 0 });
+      } else {
+        // Portrait with panel: zoomed & positioned to show highlighted chords above panel
+        setWheelZoom(1.5);
+        setWheelZoomOrigin(45);
+        // Shift left and up to center the highlighted chords better
+        setWheelPanOffset({ x: -40, y: -10 });
+      }
+    } else {
+      // Exiting special centering mode - restore previous state
+      if (savedZoomStateRef.current) {
+        setWheelZoom(savedZoomStateRef.current.zoom);
+        setWheelZoomOrigin(savedZoomStateRef.current.origin);
+        setWheelPanOffset(savedZoomStateRef.current.pan);
+        savedZoomStateRef.current = null;
+      }
+    }
+  }, [isInSpecialCenteringMode, isLandscape, isMobile]);
 
   // State for editing title
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -512,7 +597,7 @@ function App() {
 
     doc.setFontSize(12);
     doc.setFont("helvetica", "normal");
-    doc.text(`Key: ${selectedKey} | Tempo: ${currentSong.tempo} BPM`, 20, 30);
+    doc.text(`Key: ${formatChordForDisplay(selectedKey)} | Tempo: ${currentSong.tempo} BPM`, 20, 30);
 
     let y = 50;
 
@@ -792,7 +877,7 @@ function App() {
 
           <div className={`flex items-center gap-2 p-[10px] ${isMobile ? 'text-xs' : 'text-[10px]'} text-text-muted`}>
             <span className="uppercase font-bold">Key</span>
-            <span className={`font-bold text-accent-primary ${isMobile ? 'text-base' : 'text-sm'}`}>{selectedKey}</span>
+            <span className={`font-bold text-accent-primary ${isMobile ? 'text-base' : 'text-sm'}`}>{formatChordForDisplay(selectedKey)}</span>
           </div>
 
           {/* Save/Load Menu (Task 30) - fixed styling */}
@@ -886,7 +971,7 @@ function App() {
           } : undefined}
         >
           {/* Wheel Area */}
-          <div className={`flex-1 flex flex-col ${isMobile && !isLandscape ? 'justify-center' : 'justify-center items-center'} ${isMobile ? 'overflow-hidden' : 'overflow-visible'}`}>
+          <div className={`flex-1 flex flex-col ${isMobile && !isLandscape ? 'justify-center' : isMobile && isLandscape ? 'justify-center items-center' : 'justify-start items-center pt-2'} ${isMobile ? 'overflow-hidden' : 'overflow-visible'}`}>
             {/* Zoom toolbar - show on desktop only, hide on all mobile views */}
             {!isMobile ? (
               <div className={`flex justify-end px-3 py-1 md:py-0.5 shrink-0 w-full`}>
@@ -940,6 +1025,10 @@ function App() {
                   zoomScale={wheelZoom}
                   zoomOriginY={wheelZoomOrigin}
                   onZoomChange={handleZoomChange}
+                  panOffset={wheelPanOffset}
+                  onPanChange={handlePanChange}
+                  rotationOffset={wheelRotationOffset}
+                  disableModeToggle={wheelRotationOffset !== 0}
                 />
               </div>
             </div>
@@ -1069,16 +1158,10 @@ function App() {
                 transition: 'all 0.25s ease-out'
               }}
             >
-              {/* Timeline Content - compact when both open, full when alone */}
+              {/* Timeline Content - always use mobile view in landscape */}
               {mobileTimelineOpen && (
                 <div className="flex-1 h-full bg-bg-secondary overflow-hidden border-l border-border-subtle">
-                  {chordPanelVisible ? (
-                    // Both panels open: use compact MobileTimeline style
-                    <MobileTimeline isOpen={true} onToggle={() => setMobileTimelineOpen(false)} hideCloseButton={true} />
-                  ) : (
-                    // Only timeline open: use full Timeline
-                    <Timeline height={window.innerHeight - 80} scale={0.6} />
-                  )}
+                  <MobileTimeline isOpen={true} onToggle={() => setMobileTimelineOpen(false)} hideCloseButton={true} isCompact={chordPanelVisible} />
                 </div>
               )}
               {/* Timeline Handle */}

@@ -24,6 +24,7 @@ import { Playhead } from './Playhead';
 import { Plus } from 'lucide-react';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import type { Chord } from '../../utils/musicTheory';
+import { formatChordForDisplay } from '../../utils/musicTheory';
 
 const CopyMonitor: React.FC<{ onAltChange: (isAlt: boolean) => void }> = ({ onAltChange }) => {
     useDndMonitor({
@@ -260,7 +261,7 @@ export const Timeline: React.FC<TimelineProps> = ({ height = 180, scale = 1 }) =
                             {activeId && activeDragData?.type === 'chord' ? (
                                 <div className="relative">
                                     <div className="w-24 h-24 rounded-lg bg-accent-primary text-white flex items-center justify-center font-bold text-xl shadow-2xl rotate-6 scale-110 cursor-grabbing">
-                                        {activeDragData.chord.symbol}
+                                        {formatChordForDisplay(activeDragData.chord.symbol)}
                                     </div>
                                     {(activeDragData?.copyMode || copyModifier) && (
                                         <div className="absolute -top-3 -right-3 bg-green-500 text-white text-[11px] font-bold px-2 py-0.5 rounded-full shadow-md border border-white">

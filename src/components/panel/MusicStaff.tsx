@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { useIsMobile } from '../../hooks/useIsMobile';
 
 interface MusicStaffProps {
@@ -6,15 +6,84 @@ interface MusicStaffProps {
     rootNote: string;
     color?: string;
     width?: number;
+    onClick?: () => void;
+    onDoubleClick?: () => void;
 }
 
 export const MusicStaff: React.FC<MusicStaffProps> = ({
     notes,
     rootNote,
     color = '#6366f1',
-    width: propWidth
+    width: propWidth,
+    onClick,
+    onDoubleClick
 }) => {
     const isMobile = useIsMobile();
+
+    // Click handling refs for double-click detection
+    const lastClickTime = useRef(0);
+    const clickTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const lastTouchTime = useRef(0);
+    const touchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Handle click with double-click detection
+    const handleClick = () => {
+        const now = Date.now();
+        const timeSinceLastClick = now - lastClickTime.current;
+
+        // Clear any pending single-click timeout
+        if (clickTimeout.current) {
+            clearTimeout(clickTimeout.current);
+            clickTimeout.current = null;
+        }
+
+        // Double-click detected (within 300ms)
+        if (timeSinceLastClick < 300 && timeSinceLastClick > 0) {
+            lastClickTime.current = 0;
+            if (onDoubleClick) {
+                onDoubleClick();
+            }
+        } else {
+            // Single click - wait to see if there's a second click
+            lastClickTime.current = now;
+            clickTimeout.current = setTimeout(() => {
+                if (onClick) onClick();
+                clickTimeout.current = null;
+            }, 300);
+        }
+    };
+
+    // Handle touch events for mobile double-tap detection
+    const handleTouchEnd = (e: React.TouchEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const now = Date.now();
+        const timeSinceLastTouch = now - lastTouchTime.current;
+
+        // Clear any pending single-tap timeout
+        if (touchTimeout.current) {
+            clearTimeout(touchTimeout.current);
+            touchTimeout.current = null;
+        }
+
+        // Double-tap detected (within 300ms)
+        if (timeSinceLastTouch < 300 && timeSinceLastTouch > 0) {
+            lastTouchTime.current = 0;
+            if (onDoubleClick) {
+                onDoubleClick();
+            }
+        } else {
+            // Single tap - wait to see if there's a second tap
+            lastTouchTime.current = now;
+            touchTimeout.current = setTimeout(() => {
+                if (onClick) onClick();
+                touchTimeout.current = null;
+            }, 300);
+        }
+    };
+
+    const isClickable = onClick || onDoubleClick;
 
     // Map notes to their position on the staff
     // Using treble clef: middle C (C4) is below the staff
@@ -141,11 +210,16 @@ export const MusicStaff: React.FC<MusicStaffProps> = ({
     };
 
     return (
-        <div className="flex justify-center items-center w-full">
+        <div
+            className={`flex justify-center items-center w-full ${isClickable ? 'cursor-pointer touch-feedback hover:opacity-80 active:scale-95 transition-all' : ''}`}
+            onClick={isClickable ? handleClick : undefined}
+            onTouchEnd={isClickable ? handleTouchEnd : undefined}
+            onTouchStart={isClickable ? (e) => e.stopPropagation() : undefined}
+        >
             <svg
                 viewBox={`0 0 ${width} ${height}`}
                 className="w-full"
-                style={{ minHeight: isMobile ? 100 : 105 }}
+                style={{ minHeight: isMobile ? 100 : 105, pointerEvents: isClickable ? 'none' : undefined }}
             >
                 {/* Staff lines (5 lines of treble clef) */}
                 {[-2, -1, 0, 1, 2].map((lineIndex) => (
