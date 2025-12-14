@@ -10,7 +10,7 @@ import { HelpModal } from '../HelpModal';
 import { useIsMobile } from '../../hooks/useIsMobile';
 
 interface ChordDetailsProps {
-    variant?: 'sidebar' | 'drawer';
+    variant?: 'sidebar' | 'drawer' | 'landscape-panel';
 }
 
 export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' }) => {
@@ -451,21 +451,26 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
         );
     }
 
+
+    const isLandscapePanel = variant === 'landscape-panel';
+
     return (
         <div
-            className={isDrawer
-                ? `${isMobile ? 'relative w-full' : 'fixed inset-x-3 bottom-[88px]'} ${isMobile ? 'max-h-[60vh]' : 'max-h-[70vh]'} bg-bg-secondary ${isMobile ? 'border-x-2 border-t-2' : 'border-2'} border-border-subtle rounded-2xl shadow-2xl overflow-hidden ${isMobile ? '' : 'z-40'} flex`
-                : "h-full flex bg-bg-secondary border-l border-border-subtle shrink-0"
+            className={isLandscapePanel
+                ? "h-full w-full flex flex-col bg-bg-secondary overflow-hidden"
+                : isDrawer
+                    ? `${isMobile ? 'relative w-full' : 'fixed inset-x-3 bottom-[88px]'} ${isMobile ? 'max-h-[60vh]' : 'max-h-[70vh]'} bg-bg-secondary ${isMobile ? 'border-x-2 border-t-2' : 'border-2'} border-border-subtle rounded-2xl shadow-2xl overflow-hidden ${isMobile ? '' : 'z-40'} flex`
+                    : "h-full flex bg-bg-secondary border-l border-border-subtle shrink-0"
             }
-            style={!isDrawer ? { width: panelWidth, minWidth: panelWidth } : {
+            style={!isDrawer && !isLandscapePanel ? { width: panelWidth, minWidth: panelWidth } : isDrawer ? {
                 transform: swipeOffset > 0 ? `translateY(${swipeOffset}px)` : undefined,
                 opacity: swipeOffset > 0 ? Math.max(0, 1 - (swipeOffset / 300)) : 1,
                 // Enable transitions for: initial open, snap-back, and slide-out animation (swipeOffset >= 150)
                 transition: swipeOffset === 0 || swipeOffset >= 150 ? 'all 0.2s ease-out' : 'none'
-            }}
+            } : undefined}
         >
             {/* Resize handle (sidebar only) */}
-            {!isDrawer && (
+            {!isDrawer && !isLandscapePanel && (
                 <div
                     className={`w-2 flex items-center justify-center cursor-ew-resize hover:bg-bg-tertiary transition-colors ${isResizing ? 'bg-accent-primary/20' : ''} relative z-[60]`}
                     onMouseDown={handleMouseDown}

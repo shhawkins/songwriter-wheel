@@ -3,7 +3,7 @@ import { useSongStore } from '../../store/useSongStore';
 import { Play, Pause, SkipBack, SkipForward, Repeat, Volume2, VolumeX, ChevronLeft, ChevronRight, Loader2, Music } from 'lucide-react';
 import { playSong, pauseSong, skipToSection, scheduleSong, setTempo as setAudioTempo, toggleLoopMode, setInstrument as setAudioInstrument, unlockAudioForIOS } from '../../utils/audioEngine';
 import type { InstrumentType } from '../../types';
-import { useIsMobile } from '../../hooks/useIsMobile';
+import { useMobileLayout } from '../../hooks/useIsMobile';
 
 export const PlaybackControls: React.FC = () => {
     const {
@@ -23,7 +23,7 @@ export const PlaybackControls: React.FC = () => {
         selectedSectionId
     } = useSongStore();
 
-    const isMobile = useIsMobile();
+    const { isMobile, isLandscape } = useMobileLayout();
 
     const [isLoading, setIsLoading] = React.useState(false);
 
@@ -112,34 +112,34 @@ export const PlaybackControls: React.FC = () => {
     return (
         <div
             data-playback-controls
-            className={`${isMobile ? 'h-11' : 'h-12'} bg-bg-elevated border-t border-border-subtle flex items-center justify-between ${isMobile ? 'px-3 gap-2' : 'px-6'}`}
+            className={`${isMobile && isLandscape ? 'h-8' : isMobile ? 'h-11' : 'h-12'} bg-bg-elevated border-t border-border-subtle flex items-center justify-between ${isMobile ? 'px-2 gap-1' : 'px-6'}`}
         >
             {/* Transport Controls - Compact */}
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-0.5">
                 <button
                     onClick={() => handleSkip('prev')}
-                    className={`${isMobile ? 'p-1.5' : 'p-1.5'} text-text-secondary hover:text-text-primary transition-colors touch-feedback flex items-center justify-center`}
+                    className={`${isMobile && isLandscape ? 'p-1' : 'p-1.5'} text-text-secondary hover:text-text-primary transition-colors touch-feedback flex items-center justify-center`}
                 >
-                    <SkipBack size={isMobile ? 16 : 16} />
+                    <SkipBack size={isMobile && isLandscape ? 12 : 16} />
                 </button>
                 <button
                     onClick={handlePlayPause}
                     disabled={isLoading}
-                    className={`${isMobile ? 'w-8 h-8' : 'w-9 h-9'} rounded-full bg-accent-primary hover:bg-indigo-500 disabled:bg-accent-primary/50 flex items-center justify-center text-white shadow-md transition-all hover:scale-105 active:scale-95 touch-feedback`}
+                    className={`${isMobile && isLandscape ? 'w-6 h-6' : isMobile ? 'w-8 h-8' : 'w-9 h-9'} rounded-full bg-accent-primary hover:bg-indigo-500 disabled:bg-accent-primary/50 flex items-center justify-center text-white shadow-md transition-all hover:scale-105 active:scale-95 touch-feedback`}
                 >
                     {isLoading ? (
-                        <Loader2 size={isMobile ? 16 : 18} className="animate-spin" />
+                        <Loader2 size={isMobile && isLandscape ? 12 : isMobile ? 16 : 18} className="animate-spin" />
                     ) : isPlaying ? (
-                        <Pause size={isMobile ? 16 : 18} fill="currentColor" />
+                        <Pause size={isMobile && isLandscape ? 12 : isMobile ? 16 : 18} fill="currentColor" />
                     ) : (
-                        <Play size={isMobile ? 16 : 18} fill="currentColor" className="ml-0.5" />
+                        <Play size={isMobile && isLandscape ? 12 : isMobile ? 16 : 18} fill="currentColor" className="ml-0.5" />
                     )}
                 </button>
                 <button
                     onClick={() => handleSkip('next')}
-                    className={`${isMobile ? 'p-1.5' : 'p-1.5'} text-text-secondary hover:text-text-primary transition-colors touch-feedback flex items-center justify-center`}
+                    className={`${isMobile && isLandscape ? 'p-1' : 'p-1.5'} text-text-secondary hover:text-text-primary transition-colors touch-feedback flex items-center justify-center`}
                 >
-                    <SkipForward size={isMobile ? 16 : 16} />
+                    <SkipForward size={isMobile && isLandscape ? 12 : 16} />
                 </button>
                 {!isMobile && (
                     <button
@@ -152,7 +152,7 @@ export const PlaybackControls: React.FC = () => {
                 )}
             </div>
 
-            {/* Tempo & Info - Desktop only */}
+            {/* Tempo & Info - Desktop only, hide entirely on mobile landscape */}
             {!isMobile && (
                 <div className="flex items-center gap-4 text-[11px] text-text-muted">
                     <div className="flex items-center gap-2">
@@ -193,16 +193,19 @@ export const PlaybackControls: React.FC = () => {
                             </button>
                         </div>
                     )}
-                    {isMobile && <Music size={14} className="text-text-muted" />}
-                    <select
-                        value={instrument}
-                        onChange={(e) => setInstrument(e.target.value as InstrumentType)}
-                        className={`bg-bg-tertiary border border-border-subtle rounded ${isMobile ? 'px-1.5 h-7 text-[11px] min-w-[70px]' : 'px-2 h-7 text-[10px] min-w-[130px]'} text-text-secondary focus:outline-none focus:border-accent-primary cursor-pointer`}
-                    >
-                        {instrumentOptions.map((opt) => (
-                            <option key={opt.value} value={opt.value}>{opt.label}</option>
-                        ))}
-                    </select>
+                    {isMobile && !isLandscape && <Music size={14} className="text-text-muted" />}
+                    {/* Hide instrument selector in landscape to save space */}
+                    {!(isMobile && isLandscape) && (
+                        <select
+                            value={instrument}
+                            onChange={(e) => setInstrument(e.target.value as InstrumentType)}
+                            className={`bg-bg-tertiary border border-border-subtle rounded ${isMobile ? 'px-1.5 h-7 text-[11px] min-w-[70px]' : 'px-2 h-7 text-[10px] min-w-[130px]'} text-text-secondary focus:outline-none focus:border-accent-primary cursor-pointer`}
+                        >
+                            {instrumentOptions.map((opt) => (
+                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                        </select>
+                    )}
                 </div>
 
                 {/* Volume/Mute Toggle */}

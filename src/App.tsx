@@ -47,9 +47,9 @@ function App() {
   const [wheelZoomOrigin, setWheelZoomOrigin] = useState(50);
   const [wheelBaseSize, setWheelBaseSize] = useState(720);
 
-  // Responsive state
-  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 768 : false);
-  const [isLandscape, setIsLandscape] = useState(() => typeof window !== 'undefined' ? window.innerHeight < window.innerWidth && window.innerWidth < 1024 : false);
+  // Responsive state - use height-based detection for landscape since modern phones can have width > 768 in landscape
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 768 || (window.innerHeight < 500 && window.innerHeight < window.innerWidth) : false);
+  const [isLandscape, setIsLandscape] = useState(() => typeof window !== 'undefined' ? window.innerHeight < window.innerWidth && window.innerHeight < 500 : false);
   const autoCollapsedPanelRef = useRef(false);
   const hasInitializedMobile = useRef(false);
 
@@ -61,13 +61,21 @@ function App() {
   // Mobile timeline drawer state (separate from desktop timeline)
   const [mobileTimelineOpen, setMobileTimelineOpen] = useState(false);
 
-  // Landscape split view - draggable divider position (percentage for left/wheel side)
-  const [landscapeSplit, setLandscapeSplit] = useState(45); // 45% wheel, 55% timeline
-  const [isDraggingSplit, setIsDraggingSplit] = useState(false);
-
-  // Auto-enter immersive mode after inactivity on mobile
+  // Auto-enter immersive mode after inactivity on mobile (both portrait and landscape)
+  // In landscape, header is hidden by default (starts in immersive mode)
+  // Also open both drawers by default in landscape
   useEffect(() => {
-    if (!isMobile || isLandscape) return;
+    if (!isMobile) return;
+
+    // In landscape, start with immersive mode ON (header hidden) and both drawers OPEN
+    if (isLandscape) {
+      setMobileImmersive(true);
+      setMobileTimelineOpen(true);
+      // Open chord panel via store
+      if (!useSongStore.getState().chordPanelVisible) {
+        useSongStore.getState().toggleChordPanel();
+      }
+    }
 
     const enterImmersive = () => {
       setMobileImmersive(true);
@@ -108,13 +116,43 @@ function App() {
     };
   }, [isMobile, isLandscape]);
 
+  // Landscape-specific: track if header is temporarily shown
+  const [landscapeHeaderVisible, setLandscapeHeaderVisible] = useState(false);
+  const landscapeHeaderTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Handle wheel background tap in landscape to show header temporarily
+  const handleLandscapeWheelTap = useCallback(() => {
+    if (!isMobile || !isLandscape) return;
+
+    setLandscapeHeaderVisible(true);
+
+    // Hide again after 3 seconds
+    if (landscapeHeaderTimeoutRef.current) {
+      clearTimeout(landscapeHeaderTimeoutRef.current);
+    }
+    landscapeHeaderTimeoutRef.current = setTimeout(() => {
+      setLandscapeHeaderVisible(false);
+    }, 3000);
+  }, [isMobile, isLandscape]);
+
+  // Cleanup landscape header timeout
+  useEffect(() => {
+    return () => {
+      if (landscapeHeaderTimeoutRef.current) {
+        clearTimeout(landscapeHeaderTimeoutRef.current);
+      }
+    };
+  }, []);
+
 
   useEffect(() => {
     const updateLayout = () => {
       const width = window.innerWidth;
       const height = window.innerHeight;
-      const mobile = width < 768;
-      const landscape = height < width && width < 1024 && mobile;
+      // Mobile: traditional width check OR landscape phone (height < 500 means phone in landscape)
+      const mobile = width < 768 || (height < 500 && height < width);
+      // Landscape: height < width AND height indicates phone (< 500px)
+      const landscape = height < width && height < 500;
 
       setIsMobile(mobile);
       setIsLandscape(landscape);
@@ -679,9 +717,10 @@ function App() {
 
   return (
     <div className="h-full w-full flex flex-col bg-bg-primary text-text-primary overflow-hidden">
-      {/* Header - slides up when in mobile immersive mode or when chord panel is open */}
+      {/* Header - slides up when in mobile immersive mode, when chord panel is open, or in landscape by default */}
       <header
-        className={`${isMobile ? 'h-14' : 'h-12'} border-b border-border-subtle grid grid-cols-[1fr_auto_1fr] items-center ${isMobile ? 'px-4' : 'px-3'} bg-bg-secondary shrink-0 z-20 transition-all duration-300 ease-out ${isMobile && !isLandscape && (mobileImmersive || chordPanelVisible)
+        className={`${isMobile ? 'h-14' : 'h-12'} border-b border-border-subtle grid grid-cols-[1fr_auto_1fr] items-center ${isMobile ? 'px-4' : 'px-3'} bg-bg-secondary shrink-0 z-20 transition-all duration-300 ease-out ${(isMobile && !isLandscape && (mobileImmersive || chordPanelVisible)) ||
+          (isMobile && isLandscape && !landscapeHeaderVisible)
           ? 'opacity-0 -translate-y-full pointer-events-none absolute top-0 left-0 right-0'
           : 'relative'
           }`}
@@ -813,52 +852,63 @@ function App() {
 
       {/* Main Content Area */}
       <div className={`flex-1 flex ${isMobile ? (isLandscape ? 'flex-row' : 'flex-col') : 'flex-row'} overflow-hidden min-h-0`}>
-        {/* Left/Top: Wheel + Timeline */}
-        <div className={`flex flex-col min-w-0 min-h-0 ${isMobile && !isLandscape ? 'flex-1' : 'flex-1'} ${isMobile && !isLandscape ? 'overflow-hidden' : 'overflow-hidden'} bg-gradient-to-b from-bg-primary to-bg-secondary/30`} style={isMobile && isLandscape ? { width: `${landscapeSplit}%` } : undefined}>
+        {/* Left/Top: Wheel */}
+        <div
+          className={`flex flex-col min-w-0 min-h-0 flex-1 overflow-hidden bg-gradient-to-b from-bg-primary to-bg-secondary/30`}
+          style={isMobile && isLandscape ? {
+            // Wheel takes remaining space after drawer panels (each drawer is 33% when open, 20px when closed)
+            transition: 'all 0.25s ease-out',
+            minWidth: '100px'
+          } : undefined}
+        >
           {/* Wheel Area */}
           <div className={`${isMobile && !isLandscape ? 'flex-1' : 'flex-1'} flex flex-col ${isMobile && !isLandscape ? 'justify-center' : ''} overflow-hidden`}>
-            {/* Zoom toolbar - always show on desktop, hide on mobile portrait to save space */}
-            {!isMobile || isLandscape ? (
-              <div className={`flex justify-end ${isMobile ? 'px-4 py-1' : 'px-3 py-1 md:py-0.5'} shrink-0 w-full`}>
-                <div className={`flex items-center ${isMobile ? 'gap-2' : 'gap-1'} bg-bg-secondary/80 backdrop-blur-sm rounded-full ${isMobile ? 'px-3 py-2' : 'px-2 py-1'} border border-border-subtle shadow-lg`}>
+            {/* Zoom toolbar - show on desktop only, hide on all mobile views */}
+            {!isMobile ? (
+              <div className={`flex justify-end px-3 py-1 md:py-0.5 shrink-0 w-full`}>
+                <div className={`flex items-center gap-1 bg-bg-secondary/80 backdrop-blur-sm rounded-full px-2 py-1 border border-border-subtle shadow-lg`}>
                   <button
                     onClick={handleZoomOut}
                     disabled={wheelZoom <= 0.2}
-                    className={`${isMobile ? 'w-11 h-11' : 'w-6 h-6'} flex items-center justify-center hover:bg-bg-tertiary disabled:opacity-30 disabled:cursor-not-allowed rounded-full text-text-muted hover:text-text-primary transition-colors touch-feedback active:scale-95`}
+                    className={`w-6 h-6 flex items-center justify-center hover:bg-bg-tertiary disabled:opacity-30 disabled:cursor-not-allowed rounded-full text-text-muted hover:text-text-primary transition-colors touch-feedback active:scale-95`}
                     title="Zoom out"
                   >
-                    <Minus size={isMobile ? 18 : 12} />
+                    <Minus size={12} />
                   </button>
-                  <span className={`${isMobile ? 'text-xs w-12' : 'text-[9px] w-8'} text-text-muted text-center font-medium`}>{Math.round(wheelZoom * 100)}%</span>
+                  <span className={`text-[9px] w-8 text-text-muted text-center font-medium`}>{Math.round(wheelZoom * 100)}%</span>
                   <button
                     onClick={handleZoomIn}
                     disabled={wheelZoom >= 2.5}
-                    className={`${isMobile ? 'w-11 h-11' : 'w-6 h-6'} flex items-center justify-center hover:bg-bg-tertiary disabled:opacity-30 disabled:cursor-not-allowed rounded-full text-text-muted hover:text-text-primary transition-colors touch-feedback active:scale-95`}
+                    className={`w-6 h-6 flex items-center justify-center hover:bg-bg-tertiary disabled:opacity-30 disabled:cursor-not-allowed rounded-full text-text-muted hover:text-text-primary transition-colors touch-feedback active:scale-95`}
                     title="Zoom in"
                   >
-                    <Plus size={isMobile ? 18 : 12} />
+                    <Plus size={12} />
                   </button>
                 </div>
               </div>
             ) : null}
-            {/* Wheel container - expands on mobile immersive mode (header/footer hidden) */}
-            <div className={`flex-1 flex items-center justify-center overflow-hidden ${isMobile && !isLandscape ? 'px-0 py-0' : 'px-3 pb-3'}`}
-              style={{
-                minHeight: isMobile && !isLandscape ? '45dvh' : undefined,
-                height: isMobile && !isLandscape && mobileImmersive ? '55dvh' : undefined
-              }}
+            {/* Wheel container - fills available space */}
+            <div
+              className={`flex-1 flex items-center justify-center overflow-hidden ${isMobile && !isLandscape ? 'px-0 py-0' : 'p-2'}`}
+              onClick={handleLandscapeWheelTap}
             >
               <div
-                className="relative flex items-center justify-center"
+                className="relative flex items-center justify-center w-full h-full"
                 style={{
-                  width: isMobile && !isLandscape && mobileImmersive
-                    ? `min(100vw - 8px, 55dvh)`
-                    : `${wheelBaseSize}px`,
-                  height: isMobile && !isLandscape && mobileImmersive
-                    ? `min(100vw - 8px, 55dvh)`
-                    : `${wheelBaseSize}px`,
-                  maxWidth: '100%',
-                  maxHeight: isMobile && !isLandscape ? '100%' : undefined,
+                  // In landscape: fill the container
+                  // In portrait mobile + immersive: nearly full width
+                  // Otherwise: use calculated wheelBaseSize
+                  maxWidth: isMobile && isLandscape
+                    ? '100%'
+                    : isMobile && !isLandscape && mobileImmersive
+                      ? 'min(100vw - 8px, 55dvh)'
+                      : `${wheelBaseSize}px`,
+                  maxHeight: isMobile && isLandscape
+                    ? '100%'
+                    : isMobile && !isLandscape && mobileImmersive
+                      ? 'min(100vw - 8px, 55dvh)'
+                      : `${wheelBaseSize}px`,
+                  aspectRatio: '1 / 1',
                   transition: 'all 0.3s ease-out'
                 }}
               >
@@ -981,72 +1031,113 @@ function App() {
           ) : null}
         </div>
 
-        {/* Right Side: Chord Details Panel (Desktop) or Timeline (Mobile Landscape) */}
         {isMobile && isLandscape ? (
-          /* Mobile Landscape: Right side with optimized timeline */
+          /* Mobile Landscape: 3-panel layout with horizontal sliding drawers
+             Each drawer has a full-height handle on its right edge
+             Layout: [Wheel] | [Timeline + handle] | [Details + handle]
+          */
           <>
-            {/* Draggable divider */}
+            {/* Timeline Panel + Handle */}
             <div
-              className="w-2 flex items-center justify-center cursor-ew-resize hover:bg-accent-primary/30 active:bg-accent-primary/50 transition-colors touch-none"
-              style={{ backgroundColor: isDraggingSplit ? 'rgba(99, 102, 241, 0.3)' : undefined }}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                setIsDraggingSplit(true);
-                const handleMouseMove = (moveE: MouseEvent) => {
-                  const newSplit = (moveE.clientX / window.innerWidth) * 100;
-                  setLandscapeSplit(Math.max(30, Math.min(60, newSplit)));
-                };
-                const handleMouseUp = () => {
-                  setIsDraggingSplit(false);
-                  document.removeEventListener('mousemove', handleMouseMove);
-                  document.removeEventListener('mouseup', handleMouseUp);
-                };
-                document.addEventListener('mousemove', handleMouseMove);
-                document.addEventListener('mouseup', handleMouseUp);
-              }}
-              onTouchStart={() => {
-                setIsDraggingSplit(true);
-                const handleTouchMove = (moveE: TouchEvent) => {
-                  const touch = moveE.touches[0];
-                  const newSplit = (touch.clientX / window.innerWidth) * 100;
-                  setLandscapeSplit(Math.max(30, Math.min(60, newSplit)));
-                };
-                const handleTouchEnd = () => {
-                  setIsDraggingSplit(false);
-                  document.removeEventListener('touchmove', handleTouchMove);
-                  document.removeEventListener('touchend', handleTouchEnd);
-                };
-                document.addEventListener('touchmove', handleTouchMove);
-                document.addEventListener('touchend', handleTouchEnd);
+              className="flex h-full shrink-0"
+              style={{
+                width: mobileTimelineOpen ? '33%' : '28px',
+                transition: 'width 0.25s ease-out'
               }}
             >
-              <div className="w-1 h-8 bg-border-medium rounded-full" />
-            </div>
-            {/* Timeline panel */}
-            <div
-              className="flex flex-col overflow-hidden bg-bg-secondary"
-              style={{ width: `${100 - landscapeSplit}%` }}
-            >
-              {/* Timeline header with controls */}
-              <div className="flex items-center justify-between px-2 py-1.5 border-b border-border-subtle bg-bg-elevated shrink-0">
-                <span className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">Timeline</span>
-                <div className="flex items-center gap-1">
-                  <input
-                    type="range"
-                    min="0.4"
-                    max="1.2"
-                    step="0.1"
-                    value={timelineScale}
-                    onChange={(e) => setTimelineScale(parseFloat(e.target.value))}
-                    className="w-16 h-1 bg-bg-tertiary rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-accent-primary [&::-webkit-slider-thumb]:rounded-full"
-                    title="Timeline scale"
-                  />
-                  <span className="text-[9px] text-text-muted w-8">{Math.round(timelineScale * 100)}%</span>
+              {/* Timeline Content */}
+              {mobileTimelineOpen && (
+                <div className="flex-1 h-full bg-bg-secondary overflow-hidden border-l border-border-subtle">
+                  <Timeline height={window.innerHeight - 80} scale={0.65} />
                 </div>
+              )}
+              {/* Timeline Handle - full height, draggable */}
+              <div
+                className={`h-full flex flex-col items-center justify-center cursor-ew-resize touch-feedback active:bg-bg-tertiary border-l border-border-subtle shrink-0 ${mobileTimelineOpen ? 'bg-bg-elevated' : 'bg-bg-secondary'}`}
+                style={{ width: '28px' }}
+                onClick={() => setMobileTimelineOpen(!mobileTimelineOpen)}
+                onTouchStart={(e) => {
+                  const startX = e.touches[0].clientX;
+                  const wasOpen = mobileTimelineOpen;
+
+                  const handleTouchMove = (moveE: TouchEvent) => {
+                    const deltaX = moveE.touches[0].clientX - startX;
+                    // Swipe left (negative) to open, swipe right (positive) to close
+                    if (deltaX < -30 && !wasOpen) {
+                      setMobileTimelineOpen(true);
+                    } else if (deltaX > 30 && wasOpen) {
+                      setMobileTimelineOpen(false);
+                    }
+                  };
+
+                  const handleTouchEnd = () => {
+                    document.removeEventListener('touchmove', handleTouchMove);
+                    document.removeEventListener('touchend', handleTouchEnd);
+                  };
+
+                  document.addEventListener('touchmove', handleTouchMove);
+                  document.addEventListener('touchend', handleTouchEnd);
+                }}
+              >
+                <div className="h-10 w-1 rounded-full bg-text-muted/50 mb-2" />
+                <span
+                  className="text-[9px] font-bold text-text-muted uppercase tracking-wide"
+                  style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
+                >
+                  {mobileTimelineOpen ? '▸' : 'Timeline'}
+                </span>
               </div>
-              {/* Timeline content - uses available height */}
-              <div className="flex-1 overflow-hidden">
-                <Timeline height={window.innerHeight - 100} scale={timelineScale} />
+            </div>
+
+            {/* Chord Details Panel + Handle */}
+            <div
+              className="flex h-full shrink-0"
+              style={{
+                width: chordPanelVisible ? '33%' : '28px',
+                transition: 'width 0.25s ease-out'
+              }}
+            >
+              {/* Chord Details Content */}
+              {chordPanelVisible && (
+                <div className="flex-1 h-full bg-bg-secondary overflow-hidden border-l border-border-subtle" data-chord-details>
+                  <ChordDetails variant="landscape-panel" />
+                </div>
+              )}
+              {/* Chord Details Handle - full height, draggable */}
+              <div
+                className={`h-full flex flex-col items-center justify-center cursor-ew-resize touch-feedback active:bg-bg-tertiary border-l border-border-subtle shrink-0 ${chordPanelVisible ? 'bg-bg-elevated' : 'bg-bg-secondary'}`}
+                style={{ width: '28px' }}
+                onClick={() => useSongStore.getState().toggleChordPanel()}
+                onTouchStart={(e) => {
+                  const startX = e.touches[0].clientX;
+                  const wasOpen = chordPanelVisible;
+
+                  const handleTouchMove = (moveE: TouchEvent) => {
+                    const deltaX = moveE.touches[0].clientX - startX;
+                    // Swipe left (negative) to open, swipe right (positive) to close
+                    if (deltaX < -30 && !wasOpen) {
+                      useSongStore.getState().toggleChordPanel();
+                    } else if (deltaX > 30 && wasOpen) {
+                      useSongStore.getState().toggleChordPanel();
+                    }
+                  };
+
+                  const handleTouchEnd = () => {
+                    document.removeEventListener('touchmove', handleTouchMove);
+                    document.removeEventListener('touchend', handleTouchEnd);
+                  };
+
+                  document.addEventListener('touchmove', handleTouchMove);
+                  document.addEventListener('touchend', handleTouchEnd);
+                }}
+              >
+                <div className="h-10 w-1 rounded-full bg-text-muted/50 mb-2" />
+                <span
+                  className="text-[9px] font-bold text-text-muted uppercase tracking-wide"
+                  style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
+                >
+                  {chordPanelVisible ? '▸' : 'Details'}
+                </span>
               </div>
             </div>
           </>
