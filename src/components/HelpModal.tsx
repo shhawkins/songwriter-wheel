@@ -294,7 +294,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose, isEmbedde
 
     return (
         <div
-            className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
+            className="fixed inset-0 z-[70] flex items-center justify-center pointer-events-none"
             style={{
                 // Add safe area padding for iOS landscape (Dynamic Island + home indicator)
                 paddingTop: 'max(16px, env(safe-area-inset-top))',

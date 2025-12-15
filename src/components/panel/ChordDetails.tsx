@@ -882,11 +882,13 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
                                                             {getSuggestedVoicings().extensions.map((ext) => (
                                                                 <button
                                                                     key={ext}
-                                                                    className={`relative group ${isCompactLandscape ? 'px-1 py-0.5 text-[8px] min-h-[20px]' : isNarrowPanel ? 'px-2 py-1.5 text-[9px] min-h-[28px]' : isMobile ? 'px-2 py-2 text-xs min-h-[36px]' : 'px-1.5 py-1 text-[10px]'} rounded font-semibold transition-colors touch-feedback overflow-hidden text-ellipsis whitespace-nowrap`}
-                                                                    style={previewVariant === ext
-                                                                        ? { backgroundColor: '#4f46e5', color: '#ffffff', border: '1px solid #4f46e5' }
-                                                                        : { backgroundColor: '#282833', color: '#f0f0f5', border: '1px solid rgba(255,255,255,0.08)' }
-                                                                    }
+                                                                    className={`relative group ${isCompactLandscape ? 'px-1 py-0.5 text-[8px] min-h-[20px]' : isNarrowPanel ? 'px-2 py-1.5 text-[9px] min-h-[26px]' : isMobile ? 'px-2 py-2 text-xs min-h-[36px]' : 'px-1.5 py-1 text-[10px]'} rounded font-semibold transition-colors touch-feedback text-center`}
+                                                                    style={{
+                                                                        width: isCompactLandscape ? '60px' : isNarrowPanel ? '70px' : isMobile ? '80px' : '70px',
+                                                                        ...(previewVariant === ext
+                                                                            ? { backgroundColor: '#4f46e5', color: '#ffffff', border: '1px solid #4f46e5' }
+                                                                            : { backgroundColor: '#282833', color: '#f0f0f5', border: '1px solid rgba(255,255,255,0.08)' })
+                                                                    }}
                                                                     onClick={() => handleVariationClick(ext)}
                                                                     onDoubleClick={() => handleVariationDoubleClick(ext)}
                                                                 >

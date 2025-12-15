@@ -429,12 +429,16 @@ export const SongOverview: React.FC = () => {
                 paddingRight: 'max(16px, env(safe-area-inset-right))',
                 paddingBottom: 'max(16px, env(safe-area-inset-bottom))'
             }}
+            onClick={() => toggleSongMap(false)}
         >
             {/* Header */}
-            <div className={clsx(
-                "shrink-0 bg-transparent text-white transition-all",
-                isLandscape ? "px-4 py-1.5" : "px-4 py-2"
-            )}>
+            <div
+                className={clsx(
+                    "shrink-0 bg-transparent text-white transition-all",
+                    isLandscape ? "px-4 py-1.5" : "px-4 py-2"
+                )}
+                onClick={(e) => e.stopPropagation()}
+            >
                 {/* Top Row - Title and Close */}
                 <div className="flex items-center justify-between mb-1.5">
                     <div className="flex items-center gap-3">
@@ -535,8 +539,8 @@ export const SongOverview: React.FC = () => {
                 </div>
             </div>
 
-            {/* Scrollable Map Area */}
-            <div className="flex-1 overflow-x-auto overflow-y-hidden px-4 flex items-center relative scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+            {/* Scrollable Map Area - Clicking in here should not close the modal */}
+            <div className="flex-1 overflow-x-auto overflow-y-hidden px-4 flex items-center relative scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent" onClick={(e) => e.stopPropagation()}>
                 <div className={clsx(
                     "flex relative h-full items-center pt-2 pb-2 transition-all",
                     zoomLevel < COMPACT_THRESHOLD ? "gap-2 min-h-[80px]" : "gap-4 min-h-[156px]"
@@ -583,10 +587,13 @@ export const SongOverview: React.FC = () => {
             </div>
 
             {/* Persistent Playback Footer */}
-            <div className={clsx(
-                "shrink-0 bg-bg-elevated border-t border-border-subtle z-[110] flex flex-col justify-center",
-                isLandscape ? "pb-0" : (isMobile ? "px-4 py-3 pb-6 gap-3" : "px-6 py-3 pb-6")
-            )}>
+            <div
+                className={clsx(
+                    "shrink-0 bg-bg-elevated border-t border-border-subtle z-[110] flex flex-col justify-center",
+                    isLandscape ? "pb-0" : (isMobile ? "px-4 py-3 pb-6 gap-3" : "px-6 py-3 pb-6")
+                )}
+                onClick={(e) => e.stopPropagation()}
+            >
                 {isMobile && !isLandscape ? (
                     // Portrait Mobile Layout - Condensed
                     <>
