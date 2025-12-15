@@ -398,19 +398,49 @@ export function normalizeRoot(root: string): string {
 export function normalizeQuality(quality: string): string {
     // Map various quality names to our database keys
     const qualityMap: Record<string, string> = {
+        // Major family
         'major': 'maj',
+        'major7': 'maj7',
+        'major9': 'maj9',
+        'major11': 'maj11',
+        'major13': 'maj13',
+        'major6': '6',
+
+        // Minor family
         'minor': 'm',
         'min': 'm',
-        'dom7': '7',
-        'dominant7': '7',
-        'major7': 'maj7',
         'minor7': 'm7',
         'min7': 'm7',
+        'minor9': 'm9',
+        'min9': 'm9',
+        'minor11': 'm11',
+        'min11': 'm11',
+        'minor13': 'm13',
+        'min13': 'm13',
+        'minor6': 'm6',
+        'min6': 'm6',
+
+        // Dominant family
+        'dom7': '7',
+        'dominant7': '7',
+        'dom9': '9',
+        'dominant9': '9',
+        'dom11': '11',
+        'dominant11': '11',
+        'dom13': '13',
+        'dominant13': '13',
+
+        // Suspended
         'suspended2': 'sus2',
         'suspended4': 'sus4',
+
+        // Diminished
         'diminished': 'dim',
         'half-diminished': 'm7b5',
+        'halfDiminished7': 'm7b5',
         'm7♭5': 'm7b5',
+
+        // Other
         'sixth': '6',
         'ninth': '9',
         'added9': 'add9',

@@ -239,40 +239,49 @@ export function parseVoicingSuggestions(suggestion: string, baseQuality: string)
         let quality = part;
         let label = part;
 
-        // Handle special cases
+        // Handle special cases - map to quality strings that match EXTENDED_CHORD_FORMULAS
         if (part === '6') {
-            quality = 'maj6';
+            quality = 'major6';
             label = '6';
         } else if (part === 'm6') {
-            quality = 'min6';
+            quality = 'minor6';
             label = 'm6';
         } else if (part === 'm7♭5 (ø7)') {
-            quality = 'min7b5';
+            quality = 'halfDiminished7';
             label = 'ø7';
         } else if (part === 'm7') {
-            quality = 'min7';
+            quality = 'minor7';
             label = 'm7';
         } else if (part === 'm9') {
-            quality = 'min9';
+            quality = 'minor9';
             label = 'm9';
         } else if (part === 'm11') {
-            quality = 'min11';
+            quality = 'minor11';
             label = 'm11';
         } else if (part === 'sus4') {
             quality = 'sus4';
             label = 'sus4';
         } else if (part === '7') {
-            quality = 'dom7';
+            quality = 'dominant7';
             label = '7';
         } else if (part === '9') {
-            quality = 'dom9';
+            quality = 'dominant9';
             label = '9';
         } else if (part === '11') {
-            quality = 'dom11';
+            quality = 'dominant11';
             label = '11';
         } else if (part === '13') {
-            quality = 'dom13';
+            quality = 'dominant13';
             label = '13';
+        } else if (part === 'maj7') {
+            quality = 'major7';
+            label = 'maj7';
+        } else if (part === 'maj9') {
+            quality = 'major9';
+            label = 'maj9';
+        } else if (part === 'maj13') {
+            quality = 'major13';
+            label = 'maj13';
         }
 
         options.push({ quality, label });
