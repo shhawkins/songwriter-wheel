@@ -12,7 +12,8 @@ import {
 import { WheelSegment } from './WheelSegment';
 import { RotateCw, RotateCcw } from 'lucide-react';
 import { playChord } from '../../utils/audioEngine';
-import { useIsMobile } from '../../hooks/useIsMobile';
+import { useIsMobile, useMobileLayout } from '../../hooks/useIsMobile';
+import { VoicingQuickPicker, parseVoicingSuggestions } from './VoicingQuickPicker';
 
 interface ChordWheelProps {
     zoomScale: number;
@@ -57,7 +58,8 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
         selectNextSlotAfter,
         setSelectedSlot,
         timelineVisible,
-        openTimeline
+        openTimeline,
+        chordPanelVisible
     } = useSongStore();
 
     // Calculate wheel rotation
@@ -86,6 +88,14 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
     const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
     const [internalPanOffset, setInternalPanOffset] = useState({ x: 0, y: 0 });
 
+    // Voicing quick picker state
+    const [voicingPickerState, setVoicingPickerState] = useState<{
+        isOpen: boolean;
+        chord: Chord | null;
+        voicingSuggestion: string;
+        baseQuality: string;
+    }>({ isOpen: false, chord: null, voicingSuggestion: '', baseQuality: '' });
+
     // Use external pan offset if provided, otherwise use internal state
     const panOffset = externalPanOffset ?? internalPanOffset;
 
@@ -100,6 +110,7 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
 
     // Mobile detection using centralized hook
     const isMobile = useIsMobile();
+    const { isLandscape } = useMobileLayout();
 
     // Keep wheel highlight in sync with store selection when it carries segment info
     useEffect(() => {
@@ -453,6 +464,33 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
         playChord(chord.notes);
         setSelectedSegmentId(wheelChord.segmentId ?? null);
         setSelectedChord(chord);
+
+        // Check if this chord has voicing suggestions (i.e., it's diatonic)
+        if (wheelChord.positionIndex !== undefined && wheelChord.ringType) {
+            const voicingSuggestion = getVoicingSuggestion(
+                wheelChord.positionIndex,
+                wheelChord.ringType === 'major' ? 'major' :
+                    wheelChord.ringType === 'minor' ?
+                        (wheelChord.numeral === 'ii' || wheelChord.numeral === 'vi' ? 'ii' : 'iii') :
+                        'dim'
+            );
+
+            if (voicingSuggestion) {
+                // Hide voicing picker ONLY in mobile portrait with chord panel open
+                // Show everywhere else: desktop, mobile landscape (even with panel), mobile portrait without panel
+                const isMobilePortrait = isMobile && !isLandscape;
+                const shouldShowPicker = !(isMobilePortrait && chordPanelVisible);
+
+                if (shouldShowPicker) {
+                    setVoicingPickerState({
+                        isOpen: true,
+                        chord: wheelChord,
+                        voicingSuggestion,
+                        baseQuality: wheelChord.quality
+                    });
+                }
+            }
+        }
     };
 
     const handleChordDoubleClick = (chord: Chord) => {
@@ -1046,6 +1084,62 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
                 </svg>
             </div>
 
+            {/* Voicing Quick Picker Modal */}
+            <VoicingQuickPicker
+                isOpen={voicingPickerState.isOpen}
+                onClose={() => setVoicingPickerState({ ...voicingPickerState, isOpen: false })}
+                onSelect={(quality: string) => {
+                    if (voicingPickerState.chord) {
+                        const newNotes = getChordNotes(voicingPickerState.chord.root, quality);
+                        const newChord: Chord = {
+                            ...voicingPickerState.chord,
+                            quality: quality as any, // Extended qualities like maj7, dom9, etc.
+                            notes: newNotes,
+                            symbol: `${voicingPickerState.chord.root}${quality === 'major' ? '' : quality === 'minor' ? 'm' : quality}`
+                        };
+                        setSelectedChord(newChord);
+                    }
+                }}
+                onAddToTimeline={(quality: string) => {
+                    if (voicingPickerState.chord) {
+                        const newNotes = getChordNotes(voicingPickerState.chord.root, quality);
+                        const newChord: Chord = {
+                            ...voicingPickerState.chord,
+                            quality: quality as any,
+                            notes: newNotes,
+                            symbol: `${voicingPickerState.chord.root}${quality === 'major' ? '' : quality === 'minor' ? 'm' : quality}`
+                        };
+                        // Add to timeline using same logic as handleChordDoubleClick
+                        let targetSectionId: string | null = selectedSectionId;
+                        let targetSlotId: string | null = selectedSlotId;
+
+                        if (!targetSectionId || !targetSlotId) {
+                            // Find first empty slot
+                            for (const section of currentSong.sections) {
+                                for (const measure of section.measures) {
+                                    for (const beat of measure.beats) {
+                                        if (!beat.chord) {
+                                            targetSectionId = section.id;
+                                            targetSlotId = beat.id;
+                                            break;
+                                        }
+                                    }
+                                    if (targetSlotId) break;
+                                }
+                                if (targetSlotId) break;
+                            }
+                        }
+
+                        if (targetSectionId && targetSlotId) {
+                            addChordToSlot(newChord, targetSectionId, targetSlotId);
+                            selectNextSlotAfter(targetSectionId, targetSlotId);
+                        }
+                    }
+                }}
+                chordRoot={voicingPickerState.chord?.root || 'C'}
+                voicings={parseVoicingSuggestions(voicingPickerState.voicingSuggestion, voicingPickerState.baseQuality)}
+                selectedQuality={voicingPickerState.chord?.quality}
+            />
         </div>
     );
 };
