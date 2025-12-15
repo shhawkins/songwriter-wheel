@@ -610,6 +610,10 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
         if (storeSegmentId) {
             return storeSegmentId === ch.segmentId;
         }
+        // Fallback: match by root and quality when no segmentId (e.g., default C chord on load)
+        if (selectedChord && !storeSegmentId) {
+            return selectedChord.root === ch.root && selectedChord.quality === ch.quality;
+        }
         return false;
     };
 

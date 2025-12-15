@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSongStore } from '../../store/useSongStore';
-import { X, GripVertical, Settings2 } from 'lucide-react';
+import { X, GripVertical, Settings2, Play, Pause, SkipBack, SkipForward, Repeat, Volume2, VolumeX, Loader2, Minus, Plus, ZoomIn, ZoomOut, Music } from 'lucide-react';
 import clsx from 'clsx';
 import { getWheelColors, formatChordForDisplay } from '../../utils/musicTheory';
 import {
@@ -21,6 +21,8 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import * as Tone from 'tone';
+import { playSong, pauseSong, skipToSection, unlockAudioForIOS } from '../../utils/audioEngine';
+import type { InstrumentType } from '../../types';
 
 // Enhanced section colors
 const SECTION_THEMES: Record<string, { bg: string; headers: string; border: string; accent: string }> = {
@@ -73,11 +75,13 @@ interface SortableSectionProps {
     onSelect: () => void;
     isActive: boolean;
     chordColors: any;
+    measureWidth: number;
 }
 
-const MEASURE_WIDTH = 120; // Fixed width per measure for rhythm visualization
+// Base measure width (narrower for more visibility)
+const BASE_MEASURE_WIDTH = 60;
 
-const SortableSection = ({ section, onSelect, isActive, chordColors }: SortableSectionProps) => {
+const SortableSection = ({ section, onSelect, isActive, chordColors, measureWidth }: SortableSectionProps) => {
     const {
         attributes,
         listeners,
@@ -94,7 +98,7 @@ const SortableSection = ({ section, onSelect, isActive, chordColors }: SortableS
 
     const theme = SECTION_THEMES[section.type] || SECTION_THEMES.custom;
     const measures = section.measures;
-    const sectionWidth = Math.max(200, measures.length * MEASURE_WIDTH);
+    const sectionWidth = Math.max(100, measures.length * measureWidth);
 
     return (
         <div
@@ -204,11 +208,65 @@ export const SongOverview: React.FC = () => {
         toggleSongMap,
         setSelectedSlot,
         reorderSections,
-        isPlaying
+        isPlaying,
+        tempo,
+        setTempo,
+        volume,
+        setVolume,
+        instrument,
+        setInstrument,
+        isMuted,
+        toggleMute,
+        isLooping,
+        toggleLoop,
+        playingSectionId
     } = useSongStore();
+
+    const [isLoading, setIsLoading] = useState(false);
+    const [zoomLevel, setZoomLevel] = useState(1); // 0.5 to 2
 
     const chordColors = getWheelColors();
     const totalMeasures = currentSong.sections.reduce((acc, s) => acc + s.measures.length, 0);
+    const measureWidth = BASE_MEASURE_WIDTH * zoomLevel;
+
+    // Zoom handlers
+    const handleZoomIn = () => setZoomLevel(prev => Math.min(2, prev + 0.25));
+    const handleZoomOut = () => setZoomLevel(prev => Math.max(0.5, prev - 0.25));
+
+    // Playback handlers
+    const handlePlayPause = async () => {
+        try {
+            await unlockAudioForIOS();
+            if (!isPlaying) {
+                setIsLoading(true);
+                await playSong();
+                useSongStore.getState().setIsPlaying(true);
+            } else {
+                pauseSong();
+                useSongStore.getState().setIsPlaying(false);
+            }
+        } catch (err) {
+            console.error("Playback error:", err);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleSkip = (direction: 'prev' | 'next') => {
+        skipToSection(direction);
+    };
+
+    const handleLoopToggle = () => {
+        toggleLoop();
+    };
+
+    const instrumentOptions: { value: InstrumentType, label: string }[] = [
+        { value: 'piano', label: 'Piano' },
+        { value: 'epiano', label: 'E.Piano' },
+        { value: 'organ', label: 'Organ' },
+        { value: 'pad', label: 'Pad' },
+        { value: 'guitar', label: 'Guitar' },
+    ];
 
     // Dnd Sensors
     const sensors = useSensors(
@@ -268,14 +326,14 @@ export const SongOverview: React.FC = () => {
                     // In this section
                     const beatsInSection = currentBeats - beatsTraversed;
                     const progressInSection = beatsInSection / sectionDurationBeats;
-                    const sectionWidth = section.measures.length * MEASURE_WIDTH; // Using calculated width from SortableSection
+                    const sectionWidthPx = section.measures.length * measureWidth;
 
-                    accumulatedPixels += progressInSection * sectionWidth;
+                    accumulatedPixels += progressInSection * sectionWidthPx;
                     break;
                 } else {
                     // Passed this section
-                    const sectionWidth = section.measures.length * MEASURE_WIDTH;
-                    accumulatedPixels += sectionWidth + SECTION_GAP;
+                    const sectionWidthPx = section.measures.length * measureWidth;
+                    accumulatedPixels += sectionWidthPx + SECTION_GAP;
                     beatsTraversed += sectionDurationBeats;
                 }
             }
@@ -286,7 +344,7 @@ export const SongOverview: React.FC = () => {
 
         const raf = requestAnimationFrame(animate);
         return () => cancelAnimationFrame(raf);
-    }, [songMapVisible, isPlaying, currentSong]);
+    }, [songMapVisible, isPlaying, currentSong, measureWidth]);
 
     // Focus / Dismiss
     useEffect(() => {
@@ -302,7 +360,12 @@ export const SongOverview: React.FC = () => {
     return (
         <div
             className="fixed inset-0 z-[100] flex flex-col bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
-            style={{ paddingTop: 'max(20px, env(safe-area-inset-top))' }} // Dynamic Island Safe Area
+            style={{
+                paddingTop: 'max(20px, env(safe-area-inset-top))',
+                paddingLeft: 'max(16px, env(safe-area-inset-left))',
+                paddingRight: 'max(16px, env(safe-area-inset-right))',
+                paddingBottom: 'max(16px, env(safe-area-inset-bottom))'
+            }}
         >
             {/* Header */}
             <div className="px-6 py-4 flex items-center justify-between shrink-0 bg-transparent text-white">
@@ -318,17 +381,38 @@ export const SongOverview: React.FC = () => {
                         <span>{currentSong.tempo} BPM</span>
                     </div>
                 </div>
-                <button
-                    onClick={() => toggleSongMap(false)}
-                    className="p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
-                >
-                    <X size={24} />
-                </button>
+                <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1 bg-white/10 rounded-full p-1 mr-2">
+                        <button
+                            onClick={handleZoomOut}
+                            className="p-2 hover:bg-white/10 rounded-full transition-colors disabled:opacity-50"
+                            disabled={zoomLevel <= 0.5}
+                            title="Zoom Out"
+                        >
+                            <ZoomOut size={16} />
+                        </button>
+                        <span className="text-xs font-mono min-w-[32px] text-center">{Math.round(zoomLevel * 100)}%</span>
+                        <button
+                            onClick={handleZoomIn}
+                            className="p-2 hover:bg-white/10 rounded-full transition-colors disabled:opacity-50"
+                            disabled={zoomLevel >= 2}
+                            title="Zoom In"
+                        >
+                            <ZoomIn size={16} />
+                        </button>
+                    </div>
+                    <button
+                        onClick={() => toggleSongMap(false)}
+                        className="p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
+                    >
+                        <X size={24} />
+                    </button>
+                </div>
             </div>
 
             {/* Scrollable Map Area */}
-            <div className="flex-1 overflow-x-auto overflow-y-hidden px-6 pb-8 flex items-center relative scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-                <div className="flex gap-3 relative h-[60vh] items-start pt-10">
+            <div className="flex-1 overflow-x-auto overflow-y-auto px-4 pb-4 flex items-start relative scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                <div className="flex gap-3 relative min-h-[200px] max-h-full items-start pt-4 pb-4">
 
                     {/* Playhead Overlay */}
                     {isPlaying && (
@@ -359,8 +443,9 @@ export const SongOverview: React.FC = () => {
                                         }
                                         toggleSongMap(false);
                                     }}
-                                    isActive={false} // Could map this to current playing section
+                                    isActive={isPlaying && currentSong.sections.findIndex(s => s.id === section.id) === currentSong.sections.findIndex(s => s.id === playingSectionId)} // Highlight playing section
                                     chordColors={chordColors}
+                                    measureWidth={measureWidth}
                                 />
                             ))}
                         </SortableContext>
@@ -368,9 +453,111 @@ export const SongOverview: React.FC = () => {
                 </div>
             </div>
 
-            {/* Footer Hints */}
-            <div className="px-8 pb-8 text-center text-white/30 text-xs font-medium uppercase tracking-widest">
-                Drag to rearrange • Click to navigate • Esc to close
+            {/* Persistent Playback Footer */}
+            <div className="shrink-0 bg-stone-900/90 border-t border-white/10 backdrop-blur-md px-6 py-4 pb-8 flex items-center justify-between z-[110]">
+                {/* Left: Playback Controls */}
+                <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => handleSkip('prev')}
+                            className="p-2 text-white/70 hover:text-white transition-colors"
+                        >
+                            <SkipBack size={20} />
+                        </button>
+                        <button
+                            onClick={handlePlayPause}
+                            disabled={isLoading}
+                            className="w-12 h-12 rounded-full bg-accent-primary hover:bg-indigo-500 disabled:bg-accent-primary/50 flex items-center justify-center text-white shadow-lg transition-transform hover:scale-105 active:scale-95"
+                        >
+                            {isLoading ? (
+                                <Loader2 size={24} className="animate-spin" />
+                            ) : isPlaying ? (
+                                <Pause size={24} fill="currentColor" />
+                            ) : (
+                                <Play size={24} fill="currentColor" className="ml-1" />
+                            )}
+                        </button>
+                        <button
+                            onClick={() => handleSkip('next')}
+                            className="p-2 text-white/70 hover:text-white transition-colors"
+                        >
+                            <SkipForward size={20} />
+                        </button>
+                    </div>
+
+                    <button
+                        onClick={handleLoopToggle}
+                        className={clsx(
+                            "p-2 rounded-full transition-colors ml-2",
+                            isLooping ? "text-accent-primary bg-accent-primary/10" : "text-white/50 hover:text-white/80"
+                        )}
+                        title="Loop Current Section"
+                    >
+                        <Repeat size={18} />
+                    </button>
+
+                    <div className="h-8 w-px bg-white/10 mx-2" />
+
+                    <div className="flex flex-col">
+                        <span className="text-[10px] uppercase tracking-wider text-white/50 font-bold">Tempo</span>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setTempo(Math.max(40, tempo - 5))}
+                                className="text-white/50 hover:text-white"
+                            >
+                                <Minus size={14} />
+                            </button>
+                            <span className="text-lg font-mono font-medium min-w-[3ch] text-center">{tempo}</span>
+                            <button
+                                onClick={() => setTempo(Math.min(240, tempo + 5))}
+                                className="text-white/50 hover:text-white"
+                            >
+                                <Plus size={14} />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Right: Instrument & Volume */}
+                <div className="flex items-center gap-6">
+                    {/* Instrument Selector */}
+                    <div className="flex items-center gap-2 bg-black/40 rounded-lg p-1 pr-3 border border-white/5">
+                        <div className="w-8 h-8 rounded bg-white/10 flex items-center justify-center text-white/70">
+                            <Music size={16} />
+                        </div>
+                        <select
+                            value={instrument}
+                            onChange={(e) => setInstrument(e.target.value as InstrumentType)}
+                            className="bg-transparent text-sm text-white focus:outline-none cursor-pointer [&>option]:text-black"
+                        >
+                            {instrumentOptions.map((opt) => (
+                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Volume */}
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={toggleMute}
+                            className="text-white/70 hover:text-white transition-colors"
+                        >
+                            {isMuted || volume === 0 ? <VolumeX size={20} /> : <Volume2 size={20} />}
+                        </button>
+                        <input
+                            type="range"
+                            min="0"
+                            max="1"
+                            step="0.01"
+                            value={isMuted ? 0 : volume}
+                            onChange={(e) => {
+                                if (isMuted) toggleMute();
+                                setVolume(Number(e.target.value));
+                            }}
+                            className="w-24 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full hover:[&::-webkit-slider-thumb]:scale-125 transition-all"
+                        />
+                    </div>
+                </div>
             </div>
         </div>
     );

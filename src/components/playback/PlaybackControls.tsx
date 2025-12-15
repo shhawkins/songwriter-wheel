@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useSongStore } from '../../store/useSongStore';
 import { Play, Pause, SkipBack, SkipForward, Repeat, Volume2, VolumeX, ChevronLeft, ChevronRight, Loader2, Music } from 'lucide-react';
 import { playSong, pauseSong, skipToSection, scheduleSong, setTempo as setAudioTempo, toggleLoopMode, setInstrument as setAudioInstrument, unlockAudioForIOS } from '../../utils/audioEngine';
@@ -26,7 +26,16 @@ export const PlaybackControls: React.FC = () => {
 
     const { isMobile, isLandscape } = useMobileLayout();
 
-    const [isLoading, setIsLoading] = React.useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [isEditingBpm, setIsEditingBpm] = useState(false);
+    const [bpmInputValue, setBpmInputValue] = useState(tempo.toString());
+    const bpmInputRef = useRef<HTMLInputElement>(null);
+
+    // Swipe gesture state for BPM adjustment
+    const [isSwiping, setIsSwiping] = useState(false);
+    const swipeStartX = useRef<number | null>(null);
+    const swipeStartTempo = useRef<number>(tempo);
+    const swipeTapTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Sync song structure to audio engine
     useEffect(() => {
@@ -111,6 +120,80 @@ export const PlaybackControls: React.FC = () => {
         setInstrument(instrumentOptions[nextIndex].value);
     };
 
+    // BPM editing handlers
+    const handleBpmTap = () => {
+        setBpmInputValue(tempo.toString());
+        setIsEditingBpm(true);
+        // Focus the input after state update
+        setTimeout(() => bpmInputRef.current?.focus(), 0);
+    };
+
+    const handleBpmSave = () => {
+        const newTempo = parseInt(bpmInputValue, 10);
+        if (!isNaN(newTempo) && newTempo >= 40 && newTempo <= 240) {
+            setTempo(newTempo);
+        } else {
+            setBpmInputValue(tempo.toString()); // Reset to current tempo if invalid
+        }
+        setIsEditingBpm(false);
+    };
+
+    const handleBpmKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            handleBpmSave();
+        } else if (e.key === 'Escape') {
+            setBpmInputValue(tempo.toString());
+            setIsEditingBpm(false);
+        }
+    };
+
+    // Swipe gesture handlers for BPM adjustment
+    const handleBpmTouchStart = (e: React.TouchEvent) => {
+        swipeStartX.current = e.touches[0].clientX;
+        swipeStartTempo.current = tempo;
+        setIsSwiping(false);
+
+        // Set a timeout to distinguish between tap and swipe
+        swipeTapTimeout.current = setTimeout(() => {
+            swipeTapTimeout.current = null;
+        }, 150);
+    };
+
+    const handleBpmTouchMove = (e: React.TouchEvent) => {
+        if (swipeStartX.current === null) return;
+
+        const currentX = e.touches[0].clientX;
+        const deltaX = currentX - swipeStartX.current;
+
+        // Only start swiping if we've moved more than 10px (prevents accidental swipes)
+        if (Math.abs(deltaX) > 10) {
+            setIsSwiping(true);
+
+            // Cancel the tap timeout if we're swiping
+            if (swipeTapTimeout.current) {
+                clearTimeout(swipeTapTimeout.current);
+                swipeTapTimeout.current = null;
+            }
+
+            // Calculate new tempo: ~1 BPM per 3 pixels of movement
+            const bpmChange = Math.round(deltaX / 3);
+            const newTempo = Math.min(240, Math.max(40, swipeStartTempo.current + bpmChange));
+            setTempo(newTempo);
+        }
+    };
+
+    const handleBpmTouchEnd = () => {
+        // If we didn't swipe (short tap), and timeout is still pending, trigger edit mode
+        if (!isSwiping && swipeTapTimeout.current) {
+            clearTimeout(swipeTapTimeout.current);
+            handleBpmTap();
+        }
+
+        swipeStartX.current = null;
+        setIsSwiping(false);
+        swipeTapTimeout.current = null;
+    };
+
     return (
         <div
             data-playback-controls
@@ -154,31 +237,49 @@ export const PlaybackControls: React.FC = () => {
                 )}
             </div>
 
-            {/* Tempo & Info - Show on desktop and mobile landscape */}
-            {(!isMobile || (isMobile && isLandscape)) && (
-                <div className={`flex items-center ${isMobile && isLandscape ? 'gap-2' : 'gap-4'} text-[11px] text-text-muted`}>
-                    {isMobile && isLandscape ? (
-                        // Compact BPM display for mobile landscape
-                        <span className="text-[10px] font-medium text-text-secondary whitespace-nowrap">
-                            {tempo} <span className="text-text-muted">BPM</span>
-                        </span>
+            {/* Tempo & Info - Show on all views */}
+            <div className="flex items-center">
+                {isMobile ? (
+                    // Tappable BPM display for mobile (both portrait and landscape)
+                    isEditingBpm ? (
+                        <input
+                            ref={bpmInputRef}
+                            type="number"
+                            inputMode="numeric"
+                            value={bpmInputValue}
+                            onChange={(e) => setBpmInputValue(e.target.value)}
+                            onBlur={handleBpmSave}
+                            onKeyDown={handleBpmKeyDown}
+                            className={`${isLandscape ? 'w-10 text-[9px] h-4' : 'w-12 text-[11px] h-5'} bg-bg-tertiary border border-accent-primary rounded-sm px-1 text-center text-text-primary font-medium focus:outline-none`}
+                            min={40}
+                            max={240}
+                        />
                     ) : (
-                        <div className="flex items-center gap-2">
-                            <span className="text-text-secondary font-medium">Tempo</span>
-                            <input
-                                type="number"
-                                value={tempo}
-                                onChange={(e) => setTempo(Number(e.target.value))}
-                                className="w-14 bg-bg-tertiary border border-border-subtle rounded px-2 py-1 text-center text-text-primary text-[11px] font-medium"
-                                min={40}
-                                max={240}
-                            />
-                            <span className="text-text-muted">BPM</span>
+                        <div
+                            onTouchStart={handleBpmTouchStart}
+                            onTouchMove={handleBpmTouchMove}
+                            onTouchEnd={handleBpmTouchEnd}
+                            onClick={handleBpmTap}
+                            className={`${isLandscape ? 'text-[9px] px-1.5 h-4' : 'text-[11px] px-2 h-5'} font-medium ${isSwiping ? 'text-accent-primary' : 'text-text-secondary'} hover:text-text-primary transition-colors touch-feedback whitespace-nowrap flex items-center cursor-ew-resize select-none`}
+                        >
+                            {tempo} <span className={`${isSwiping ? 'text-accent-primary/70' : 'text-text-muted'} ml-0.5`}>BPM</span>
                         </div>
-                    )}
-
-                </div>
-            )}
+                    )
+                ) : (
+                    <div className="flex items-center gap-2">
+                        <span className="text-text-secondary font-medium">Tempo</span>
+                        <input
+                            type="number"
+                            value={tempo}
+                            onChange={(e) => setTempo(Number(e.target.value))}
+                            className="w-14 bg-bg-tertiary border border-border-subtle rounded px-2 py-1 text-center text-text-primary text-[11px] font-medium"
+                            min={40}
+                            max={240}
+                        />
+                        <span className="text-text-muted">BPM</span>
+                    </div>
+                )}
+            </div>
 
             {/* Instrument & Volume - Compact for mobile */}
             <div className={`flex items-center ${isMobile ? 'gap-1.5' : 'gap-4'}`}>

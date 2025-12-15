@@ -48,7 +48,7 @@ export const Measure: React.FC<MeasureProps> = ({ measure, sectionId, index, cho
 
     return (
         <div
-            className="flex flex-col border-r-2 border-border-medium last:border-r-0 px-1 min-w-[64px]"
+            className="flex flex-col border-r-2 border-border-medium last:border-r-0 pl-1 pr-2 min-w-[64px]"
             style={{ minWidth: beatUnitWidth * Math.max(1, totalBeats) + 8 }}
         >
             {/* Bar number + Step selector - compact inline */}
@@ -75,7 +75,7 @@ export const Measure: React.FC<MeasureProps> = ({ measure, sectionId, index, cho
                 </select>
             </div>
             {/* Chord slots */}
-            <div className="flex gap-0.5 flex-1">
+            <div className="flex gap-0.5 flex-1 mr-1">
                 {measure.beats.map((beat) => {
                     const slotWidth = Math.max(beatUnitWidth * (beat.duration || 1), beatUnitWidth);
                     return (

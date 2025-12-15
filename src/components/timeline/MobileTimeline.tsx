@@ -327,7 +327,7 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                         })}
                         <button
                             onClick={() => addSection('verse')}
-                            className="rounded-full text-text-muted hover:text-accent-primary touch-feedback shrink-0 border border-dashed border-border-medium hover:border-accent-primary/50 transition-all hover:bg-accent-primary/10 p-2"
+                            className="rounded-full text-text-muted hover:text-accent-primary touch-feedback shrink-0 border border-dashed border-border-medium hover:border-accent-primary/50 transition-all hover:bg-accent-primary/10 w-8 h-8 flex items-center justify-center"
                             title="Add section"
                         >
                             <Plus size={12} />

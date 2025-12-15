@@ -293,6 +293,15 @@ const DEFAULT_SONG: Song = {
     updatedAt: new Date(),
 };
 
+// Default C major chord - always have a chord selected
+const DEFAULT_C_CHORD: Chord = {
+    root: 'C',
+    quality: 'major',
+    numeral: 'I',
+    notes: ['C', 'E', 'G'],
+    symbol: 'C',
+};
+
 export const useSongStore = create<SongState>()(
     persist(
         (set) => ({
@@ -308,7 +317,7 @@ export const useSongStore = create<SongState>()(
             timelineVisible: true,
             songMapVisible: false,
             collapsedSections: {},
-            selectedChord: null,
+            selectedChord: DEFAULT_C_CHORD,
             selectedSectionId: null,
             selectedSlotId: null,
             selectedSlots: [],
@@ -701,7 +710,7 @@ export const useSongStore = create<SongState>()(
                     currentSong: { ...song, tempo },
                     selectedKey: key,
                     wheelRotation: rotation,
-                    selectedChord: null,
+                    selectedChord: DEFAULT_C_CHORD,
                     selectedSectionId: null,
                     selectedSlotId: null,
                     selectedSlots: [],
@@ -741,7 +750,7 @@ export const useSongStore = create<SongState>()(
                     },
                     selectedKey: 'C',
                     wheelRotation: 0,
-                    selectedChord: null,
+                    selectedChord: DEFAULT_C_CHORD,
                     selectedSectionId: null,
                     selectedSlotId: null,
                     selectedSlots: [],

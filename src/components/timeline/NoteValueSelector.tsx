@@ -147,22 +147,9 @@ export const NoteValueSelector: React.FC<NoteValueSelectorProps> = ({
     isCompact = false
 }) => {
     const [isOpen, setIsOpen] = useState(false);
-    const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
     const buttonRef = useRef<HTMLButtonElement>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const options = getStepOptions(timeSignature);
-
-    // Calculate dropdown position when opening
-    useEffect(() => {
-        if (isOpen && buttonRef.current) {
-            const rect = buttonRef.current.getBoundingClientRect();
-            // Position above the button, centered horizontally
-            setDropdownPosition({
-                top: rect.top - 8, // 8px gap above button
-                left: rect.left + rect.width / 2
-            });
-        }
-    }, [isOpen]);
 
     // Close on outside click
     useEffect(() => {
@@ -211,19 +198,19 @@ export const NoteValueSelector: React.FC<NoteValueSelectorProps> = ({
                 <NoteIcon type={noteType} size={iconSize} />
             </button>
 
-            {/* Dropdown popup - rendered via portal to escape overflow:hidden */}
+            {/* Dropdown popup - rendered via portal, centered in viewport */}
             {isOpen && createPortal(
                 <div
                     ref={dropdownRef}
                     className={clsx(
                         "fixed bg-bg-elevated border border-border-medium rounded-xl shadow-xl",
-                        "flex flex-row gap-1 p-1.5",
-                        "animate-in fade-in slide-in-from-top-2 duration-150"
+                        "flex flex-row gap-2 p-2",
+                        "animate-in fade-in zoom-in-95 duration-150"
                     )}
                     style={{
-                        top: dropdownPosition.top,
-                        left: dropdownPosition.left,
-                        transform: 'translate(-50%, -100%)',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
                         zIndex: 99999
                     }}
                 >
@@ -240,14 +227,14 @@ export const NoteValueSelector: React.FC<NoteValueSelectorProps> = ({
                                 }}
                                 className={clsx(
                                     "flex items-center justify-center rounded-lg transition-all",
-                                    "w-9 h-9",
+                                    "w-12 h-12",
                                     isSelected
                                         ? "bg-accent-primary text-white shadow-lg"
                                         : "text-text-secondary hover:text-text-primary hover:bg-bg-tertiary"
                                 )}
                                 title={`${steps} step${steps > 1 ? 's' : ''}`}
                             >
-                                <NoteIcon type={noteTypeOption} size={22} />
+                                <NoteIcon type={noteTypeOption} size={26} />
                             </button>
                         );
                     })}
