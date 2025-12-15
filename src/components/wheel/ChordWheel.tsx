@@ -158,6 +158,15 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
         return Math.atan2(dy, dx) * (180 / Math.PI);
     }, []);
 
+    // Normalize angle delta to handle the ±180° wrap-around from atan2
+    // This prevents large jumps when dragging past a full revolution
+    const normalizeAngleDelta = useCallback((delta: number) => {
+        // Bring delta into [-180, 180] range
+        while (delta > 180) delta -= 360;
+        while (delta < -180) delta += 360;
+        return delta;
+    }, []);
+
     // Handle drag to rotate wheel
     const handleRotate = useCallback((direction: 'cw' | 'ccw') => {
         // Task 35: Use cumulative rotation to avoid wrap-around animation
@@ -251,7 +260,8 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
 
             if (touchDistance > minRadius && dragStartAngle.current !== 0) {
                 const currentAngle = getAngleFromCenter(touch.clientX, touch.clientY);
-                const deltaAngle = currentAngle - dragStartAngle.current;
+                // Normalize to handle wrap-around when crossing ±180°
+                const deltaAngle = normalizeAngleDelta(currentAngle - dragStartAngle.current);
 
                 if (Math.abs(deltaAngle) >= 15) {
                     const steps = Math.round(deltaAngle / 30);
@@ -269,13 +279,14 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
                 }
             }
         }
-    }, [getAngleFromCenter, handleRotate, wheelMode]);
+    }, [getAngleFromCenter, handleRotate, wheelMode, normalizeAngleDelta]);
 
     const handleDragMove = useCallback((e: MouseEvent) => {
         if (!isDragging) return;
 
         const currentAngle = getAngleFromCenter(e.clientX, e.clientY);
-        const deltaAngle = currentAngle - dragStartAngle.current;
+        // Normalize to handle wrap-around when crossing ±180°
+        const deltaAngle = normalizeAngleDelta(currentAngle - dragStartAngle.current);
 
         // Snap to 30° increments (one key) when delta exceeds threshold
         // Use a threshold so it doesn't jitter
@@ -306,7 +317,7 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
                 dragStartAngle.current = currentAngle;
             }
         }
-    }, [isDragging, getAngleFromCenter, handleRotate, wheelMode]);
+    }, [isDragging, getAngleFromCenter, handleRotate, wheelMode, normalizeAngleDelta]);
 
     const handleDragEnd = useCallback(() => {
         setIsDragging(false);
