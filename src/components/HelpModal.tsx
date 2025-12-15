@@ -104,9 +104,9 @@ const HelpContent: React.FC<HelpContentProps> = ({ onClose }) => {
                         </div>
                         <ul className="space-y-1.5 text-xs text-gray-400 ml-5">
                             <li>• <strong className="text-gray-300">Highlighted chords</strong> = sound good together in your key</li>
-                            <li>• <strong className="text-gray-300">Outer ring</strong> = Major chords (I, IV, V)</li>
+                            <li>• <strong className="text-gray-300">Inner ring</strong> = Major chords (I, IV, V)</li>
                             <li>• <strong className="text-gray-300">Middle ring</strong> = Minor chords (ii, iii, vi)</li>
-                            <li>• <strong className="text-gray-300">Inner ring</strong> = Diminished (vii°)</li>
+                            <li>• <strong className="text-gray-300">Outer ring</strong> = Diminished (vii°)</li>
                         </ul>
                     </div>
 
