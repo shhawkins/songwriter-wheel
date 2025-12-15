@@ -986,12 +986,22 @@ export const useSongStore = create<SongState>()(
 
                 const history = buildHistoryState(state);
 
+                // Select the first slot of the new section so timeline can auto-scroll to it
+                const firstSlotId = measures[0]?.beats[0]?.id;
+                const firstChord = measures[0]?.beats[0]?.chord ?? null;
+
                 return {
                     ...history,
                     currentSong: {
                         ...state.currentSong,
                         sections: [...state.currentSong.sections, newSection]
-                    }
+                    },
+                    // Auto-select the first slot of the new section
+                    selectedSectionId: newSection.id,
+                    selectedSlotId: firstSlotId ?? null,
+                    selectedSlots: firstSlotId ? [{ sectionId: newSection.id, slotId: firstSlotId }] : [],
+                    selectionAnchor: firstSlotId ? { sectionId: newSection.id, slotId: firstSlotId } : null,
+                    selectedChord: firstChord
                 };
             }),
 
@@ -1097,7 +1107,7 @@ export const useSongStore = create<SongState>()(
             }),
 
             setSectionMeasures: (id, count) => set((state) => {
-                const targetCount = Math.max(1, Math.min(32, Math.round(count)));
+                const targetCount = Math.max(1, Math.min(16, Math.round(count)));
 
                 const newSections = state.currentSong.sections.map((section) => {
                     if (section.id !== id) return section;

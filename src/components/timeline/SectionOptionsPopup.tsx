@@ -1,9 +1,10 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Copy, Eraser, Trash2, X } from 'lucide-react';
+import { Copy, Eraser, Trash2, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import clsx from 'clsx';
 import type { Section } from '../../types';
 import { NoteIcon, getNoteType, getStepOptions } from './NoteValueSelector';
+import { SectionPreview } from './SectionPreview';
 
 interface SectionOptionsPopupProps {
     section: Section;
@@ -17,6 +18,14 @@ interface SectionOptionsPopupProps {
     onClear: () => void;
     onDelete: () => void;
     songTimeSignature: [number, number];
+    // Navigation props
+    onNavigatePrev?: () => void;
+    onNavigateNext?: () => void;
+    hasPrev?: boolean;
+    hasNext?: boolean;
+    // Section position in song
+    sectionIndex?: number;
+    totalSections?: number;
 }
 
 const TIME_SIGNATURE_OPTIONS: [number, number][] = [
@@ -52,6 +61,12 @@ export const SectionOptionsPopup: React.FC<SectionOptionsPopupProps> = ({
     onClear,
     onDelete,
     songTimeSignature,
+    onNavigatePrev,
+    onNavigateNext,
+    hasPrev = false,
+    hasNext = false,
+    sectionIndex,
+    totalSections,
 }) => {
     const popupRef = useRef<HTMLDivElement>(null);
     const customInputRef = useRef<HTMLInputElement>(null);
@@ -116,6 +131,50 @@ export const SectionOptionsPopup: React.FC<SectionOptionsPopupProps> = ({
                 onClick={onClose}
             />
 
+            {/* Navigation Arrows - positioned beside modal */}
+            {onNavigatePrev && (
+                <button
+                    onClick={onNavigatePrev}
+                    disabled={!hasPrev}
+                    className={clsx(
+                        "fixed top-1/2 -translate-y-1/2 z-[100000]",
+                        "w-10 h-10 rounded-full flex items-center justify-center",
+                        "transition-all duration-200",
+                        hasPrev
+                            ? "bg-accent-primary/20 text-accent-primary hover:bg-accent-primary/30 hover:scale-110 active:scale-95"
+                            : "bg-white/5 text-white/20 cursor-not-allowed"
+                    )}
+                    style={{
+                        // Position to the left of modal: center - half modal width - gap - button width
+                        left: 'calc(50% - min(150px, 45vw) - 52px)'
+                    }}
+                    title="Previous Section"
+                >
+                    <ChevronLeft size={24} />
+                </button>
+            )}
+            {onNavigateNext && (
+                <button
+                    onClick={onNavigateNext}
+                    disabled={!hasNext}
+                    className={clsx(
+                        "fixed top-1/2 -translate-y-1/2 z-[100000]",
+                        "w-10 h-10 rounded-full flex items-center justify-center",
+                        "transition-all duration-200",
+                        hasNext
+                            ? "bg-accent-primary/20 text-accent-primary hover:bg-accent-primary/30 hover:scale-110 active:scale-95"
+                            : "bg-white/5 text-white/20 cursor-not-allowed"
+                    )}
+                    style={{
+                        // Position to the right of modal: center + half modal width + gap
+                        right: 'calc(50% - min(150px, 45vw) - 52px)'
+                    }}
+                    title="Next Section"
+                >
+                    <ChevronRight size={24} />
+                </button>
+            )}
+
             {/* Centered Modal Card */}
             <div
                 ref={popupRef}
@@ -132,10 +191,23 @@ export const SectionOptionsPopup: React.FC<SectionOptionsPopupProps> = ({
                 {/* Header */}
                 <div className="flex items-center justify-between px-4 py-3 border-b border-border-subtle bg-bg-secondary/50 rounded-t-xl">
                     <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <div
-                            className="w-2 h-2 rounded-full shadow-[0_0_8px_rgba(99,102,241,0.5)] shrink-0"
-                            style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}
-                        />
+                        {/* Section number badge */}
+                        {sectionIndex !== undefined && totalSections !== undefined && (
+                            <div
+                                className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
+                                style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', boxShadow: '0 0 8px rgba(99,102,241,0.4)' }}
+                                title={`Section ${sectionIndex + 1} of ${totalSections}`}
+                            >
+                                {sectionIndex + 1}
+                            </div>
+                        )}
+                        {/* Accent dot - only show if no section index */}
+                        {(sectionIndex === undefined || totalSections === undefined) && (
+                            <div
+                                className="w-2 h-2 rounded-full shadow-[0_0_8px_rgba(99,102,241,0.5)] shrink-0"
+                                style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}
+                            />
+                        )}
                         {onNameChange ? (
                             isEditingCustom ? (
                                 // Custom name text input
@@ -272,8 +344,8 @@ export const SectionOptionsPopup: React.FC<SectionOptionsPopupProps> = ({
                                     {measureCount}
                                 </span>
                                 <button
-                                    onClick={() => onBarsChange(Math.min(32, measureCount + 1))}
-                                    disabled={measureCount >= 32}
+                                    onClick={() => onBarsChange(Math.min(16, measureCount + 1))}
+                                    disabled={measureCount >= 16}
                                     className="h-8 w-8 flex items-center justify-center rounded-lg
                                                bg-bg-tertiary border border-border-subtle
                                                text-text-muted hover:text-text-primary hover:bg-bg-secondary
@@ -317,6 +389,13 @@ export const SectionOptionsPopup: React.FC<SectionOptionsPopupProps> = ({
                             </div>
                         </div>
                     )}
+
+                    {/* Section Preview Visual */}
+                    <SectionPreview
+                        section={section}
+                        songTimeSignature={songTimeSignature}
+                        className="pt-1"
+                    />
 
                     {/* Action Buttons */}
                     <div className="grid grid-cols-3 gap-2 pt-2">

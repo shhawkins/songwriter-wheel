@@ -8,6 +8,7 @@ interface MusicStaffProps {
     width?: number;
     numerals?: string[]; // Absolute degrees (e.g., 'R', '3', '5', '7') for each note
     onNotePlay?: (note: string, octave: number) => void; // Callback to play individual notes
+    compact?: boolean; // Compact mode for inline display next to voicings
 }
 
 export const MusicStaff: React.FC<MusicStaffProps> = ({
@@ -16,7 +17,8 @@ export const MusicStaff: React.FC<MusicStaffProps> = ({
     color = '#6366f1',
     width: propWidth,
     numerals,
-    onNotePlay
+    onNotePlay,
+    compact = false
 }) => {
     const isMobile = useIsMobile();
 
@@ -74,32 +76,39 @@ export const MusicStaff: React.FC<MusicStaffProps> = ({
         }
     };
 
-    // SVG dimensions
-    const defaultWidth = isMobile ? 280 : 340;
+    // SVG dimensions - compact mode uses smaller dimensions
+    const defaultWidth = compact ? 180 : (isMobile ? 280 : 340);
     const width = propWidth || defaultWidth;
     // Increased height to accommodate low notes and their labels
-    const height = isMobile ? 110 : 115;
+    const height = compact ? 70 : (isMobile ? 110 : 115);
 
     // Adjust staff rendering based on available width
-    const margin = 12;
+    const margin = compact ? 6 : 12;
     const staffX = margin;
     // Position staff higher to leave room for low notes below
-    const staffY = height * 0.22;
-    const lineSpacing = 10;
-    const staffWidth = Math.max(100, width - (margin * 2));
+    const staffY = height * (compact ? 0.28 : 0.22);
+    const lineSpacing = compact ? 7 : 10;
+    const staffWidth = Math.max(80, width - (margin * 2));
 
     // Fixed Y positions for labels (below the lowest notes)
-    const noteLabelY = staffY + 50;
-    const numeralY = staffY + 62;
+    const noteLabelY = staffY + (compact ? 32 : 50);
+    const numeralY = staffY + (compact ? 42 : 62);
 
     // Calculate note positions
     const noteData = notes.map((note, index) => {
         const { line, accidental } = getNotePosition(note);
         // Distribute notes evenly across the staff width
-        const clefOffset = 60;
-        const availableNoteWidth = staffWidth - clefOffset - 25;
+        const clefOffset = compact ? 40 : 60;
+        const availableNoteWidth = staffWidth - clefOffset - 15;
 
-        const x = staffX + clefOffset + (index * availableNoteWidth / Math.max(notes.length - 1, 1));
+        // Ensure minimum spacing between notes in compact mode
+        const minSpacing = compact ? 18 : 25;
+        const idealSpacing = availableNoteWidth / Math.max(notes.length - 1, 1);
+        const actualSpacing = Math.max(idealSpacing, minSpacing);
+        const totalNotesWidth = actualSpacing * Math.max(notes.length - 1, 0);
+        const startOffset = (availableNoteWidth - totalNotesWidth) / 2;
+
+        const x = staffX + clefOffset + startOffset + (index * actualSpacing);
         const y = staffY - (line * lineSpacing / 2);
 
         return {
@@ -155,11 +164,14 @@ export const MusicStaff: React.FC<MusicStaffProps> = ({
     };
 
     return (
-        <div className="flex justify-center items-center w-full">
+        <div className={`flex justify-center items-center ${compact ? '' : 'w-full'}`}>
             <svg
                 viewBox={`0 0 ${width} ${height}`}
-                className="w-full"
-                style={{ minHeight: isMobile ? 95 : 100 }}
+                className={compact ? '' : 'w-full'}
+                style={{
+                    minHeight: compact ? 60 : (isMobile ? 95 : 100),
+                    width: compact ? width : undefined
+                }}
             >
                 {/* Staff lines (5 lines of treble clef) */}
                 {[-2, -1, 0, 1, 2].map((lineIndex) => (
@@ -170,15 +182,15 @@ export const MusicStaff: React.FC<MusicStaffProps> = ({
                         x2={staffX + staffWidth}
                         y2={staffY - (lineIndex * lineSpacing)}
                         stroke="#777"
-                        strokeWidth="2"
+                        strokeWidth={compact ? 1.5 : 2}
                     />
                 ))}
 
                 {/* Treble clef symbol (using Unicode) */}
                 <text
-                    x={staffX - 3}
-                    y={staffY + 20}
-                    fontSize={isMobile ? "56" : "62"}
+                    x={staffX - (compact ? 2 : 3)}
+                    y={staffY + (compact ? 14 : 20)}
+                    fontSize={compact ? "38" : (isMobile ? "56" : "62")}
                     fill={color}
                     fontFamily="serif"
                     fontWeight="bold"
@@ -195,9 +207,9 @@ export const MusicStaff: React.FC<MusicStaffProps> = ({
                         {/* Accidental */}
                         {noteInfo.accidental && (
                             <text
-                                x={noteInfo.x - 20}
-                                y={noteInfo.y + 5}
-                                fontSize={isMobile ? "18" : "20"}
+                                x={noteInfo.x - (compact ? 12 : 20)}
+                                y={noteInfo.y + (compact ? 3 : 5)}
+                                fontSize={compact ? "12" : (isMobile ? "18" : "20")}
                                 fill="#ccc"
                                 fontFamily="serif"
                                 fontWeight="bold"
@@ -226,8 +238,8 @@ export const MusicStaff: React.FC<MusicStaffProps> = ({
                         <ellipse
                             cx={noteInfo.x}
                             cy={noteInfo.y}
-                            rx={7}
-                            ry={5.5}
+                            rx={compact ? 5 : 7}
+                            ry={compact ? 4 : 5.5}
                             fill={index === 0 ? color : '#ddd'}
                             stroke={index === 0 ? color : '#ddd'}
                             strokeWidth={1}
@@ -239,7 +251,7 @@ export const MusicStaff: React.FC<MusicStaffProps> = ({
                         <text
                             x={noteInfo.x}
                             y={noteLabelY}
-                            fontSize={isMobile ? "10" : "11"}
+                            fontSize={compact ? "7" : (isMobile ? "10" : "11")}
                             fill="#999"
                             textAnchor="middle"
                             fontWeight="600"
@@ -252,7 +264,7 @@ export const MusicStaff: React.FC<MusicStaffProps> = ({
                             <text
                                 x={noteInfo.x}
                                 y={numeralY}
-                                fontSize={isMobile ? "9" : "10"}
+                                fontSize={compact ? "7" : (isMobile ? "9" : "10")}
                                 fill={index === 0 ? color : '#777'}
                                 textAnchor="middle"
                                 fontWeight="700"

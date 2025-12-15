@@ -137,6 +137,7 @@ export const Section: React.FC<SectionProps> = ({ section, chordSize = 48, scale
     return (
         <div
             ref={setNodeRef}
+            data-section-id={section.id}
             style={style}
             className={clsx(
                 "flex flex-col bg-bg-secondary rounded-lg overflow-hidden border-2 shadow-[0_0_0_2px_rgba(255,255,255,0.12)] transition-all h-full max-h-full",

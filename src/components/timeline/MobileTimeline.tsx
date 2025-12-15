@@ -2,7 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import { useSongStore } from '../../store/useSongStore';
 import { getWheelColors, normalizeNote, formatChordForDisplay } from '../../utils/musicTheory';
 import { playChord } from '../../utils/audioEngine';
-import { Plus, Play, ChevronLeft, ChevronRight, PanelRightClose, Map, Settings2 } from 'lucide-react';
+import { Plus, Play, ChevronLeft, ChevronRight, PanelRightClose, Map, Settings2, RotateCcw, RotateCw } from 'lucide-react';
 import { SectionOptionsPopup } from './SectionOptionsPopup';
 import { useMobileLayout } from '../../hooks/useIsMobile';
 import { NoteValueSelector } from './NoteValueSelector';
@@ -49,7 +49,11 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
         selectedChord,
         addChordToSlot,
         toggleSongMap,
-        updateSection
+        updateSection,
+        undo,
+        redo,
+        canUndo,
+        canRedo
     } = useSongStore();
 
     const songTimeSignature = currentSong.timeSignature;
@@ -87,6 +91,15 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
             const idx = currentSong.sections.findIndex(s => s.id === selectedSectionId);
             if (idx !== -1) {
                 setActiveSectionIndex(idx);
+                // Also scroll the section tab into view with a slight delay for DOM updates
+                setTimeout(() => {
+                    if (sectionTabsRef.current) {
+                        const sectionTab = sectionTabsRef.current.querySelector(`[data-section-id="${selectedSectionId}"]`);
+                        if (sectionTab) {
+                            sectionTab.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                        }
+                    }
+                }, 100);
             }
         }
     }, [selectedSectionId, currentSong.sections, isPlaying]);
@@ -382,6 +395,26 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                             <ChevronRight size={14} />
                         </button>
                     </div>
+
+                    {/* Right: Undo/Redo - absolutely positioned */}
+                    <div className="absolute right-1 flex items-center gap-0.5">
+                        <button
+                            onClick={undo}
+                            disabled={!canUndo}
+                            className="no-touch-enlarge w-6 h-6 flex items-center justify-center rounded bg-bg-tertiary/60 hover:bg-bg-tertiary text-text-muted hover:text-text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                            title="Undo"
+                        >
+                            <RotateCcw size={10} />
+                        </button>
+                        <button
+                            onClick={redo}
+                            disabled={!canRedo}
+                            className="no-touch-enlarge w-6 h-6 flex items-center justify-center rounded bg-bg-tertiary/60 hover:bg-bg-tertiary text-text-muted hover:text-text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                            title="Redo"
+                        >
+                            <RotateCw size={10} />
+                        </button>
+                    </div>
                 </div>
             ) : (
                 // Normal mode: full section tabs
@@ -389,16 +422,44 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                     "flex items-center justify-between shrink-0",
                     isDesktop ? "px-3 py-1" : "px-2 pb-1.5"
                 )}>
-                    <button
-                        onClick={() => toggleSongMap(true)}
-                        className={clsx(
-                            "no-touch-enlarge rounded text-text-muted hover:text-accent-primary touch-feedback shrink-0 mr-0.5",
-                            isDesktop ? "p-2" : "p-1.5"
-                        )}
-                        title="Song Overview"
-                    >
-                        <Map size={isDesktop ? 18 : 16} />
-                    </button>
+                    {/* Left section: Map and Undo/Redo */}
+                    <div className="flex items-center shrink-0">
+                        <button
+                            onClick={() => toggleSongMap(true)}
+                            className={clsx(
+                                "no-touch-enlarge rounded text-text-muted hover:text-accent-primary touch-feedback shrink-0 mr-0.5",
+                                isDesktop ? "p-2" : "p-1.5"
+                            )}
+                            title="Song Overview"
+                        >
+                            <Map size={isDesktop ? 18 : 16} />
+                        </button>
+                        {/* Undo/Redo buttons */}
+                        <div className="flex items-center gap-0.5 ml-1">
+                            <button
+                                onClick={undo}
+                                disabled={!canUndo}
+                                className={clsx(
+                                    "no-touch-enlarge flex items-center justify-center rounded bg-bg-tertiary/60 hover:bg-bg-tertiary text-text-muted hover:text-text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors",
+                                    isDesktop ? "w-8 h-8" : "w-7 h-7"
+                                )}
+                                title="Undo"
+                            >
+                                <RotateCcw size={isDesktop ? 14 : 12} />
+                            </button>
+                            <button
+                                onClick={redo}
+                                disabled={!canRedo}
+                                className={clsx(
+                                    "no-touch-enlarge flex items-center justify-center rounded bg-bg-tertiary/60 hover:bg-bg-tertiary text-text-muted hover:text-text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors",
+                                    isDesktop ? "w-8 h-8" : "w-7 h-7"
+                                )}
+                                title="Redo"
+                            >
+                                <RotateCw size={isDesktop ? 14 : 12} />
+                            </button>
+                        </div>
+                    </div>
                     <button
                         onClick={() => navigateSection('prev')}
                         disabled={activeSectionIndex === 0}
@@ -424,6 +485,7 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                             return (
                                 <button
                                     key={section.id}
+                                    data-section-id={section.id}
                                     onClick={() => {
                                         if (isActive) {
                                             setEditingSectionId(section.id);
@@ -665,36 +727,61 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                 )}
             </div>
             {/* Options Popup */}
-            {editingSectionId && (
-                <SectionOptionsPopup
-                    section={currentSong.sections.find(s => s.id === editingSectionId)!}
-                    isOpen={true}
-                    onClose={() => setEditingSectionId(null)}
-                    onTimeSignatureChange={(val) => {
-                        const [top, bottom] = val.split('/').map(n => parseInt(n, 10));
-                        if (top && bottom && editingSectionId) setSectionTimeSignature(editingSectionId, [top, bottom]);
-                    }}
-                    onBarsChange={(val) => {
-                        if (editingSectionId) setSectionMeasures(editingSectionId, val);
-                    }}
-                    onStepCountChange={(steps) => {
-                        if (editingSectionId) setSectionSubdivision(editingSectionId, steps);
-                    }}
-                    onNameChange={(name, type) => {
-                        if (editingSectionId) updateSection(editingSectionId, { name, type });
-                    }}
-                    onCopy={() => {
-                        if (editingSectionId) duplicateSection(editingSectionId);
-                    }}
-                    onClear={() => {
-                        if (editingSectionId) clearSection(editingSectionId);
-                    }}
-                    onDelete={() => {
-                        if (editingSectionId) removeSection(editingSectionId);
-                    }}
-                    songTimeSignature={songTimeSignature || [4, 4]}
-                />
-            )}
+            {editingSectionId && (() => {
+                const currentEditIndex = currentSong.sections.findIndex(s => s.id === editingSectionId);
+                const hasPrev = currentEditIndex > 0;
+                const hasNext = currentEditIndex < currentSong.sections.length - 1;
+
+                return (
+                    <SectionOptionsPopup
+                        section={currentSong.sections.find(s => s.id === editingSectionId)!}
+                        isOpen={true}
+                        onClose={() => setEditingSectionId(null)}
+                        onTimeSignatureChange={(val) => {
+                            const [top, bottom] = val.split('/').map(n => parseInt(n, 10));
+                            if (top && bottom && editingSectionId) setSectionTimeSignature(editingSectionId, [top, bottom]);
+                        }}
+                        onBarsChange={(val) => {
+                            if (editingSectionId) setSectionMeasures(editingSectionId, val);
+                        }}
+                        onStepCountChange={(steps) => {
+                            if (editingSectionId) setSectionSubdivision(editingSectionId, steps);
+                        }}
+                        onNameChange={(name, type) => {
+                            if (editingSectionId) updateSection(editingSectionId, { name, type });
+                        }}
+                        onCopy={() => {
+                            if (editingSectionId) duplicateSection(editingSectionId);
+                        }}
+                        onClear={() => {
+                            if (editingSectionId) clearSection(editingSectionId);
+                        }}
+                        onDelete={() => {
+                            if (editingSectionId) removeSection(editingSectionId);
+                        }}
+                        songTimeSignature={songTimeSignature || [4, 4]}
+                        // Navigation props
+                        onNavigatePrev={() => {
+                            if (hasPrev) {
+                                const newSection = currentSong.sections[currentEditIndex - 1];
+                                setEditingSectionId(newSection.id);
+                                setActiveSectionIndex(currentEditIndex - 1);
+                            }
+                        }}
+                        onNavigateNext={() => {
+                            if (hasNext) {
+                                const newSection = currentSong.sections[currentEditIndex + 1];
+                                setEditingSectionId(newSection.id);
+                                setActiveSectionIndex(currentEditIndex + 1);
+                            }
+                        }}
+                        hasPrev={hasPrev}
+                        hasNext={hasNext}
+                        sectionIndex={currentEditIndex}
+                        totalSections={currentSong.sections.length}
+                    />
+                );
+            })()}
 
 
         </div>

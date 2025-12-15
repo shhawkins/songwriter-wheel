@@ -875,8 +875,8 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
                                 {showGuitar && (
                                     <>
                                         <div className={`flex items-start ${isCompactLandscape ? 'gap-1' : 'gap-2'} px-3`} style={{ marginTop: isCompactLandscape ? '4px' : '8px' }}>
-                                            {/* Left: Guitar (compact) */}
-                                            <div className="flex justify-center items-start shrink-0" style={{ minWidth: isCompactLandscape ? '70px' : '100px' }}>
+                                            {/* Left: Guitar diagram + voicing description below */}
+                                            <div className="flex flex-col items-center shrink-0" style={{ minWidth: isCompactLandscape ? '70px' : '100px' }}>
                                                 <GuitarChord
                                                     root={chord.root}
                                                     quality={previewVariant || chord.quality}
@@ -884,71 +884,83 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
                                                     onClick={handleDiagramClick}
                                                     onDoubleClick={handleDiagramDoubleClick}
                                                 />
-                                            </div>
-                                            {/* Vertical divider */}
-                                            <div className="w-px bg-border-subtle self-stretch" />
-                                            {/* Right: Suggested Voicings */}
-                                            <div className="flex-1 flex flex-col justify-start pl-1">
-                                                {getSuggestedVoicings().extensions.length > 0 ? (
-                                                    <div className={`grid ${isCompactLandscape || panelWidth < 360 ? 'grid-cols-1' : 'grid-cols-2'}`} style={{ gap: isCompactLandscape ? '3px' : isMobile ? '6px' : '5px', marginBottom: isCompactLandscape ? '2px' : '4px' }}>
-                                                        {getSuggestedVoicings().extensions.map((ext) => (
-                                                            <button
-                                                                key={ext}
-                                                                className={`relative group ${isCompactLandscape ? 'px-1 py-0.5 text-[8px] min-h-[20px]' : isMobile ? 'px-2 py-2 text-xs min-h-[36px]' : 'px-1.5 py-1 text-[10px]'} rounded font-semibold transition-colors touch-feedback overflow-hidden text-ellipsis whitespace-nowrap`}
-                                                                style={previewVariant === ext
-                                                                    ? { backgroundColor: '#4f46e5', color: '#ffffff', border: '1px solid #4f46e5' }
-                                                                    : { backgroundColor: '#282833', color: '#f0f0f5', border: '1px solid rgba(255,255,255,0.08)' }
-                                                                }
-                                                                onClick={() => handleVariationClick(ext)}
-                                                                onDoubleClick={() => handleVariationDoubleClick(ext)}
-                                                            >
-                                                                {formatChordForDisplay(`${chord.root}${ext}`)}
-                                                                {!isMobile && voicingTooltips[ext] && (
-                                                                    <span
-                                                                        className="pointer-events-none absolute -top-6 -translate-y-full left-1/2 -translate-x-1/2 whitespace-normal text-[10px] leading-tight bg-black text-white px-3 py-2 rounded border border-white/10 shadow-xl opacity-0 group-hover:opacity-100 group-active:opacity-0 group-focus:opacity-0 transition-opacity duration-150 group-hover:delay-1000 z-50 w-44 text-left"
-                                                                        style={{
-                                                                            backgroundColor: '#000',
-                                                                            color: '#fff',
-                                                                            padding: '8px 10px'
-                                                                        }}
-                                                                    >
-                                                                        {voicingTooltips[ext] ? (
-                                                                            <>
-                                                                                {voicingTooltips[ext]}
-                                                                                <div className="h-px bg-white/20 my-1.5" />
-                                                                            </>
-                                                                        ) : null}
-                                                                        Double-click to add to timeline
-                                                                    </span>
-                                                                )}
-                                                            </button>
-                                                        ))}
-                                                    </div>
-                                                ) : null}
-                                                {/* Display selected voicing description - hide in landscape mode */}
+                                                {/* Voicing description below guitar chord - hide in landscape mode */}
                                                 {!isCompactLandscape && (
-                                                    <p className={`${isMobile ? 'text-xs' : 'text-[10px]'} text-text-muted leading-relaxed`}>
+                                                    <p className={`${isMobile ? 'text-[10px]' : 'text-[9px]'} text-text-muted leading-relaxed text-center ${isMobile ? 'mb-1 px-1' : 'mb-1 px-0.5'}`} style={{ maxWidth: isCompactLandscape ? '70px' : '100px' }}>
                                                         {voicingTooltips[previewVariant || chord.quality] || 'Select a voicing to see its description.'}
                                                     </p>
                                                 )}
                                             </div>
+                                            {/* Vertical divider */}
+                                            <div className="w-px bg-border-subtle self-stretch" />
+                                            {/* Right: Suggested Voicings + Compact Music Staff below */}
+                                            <div className="flex-1 flex flex-col justify-start pl-1">
+                                                {getSuggestedVoicings().extensions.length > 0 ? (
+                                                    <>
+                                                        <div className={`grid ${isCompactLandscape || panelWidth < 360 ? 'grid-cols-1' : 'grid-cols-2'}`} style={{ gap: isCompactLandscape ? '3px' : isMobile ? '6px' : '5px', marginBottom: isCompactLandscape ? '2px' : '4px' }}>
+                                                            {getSuggestedVoicings().extensions.map((ext) => (
+                                                                <button
+                                                                    key={ext}
+                                                                    className={`relative group ${isCompactLandscape ? 'px-1 py-0.5 text-[8px] min-h-[20px]' : isMobile ? 'px-2 py-2 text-xs min-h-[36px]' : 'px-1.5 py-1 text-[10px]'} rounded font-semibold transition-colors touch-feedback overflow-hidden text-ellipsis whitespace-nowrap`}
+                                                                    style={previewVariant === ext
+                                                                        ? { backgroundColor: '#4f46e5', color: '#ffffff', border: '1px solid #4f46e5' }
+                                                                        : { backgroundColor: '#282833', color: '#f0f0f5', border: '1px solid rgba(255,255,255,0.08)' }
+                                                                    }
+                                                                    onClick={() => handleVariationClick(ext)}
+                                                                    onDoubleClick={() => handleVariationDoubleClick(ext)}
+                                                                >
+                                                                    {formatChordForDisplay(`${chord.root}${ext}`)}
+                                                                    {!isMobile && voicingTooltips[ext] && (
+                                                                        <span
+                                                                            className="pointer-events-none absolute -top-6 -translate-y-full left-1/2 -translate-x-1/2 whitespace-normal text-[10px] leading-tight bg-black text-white px-3 py-2 rounded border border-white/10 shadow-xl opacity-0 group-hover:opacity-100 group-active:opacity-0 group-focus:opacity-0 transition-opacity duration-150 group-hover:delay-1000 z-50 w-44 text-left"
+                                                                            style={{
+                                                                                backgroundColor: '#000',
+                                                                                color: '#fff',
+                                                                                padding: '8px 10px'
+                                                                            }}
+                                                                        >
+                                                                            {voicingTooltips[ext] ? (
+                                                                                <>
+                                                                                    {voicingTooltips[ext]}
+                                                                                    <div className="h-px bg-white/20 my-1.5" />
+                                                                                </>
+                                                                            ) : null}
+                                                                            Double-click to add to timeline
+                                                                        </span>
+                                                                    )}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                        {/* Compact Musical Staff - below voicings */}
+                                                        <div style={{ marginTop: isCompactLandscape ? '2px' : '6px' }}>
+                                                            <MusicStaff
+                                                                notes={displayNotes}
+                                                                rootNote={chord.root}
+                                                                color={chordColor}
+                                                                numerals={displayNotes.map(note => getAbsoluteDegree(note))}
+                                                                onNotePlay={handleNotePlay}
+                                                                compact={true}
+                                                            />
+                                                        </div>
+                                                    </>
+                                                ) : (
+                                                    /* Out-of-key: show message inline with a larger, centered music staff */
+                                                    <div className="flex flex-col items-center justify-center flex-1">
+                                                        <MusicStaff
+                                                            notes={displayNotes}
+                                                            rootNote={chord.root}
+                                                            color={chordColor}
+                                                            numerals={displayNotes.map(note => getAbsoluteDegree(note))}
+                                                            onNotePlay={handleNotePlay}
+                                                            compact={false}
+                                                        />
+                                                        <p className={`${isCompactLandscape ? 'text-[8px]' : isMobile ? 'text-[10px]' : 'text-[9px]'} text-text-muted italic text-center mt-1`}>
+                                                            Out of key — see <span className="font-semibold text-text-secondary">Voicings</span> below
+                                                        </p>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
-                                        {/* Musical Staff */}
-                                        <div style={{ marginTop: '0px', marginBottom: '0px' }}>
-                                            <MusicStaff
-                                                notes={displayNotes}
-                                                rootNote={chord.root}
-                                                color={chordColor}
-                                                numerals={displayNotes.map(note => getAbsoluteDegree(note))}
-                                                onNotePlay={handleNotePlay}
-                                            />
-                                        </div>
-                                        {/* Chord role description - below the staff - hide in landscape mode */}
-                                        {!isCompactLandscape && (
-                                            <p className={`${isMobile ? 'text-xs' : 'text-[10px]'} text-text-secondary leading-relaxed italic mt-0`}>
-                                                {getSuggestedVoicings().description}
-                                            </p>
-                                        )}
                                     </>
                                 )}
                             </div>
@@ -1052,7 +1064,7 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
                                 {showTheory && (
                                     <div className={`${isMobile ? 'p-3' : 'p-4'} bg-bg-elevated rounded-none`}>
                                         <p className={`${isMobile ? 'text-sm' : 'text-xs'} text-text-secondary leading-relaxed`}>
-                                            {getTheoryNote()}
+                                            {getSuggestedVoicings().description}
                                         </p>
                                     </div>
                                 )}

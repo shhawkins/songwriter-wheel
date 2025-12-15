@@ -51,8 +51,12 @@ export const Timeline: React.FC<TimelineProps> = ({ height = 180, scale = 1 }) =
         reorderSections,
         addChordToSlot,
         moveChord,
-        moveSelection
+        moveSelection,
+        selectedSectionId,
+        isPlaying
     } = useSongStore();
+
+    const scrollContainerRef = React.useRef<HTMLDivElement>(null);
 
     const horizontalScale = Math.max(0.1, Math.min(1.6, scale));
 
@@ -196,12 +200,32 @@ export const Timeline: React.FC<TimelineProps> = ({ height = 180, scale = 1 }) =
         };
     }, []);
 
+    // Auto-scroll to selected section when it changes (e.g., after adding section from help modal)
+    React.useEffect(() => {
+        if (!selectedSectionId || isPlaying) return;
+
+        // Delay to ensure DOM is updated after section is added
+        const timeoutId = setTimeout(() => {
+            if (scrollContainerRef.current) {
+                // First try to scroll to the section (better for centering the whole section)
+                const sectionElement = scrollContainerRef.current.querySelector(`[data-section-id="${selectedSectionId}"]`);
+                if (sectionElement) {
+                    sectionElement.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                }
+            }
+        }, 150);
+        return () => clearTimeout(timeoutId);
+    }, [selectedSectionId, isPlaying]);
+
     return (
         <div className="w-full h-full flex flex-col overflow-hidden">
             {/* Content area - no header, just the sections */}
             <div
                 className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden px-3 py-1.5"
                 ref={(el) => {
+                    // Store the ref for scrolling
+                    (scrollContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+                    // Attach wheel handler for horizontal scrolling
                     if (el) {
                         el.addEventListener('wheel', (e) => {
                             if (e.deltaY !== 0) {

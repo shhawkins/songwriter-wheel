@@ -152,6 +152,7 @@ export const ChordSlot: React.FC<ChordSlotProps> = ({ slot, sectionId, size = 48
     return (
         <div
             ref={setDroppableRef}
+            data-slot-id={slot.id}
             onMouseDown={handleMouseDown}
             onClick={(e) => e.stopPropagation()}
             onDoubleClick={handleSlotDoubleClick}

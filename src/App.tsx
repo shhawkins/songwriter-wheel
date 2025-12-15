@@ -61,15 +61,16 @@ function App() {
   // Computed wheel size for desktop/tablet - calculated via JS for reliable cross-browser support
   // This is used when `isMobile` is false (iPad, desktop, etc.)
   const [computedWheelSize, setComputedWheelSize] = useState(() => {
-    if (typeof window === 'undefined') return 400;
+    if (typeof window === 'undefined') return 500;
     const w = window.innerWidth;
     const h = window.innerHeight;
-    // For desktop/tablet: wheel size = min(viewport width - sidebar, viewport height - header/footer/timeline)
-    // Sidebar ~380px, header ~48px, timeline ~185px, footer ~56px, small padding = ~300px vertical
-    const maxFromWidth = w - 400;  // Leave room for sidebar
-    const maxFromHeight = h - 300; // Leave room for header, timeline, footer
-    return Math.max(300, Math.min(maxFromWidth, maxFromHeight));
+    // Available height = viewport - header(48) - footer(56) - timeline(152) - padding(32)
+    const availableHeight = h - 48 - 56 - 152 - 32;
+    // Available width = viewport - sidebar(380) - padding(40)
+    const availableWidth = w - 380 - 40;
+    return Math.max(300, Math.min(availableWidth, availableHeight));
   });
+
 
   // Responsive state - use height-based detection for landscape since modern phones can have width > 768 in landscape
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 768 || (window.innerHeight < 500 && window.innerHeight < window.innerWidth) : false);
@@ -268,12 +269,17 @@ function App() {
         setLandscapeWheelWidth(containerWidth);
       }
 
-      // For desktop/tablet, compute wheel size via JS for reliable cross-browser support
+      // For desktop/tablet, compute wheel size based on actual available space
       if (!mobile) {
-        const maxFromWidth = width - 400;  // Leave room for sidebar
-        const maxFromHeight = height - 300; // Leave room for header, timeline, footer
-        setComputedWheelSize(Math.max(300, Math.min(maxFromWidth, maxFromHeight)));
+        // Get timeline height based on visibility
+        const timelineH = useSongStore.getState().timelineVisible ? 152 : 24;
+        // Available height = viewport - header(48) - footer(56) - timeline - padding(32)
+        const availableHeight = height - 48 - 56 - timelineH - 32;
+        // Available width = viewport - sidebar(380) - padding(40)
+        const availableWidth = width - 380 - 40;
+        setComputedWheelSize(Math.max(300, Math.min(availableWidth, availableHeight)));
       }
+
 
       // Initialize mobile settings on first load
       const store = useSongStore.getState();
@@ -304,6 +310,18 @@ function App() {
       window.removeEventListener('orientationchange', updateLayout);
     };
   }, []);
+
+  // Recalculate wheel size when timeline visibility changes
+  useEffect(() => {
+    if (isMobile) return;
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    const timelineH = timelineVisible ? 152 : 24;
+    const availableHeight = height - 48 - 56 - timelineH - 32;
+    const availableWidth = width - 380 - 40;
+    setComputedWheelSize(Math.max(300, Math.min(availableWidth, availableHeight)));
+  }, [timelineVisible, isMobile]);
+
 
   const handleZoomChange = useCallback((scale: number, originY: number) => {
     setWheelZoom(scale);
@@ -1042,7 +1060,7 @@ function App() {
           } : undefined}
         >
           {/* Wheel Area */}
-          <div className={`flex-1 flex flex-col ${isMobile && !isLandscape ? 'justify-center' : isMobile && isLandscape ? 'justify-center items-center' : 'justify-start items-center pt-2'} ${isMobile ? 'overflow-hidden' : 'overflow-visible'}`}>
+          <div className={`flex-1 flex flex-col ${isMobile && !isLandscape ? 'justify-center' : isMobile && isLandscape ? 'justify-center items-center' : 'justify-center items-center pt-2'} ${isMobile ? 'overflow-hidden' : 'overflow-visible'}`}>
             {/* Zoom toolbar - show on desktop only, ultra-compact sleek design */}
             {!isMobile ? (
               <div className="flex justify-end px-2 shrink-0 w-full">
@@ -1069,7 +1087,7 @@ function App() {
             ) : null}
             {/* Wheel container - fills available space */}
             <div
-              className={`flex-1 flex items-center justify-center ${isMobile && isLandscape ? 'p-1 overflow-hidden' : isMobile && !isLandscape ? 'px-0 py-0' : 'p-2 overflow-visible'}`}
+              className={`flex-1 flex justify-center ${isMobile ? 'items-center' : ''} ${isMobile && isLandscape ? 'p-1 overflow-hidden' : isMobile && !isLandscape ? 'px-0 py-0' : 'p-2 overflow-visible'}`}
               onClick={handleLandscapeWheelTap}
             >
               <div
@@ -1096,11 +1114,8 @@ function App() {
                       }
                       : {
                         // Desktop/tablet: use JS-computed size for reliable cross-browser support
-                        // This avoids Safari issues with CSS calc() in flex layouts
                         width: `${computedWheelSize}px`,
                         height: `${computedWheelSize}px`,
-                        minWidth: '300px',  // Fallback minimum
-                        minHeight: '300px',
                         aspectRatio: '1 / 1',
                       }
                 }
@@ -1144,27 +1159,27 @@ function App() {
                   className="shrink-0 bg-bg-secondary border-t border-border-subtle overflow-hidden flex flex-col"
                   style={{ height: timelineHeight }}
                 >
-                  {/* Mini toolbar - ultra compact */}
-                  <div className="shrink-0 flex items-center justify-between px-2 py-0.5 border-b border-border-subtle/50 bg-bg-elevated/80">
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-0.5">
-                        <button
-                          onClick={undo}
-                          disabled={!canUndo}
-                          className="no-touch-enlarge flex items-center justify-center w-4 h-4 rounded bg-bg-tertiary/40 hover:bg-bg-tertiary text-text-muted hover:text-text-primary disabled:opacity-30 disabled:cursor-not-allowed"
-                          title="Undo (⌘Z)"
-                        >
-                          <RotateCcw size={8} />
-                        </button>
-                        <button
-                          onClick={redo}
-                          disabled={!canRedo}
-                          className="no-touch-enlarge flex items-center justify-center w-4 h-4 rounded bg-bg-tertiary/40 hover:bg-bg-tertiary text-text-muted hover:text-text-primary disabled:opacity-30 disabled:cursor-not-allowed"
-                          title="Redo (⇧⌘Z)"
-                        >
-                          <RotateCw size={8} />
-                        </button>
-                      </div>
+                  {/* Mini toolbar - compact with prominent undo/redo */}
+                  <div className="shrink-0 flex items-center justify-between px-2 py-1 border-b border-border-subtle/50 bg-bg-elevated/80">
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={undo}
+                        disabled={!canUndo}
+                        className="no-touch-enlarge flex items-center gap-1 px-2 py-1 rounded-md bg-bg-tertiary/60 hover:bg-bg-tertiary text-text-muted hover:text-text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        title="Undo (⌘Z)"
+                      >
+                        <RotateCcw size={12} />
+                        <span className="text-[9px] font-medium uppercase tracking-wide">Undo</span>
+                      </button>
+                      <button
+                        onClick={redo}
+                        disabled={!canRedo}
+                        className="no-touch-enlarge flex items-center gap-1 px-2 py-1 rounded-md bg-bg-tertiary/60 hover:bg-bg-tertiary text-text-muted hover:text-text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        title="Redo (⇧⌘Z)"
+                      >
+                        <RotateCw size={12} />
+                        <span className="text-[9px] font-medium uppercase tracking-wide">Redo</span>
+                      </button>
                     </div>
                     <div className="flex items-center gap-1">
                       <button
