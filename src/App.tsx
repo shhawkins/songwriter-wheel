@@ -12,16 +12,17 @@ import jsPDF from 'jspdf';
 import { saveAs } from 'file-saver';
 import { saveSong, getSavedSongs, deleteSong } from './utils/storage';
 import { getGuitarChord, type GuitarChordShape } from './utils/guitarChordData';
-import type { Song } from './types';
+import { getSectionDisplayName, type Song } from './types';
 import { setInstrument, setVolume, setMute, initAudio, startSilentAudioForIOS, unlockAudioForIOS } from './utils/audioEngine';
 import { formatChordForDisplay } from './utils/musicTheory';
 
 import { ConfirmDialog } from './components/ui/ConfirmDialog';
 import { HelpModal } from './components/HelpModal';
 import { OnboardingTooltip } from './components/OnboardingTooltip';
+import { SongInfoModal } from './components/SongInfoModal';
 
 function App() {
-  const { currentSong, selectedKey, timelineVisible, toggleTimeline, selectedSectionId, selectedSlotId, clearSlot, clearTimeline, setTitle, loadSong: loadSongToStore, newSong, instrument, volume, isMuted, undo, redo, canUndo, canRedo, chordPanelVisible } = useSongStore();
+  const { currentSong, selectedKey, timelineVisible, toggleTimeline, selectedSectionId, selectedSlotId, clearSlot, clearTimeline, setTitle, setArtist, setTags, loadSong: loadSongToStore, newSong, instrument, volume, isMuted, undo, redo, canUndo, canRedo, chordPanelVisible } = useSongStore();
 
   // Audio Sync Logic
   useEffect(() => {
@@ -412,9 +413,20 @@ function App() {
     }
   }, [isInSpecialCenteringMode, isLandscape, isMobile]);
 
-  // State for editing title
-  const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [titleInput, setTitleInput] = useState(currentSong.title);
+  // State for Song Info Modal (replaces inline title editing)
+  const [showSongInfoModal, setShowSongInfoModal] = useState(false);
+
+  // Handle title click (now opens modal instead of inline editing)
+  const handleTitleClick = () => {
+    setShowSongInfoModal(true);
+  };
+
+  // Handle song info save from modal
+  const handleSongInfoSave = (newTitle: string, newArtist: string, newTags: string[]) => {
+    setTitle(newTitle);
+    setArtist(newArtist);
+    setTags(newTags);
+  };
 
   // Calculate song duration (Task 33)
   const songDuration = useMemo(() => {
@@ -509,17 +521,6 @@ function App() {
     return () => window.removeEventListener('keydown', handleUndoRedo);
   }, [undo, redo, canUndo, canRedo]);
 
-  // Handle title edit (Task 23)
-  const handleTitleDoubleClick = () => {
-    setTitleInput(currentSong.title);
-    setIsEditingTitle(true);
-  };
-
-  const handleTitleSave = () => {
-    setTitle(titleInput.trim() || 'Untitled Song');
-    setIsEditingTitle(false);
-  };
-
   // Save/Load state (Task 30)
   const [showSaveMenu, setShowSaveMenu] = useState(false);
   const [savedSongs, setSavedSongs] = useState<Song[]>([]);
@@ -610,15 +611,6 @@ function App() {
     });
   };
 
-  const handleTitleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleTitleSave();
-    } else if (e.key === 'Escape') {
-      setTitleInput(currentSong.title);
-      setIsEditingTitle(false);
-    }
-  };
-
   // Fixed timeline height - compact design matching mobile aesthetic
   // Header bar (~32px) + content area (~120px) = ~152px
   // This ensures the timeline is fully visible above the footer
@@ -650,6 +642,17 @@ function App() {
     doc.setTextColor(0, 0, 0);
     doc.text(currentSong.title, leftMargin, 18);
 
+    // Artist name (to the right of title)
+    if (currentSong.artist && currentSong.artist.trim()) {
+      // Get the width of the title to position artist after it
+      const titleWidth = doc.getTextWidth(currentSong.title);
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "italic");
+      doc.setTextColor(100, 100, 100); // Gray color
+      doc.text(`by ${currentSong.artist}`, leftMargin + titleWidth + 6, 18);
+      doc.setTextColor(0, 0, 0); // Reset to black
+    }
+
     // Horizontal line under title
     doc.setDrawColor(0, 0, 0);
     doc.setLineWidth(0.5);
@@ -667,7 +670,7 @@ function App() {
     ];
     doc.text(infoItems.join('   •   '), leftMargin, 30);
 
-    let y = 42;
+    let y = 48; // Extra margin before first section
 
     // Collect unique chords for diagram section
     const uniqueChords: Set<string> = new Set();
@@ -680,11 +683,11 @@ function App() {
       }
 
       // Section header
-      doc.setFontSize(12);
+      doc.setFontSize(14);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(0, 0, 0);
-      doc.text(`[${section.name}]`, leftMargin, y);
-      y += 8;
+      doc.text(`[${getSectionDisplayName(section, currentSong.sections)}]`, leftMargin, y);
+      y += 10;
 
       // Build rhythm notation for each measure
       const measureNotations = section.measures.map(measure => {
@@ -722,12 +725,12 @@ function App() {
       });
 
       // Wrap measures into rows of 4
-      doc.setFontSize(11);
+      doc.setFontSize(14);
       doc.setFont("helvetica", "normal");
 
       if (measureNotations.length === 0) {
         doc.text('(No chords)', leftMargin, y);
-        y += 10;
+        y += 12;
       } else {
         for (let i = 0; i < measureNotations.length; i += measuresPerRow) {
           if (y > 275) {
@@ -741,7 +744,7 @@ function App() {
           // Add continuation indicator if not first row
           const prefix = i > 0 ? '    ' : '';
           doc.text(prefix + rowText, leftMargin, y);
-          y += 8;
+          y += 10;
         }
       }
 
@@ -932,28 +935,15 @@ function App() {
           </div>
         </div>
 
-        {/* Editable Song Title (Task 23) */}
+        {/* Song Title - Click to edit (opens modal) */}
         <div className="flex items-center justify-center overflow-hidden">
-          {isEditingTitle ? (
-            <input
-              type="text"
-              value={titleInput}
-              onChange={(e) => setTitleInput(e.target.value)}
-              onBlur={handleTitleSave}
-              onKeyDown={handleTitleKeyDown}
-              autoFocus
-              className={`bg-bg-tertiary border border-border-medium rounded px-3 py-1 ${isMobile ? 'text-xs' : 'text-sm'} font-medium text-text-primary focus:outline-none focus:border-accent-primary text-center ${isMobile ? 'w-40' : 'w-56'} max-w-[70vw]`}
-              maxLength={50}
-            />
-          ) : (
-            <span
-              onDoubleClick={handleTitleDoubleClick}
-              className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium text-text-primary cursor-pointer hover:text-accent-primary transition-colors px-2 py-1 rounded text-center truncate max-w-[70vw]`}
-              title="Double-click to edit title"
-            >
-              {currentSong.title}
-            </span>
-          )}
+          <span
+            onClick={handleTitleClick}
+            className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium text-text-primary cursor-pointer hover:text-accent-primary transition-colors px-2 py-1 rounded text-center truncate max-w-[70vw]`}
+            title="Click to edit song info"
+          >
+            {currentSong.title}
+          </span>
         </div>
 
         <div className={`flex items-center ${isMobile ? 'gap-3' : 'gap-4'} shrink-0 justify-self-end`}>
@@ -1372,6 +1362,16 @@ function App() {
 
       {/* Help Modal */}
       <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
+
+      {/* Song Info Modal */}
+      <SongInfoModal
+        isOpen={showSongInfoModal}
+        onClose={() => setShowSongInfoModal(false)}
+        title={currentSong.title}
+        artist={currentSong.artist || ''}
+        tags={currentSong.tags || []}
+        onSave={handleSongInfoSave}
+      />
 
       {/* First-time Onboarding Tooltip */}
       <OnboardingTooltip onOpenHelp={() => setShowHelp(true)} />

@@ -1,5 +1,4 @@
 import React, { useMemo, useRef, useCallback, useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { useSongStore } from '../../store/useSongStore';
 import {
     MAJOR_POSITIONS,
@@ -99,19 +98,7 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
         baseQuality: string;
     }>({ isOpen: false, chord: null, voicingSuggestion: '', baseQuality: '' });
 
-    // Toast message state for feedback
-    const [toastMessage, setToastMessage] = useState<string | null>(null);
-    const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    const showToast = useCallback((message: string) => {
-        if (toastTimeoutRef.current) {
-            clearTimeout(toastTimeoutRef.current);
-        }
-        setToastMessage(message);
-        toastTimeoutRef.current = setTimeout(() => {
-            setToastMessage(null);
-        }, 2500);
-    }, []);
 
     // Use external pan offset if provided, otherwise use internal state
     const panOffset = externalPanOffset ?? internalPanOffset;
@@ -526,21 +513,30 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
     const handleChordDoubleClick = (chord: Chord) => {
         const wheelChord = chord as WheelChord;
 
-        // If no slot is selected, show toast and open timeline (but don't auto-select)
-        if (!selectedSectionId || !selectedSlotId) {
-            showToast('Select a slot on the timeline first');
-            if (!timelineVisible) {
-                openTimeline();
+        // Get current section/slot from store (may be updated after openTimeline)
+        let currentSectionId = selectedSectionId;
+        let currentSlotId = selectedSlotId;
+
+        // If no slot is selected, open the timeline (which will auto-select the first slot)
+        if (!currentSectionId || !currentSlotId) {
+            openTimeline();
+            // Get the latest state from the store after openTimeline updated it
+            const state = useSongStore.getState();
+            currentSectionId = state.selectedSectionId;
+            currentSlotId = state.selectedSlotId;
+
+            // If still no slot selected (e.g., no sections), just return
+            if (!currentSectionId || !currentSlotId) {
+                return;
             }
-            return;
         }
 
         // Add chord to the selected slot
-        addChordToSlot(chord, selectedSectionId, selectedSlotId);
-        const advanced = selectNextSlotAfter(selectedSectionId, selectedSlotId);
+        addChordToSlot(chord, currentSectionId, currentSlotId);
+        const advanced = selectNextSlotAfter(currentSectionId, currentSlotId);
 
         if (!advanced) {
-            setSelectedSlot(selectedSectionId, selectedSlotId);
+            setSelectedSlot(currentSectionId, currentSlotId);
             setSelectedSegmentId(wheelChord.segmentId ?? null);
             setSelectedChord(chord);
         }
@@ -1109,18 +1105,27 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
                             symbol: `${voicingPickerState.chord.root}${quality === 'major' ? '' : quality === 'minor' ? 'm' : quality}`
                         };
 
-                        // If no slot is selected, show toast, open timeline if needed, and don't proceed
-                        if (!selectedSectionId || !selectedSlotId) {
-                            showToast('Select a slot on the timeline first');
-                            if (!timelineVisible) {
-                                openTimeline();
+                        // Get current section/slot from store (may be updated after openTimeline)
+                        let currentSectionId = selectedSectionId;
+                        let currentSlotId = selectedSlotId;
+
+                        // If no slot is selected, open timeline (which will auto-select the first slot)
+                        if (!currentSectionId || !currentSlotId) {
+                            openTimeline();
+                            // Get the latest state from the store after openTimeline updated it
+                            const state = useSongStore.getState();
+                            currentSectionId = state.selectedSectionId;
+                            currentSlotId = state.selectedSlotId;
+
+                            // If still no slot selected (e.g., no sections), just return
+                            if (!currentSectionId || !currentSlotId) {
+                                return;
                             }
-                            return;
                         }
 
                         // Add chord to the selected slot
-                        addChordToSlot(newChord, selectedSectionId, selectedSlotId);
-                        selectNextSlotAfter(selectedSectionId, selectedSlotId);
+                        addChordToSlot(newChord, currentSectionId, currentSlotId);
+                        selectNextSlotAfter(currentSectionId, currentSlotId);
 
                         // Open timeline if it's hidden so user can see the result
                         if (!timelineVisible) {
@@ -1139,36 +1144,59 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
                 portraitWithPanel={isMobile && !isLandscape && chordPanelVisible && !chordPanelGuitarExpanded && !chordPanelVoicingsExpanded}
             />
 
-            {/* Toast notification - rendered via portal for proper positioning */}
-            {toastMessage && createPortal(
-                <div
-                    className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[99999] flex items-center gap-3 px-5 py-4 rounded-xl shadow-xl animate-in fade-in zoom-in-95 duration-150"
-                    style={{
-                        background: 'linear-gradient(135deg, #1e1e28 0%, #282833 100%)',
-                        border: '1px solid rgba(245, 158, 11, 0.5)',
-                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(245, 158, 11, 0.3), 0 0 20px rgba(245, 158, 11, 0.15)'
-                    }}
-                >
-                    {/* Warning icon */}
-                    <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-400">
-                            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
-                            <path d="M12 9v4" />
-                            <path d="M12 17h.01" />
-                        </svg>
+            {/* Floating chord indicator - shows on mobile portrait when chord panel is closed */}
+            {isMobile && !isLandscape && !chordPanelVisible && selectedChord && (() => {
+                const chordColor = colors[selectedChord.root as keyof typeof colors] || '#6366f1';
+                // Get short chord name (similar to ChordDetails.getShortChordName)
+                const quality = selectedChord.quality;
+                let shortName: string;
+                if (quality === 'major' || quality === 'maj') {
+                    shortName = formatChordForDisplay(selectedChord.root);
+                } else if (quality === 'minor' || quality === 'm') {
+                    shortName = formatChordForDisplay(`${selectedChord.root}m`);
+                } else if (quality === 'diminished' || quality === 'dim') {
+                    shortName = formatChordForDisplay(`${selectedChord.root}dim`);
+                } else {
+                    shortName = formatChordForDisplay(`${selectedChord.root}${quality}`);
+                }
+
+                return (
+                    <div
+                        className="absolute -bottom-4 right-3 flex items-center gap-1 z-10 cursor-pointer touch-feedback active:scale-95 transition-transform"
+                        style={{
+                            backgroundColor: 'transparent',
+                            color: chordColor,
+                            padding: '4px 10px',
+                            borderRadius: '8px',
+                            border: `2px solid ${chordColor}`,
+                            backdropFilter: 'blur(8px)',
+                            background: 'rgba(0, 0, 0, 0.4)'
+                        }}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            // Desktop only - mobile uses onTouchEnd
+                            playChord(selectedChord.notes);
+                        }}
+                        onTouchStart={(e) => {
+                            e.stopPropagation();
+                        }}
+                        onTouchEnd={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            // Play the chord on touch (mobile)
+                            playChord(selectedChord.notes);
+                        }}
+                    >
+                        <span className="text-sm font-bold leading-none">{shortName}</span>
+                        {selectedChord.numeral && (
+                            <span className="text-xs font-serif italic opacity-70">{formatChordForDisplay(selectedChord.numeral)}</span>
+                        )}
                     </div>
-                    {/* Message */}
-                    <div className="flex flex-col gap-0.5">
-                        <span className="text-sm font-semibold text-text-primary">
-                            {toastMessage}
-                        </span>
-                        <span className="text-xs text-text-muted">
-                            Tap a slot in the timeline to select it
-                        </span>
-                    </div>
-                </div>,
-                document.body
-            )}
+                );
+            })()}
+
+
         </div>
     );
 };

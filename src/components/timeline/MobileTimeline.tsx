@@ -6,6 +6,7 @@ import { Plus, Play, ChevronLeft, ChevronRight, PanelRightClose, Map, Settings2,
 import { SectionOptionsPopup } from './SectionOptionsPopup';
 import { useMobileLayout } from '../../hooks/useIsMobile';
 import { NoteValueSelector } from './NoteValueSelector';
+import { getSectionDisplayName } from '../../types';
 import clsx from 'clsx';
 
 interface MobileTimelineProps {
@@ -390,10 +391,10 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                                 boxShadow: '0 0 8px rgba(99, 102, 241, 0.4)',
                                 border: '1px solid rgba(255,255,255,0.2)',
                             }}
-                            title={activeSection?.name || 'Section'}
+                            title={activeSection ? getSectionDisplayName(activeSection, currentSong.sections) : 'Section'}
                         >
                             <span className="flex items-baseline">
-                                <span>{activeSection?.name.charAt(0).toUpperCase() || 'S'}</span>
+                                <span>{activeSection ? getSectionDisplayName(activeSection, currentSong.sections).charAt(0).toUpperCase() : 'S'}</span>
                                 <span className="text-[7px] opacity-60 ml-0.5">{activeSectionIndex + 1}</span>
                             </span>
                             <Settings2 size={10} className="opacity-70 shrink-0" />
@@ -493,7 +494,8 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                     >
                         {currentSong.sections.map((section, idx) => {
                             const isActive = idx === activeSectionIndex;
-                            const firstLetter = section.name.charAt(0).toUpperCase();
+                            const displayName = getSectionDisplayName(section, currentSong.sections);
+                            const firstLetter = displayName.charAt(0).toUpperCase();
                             return (
                                 <button
                                     key={section.id}
@@ -526,11 +528,11 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                                         boxShadow: '0 0 16px rgba(99, 102, 241, 0.5), inset 0 1px 0 rgba(255,255,255,0.2)',
                                         border: '1px solid rgba(255,255,255,0.2)',
                                     } : undefined}
-                                    title={section.name}
+                                    title={displayName}
                                 >
                                     {isActive ? (
                                         <span className="flex items-center gap-1 px-2 truncate">
-                                            <span className="truncate">{section.name}</span>
+                                            <span className="truncate">{displayName}</span>
                                             <Settings2 size={isDesktop ? 14 : 12} className="opacity-70 shrink-0" />
                                         </span>
                                     ) : (

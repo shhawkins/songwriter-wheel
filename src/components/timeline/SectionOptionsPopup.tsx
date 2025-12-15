@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Copy, Eraser, Trash2, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import clsx from 'clsx';
@@ -41,15 +41,16 @@ const TIME_SIGNATURE_OPTIONS: [number, number][] = [
 const SECTION_NAME_OPTIONS: { name: string; type: Section['type'] }[] = [
     { name: 'Intro', type: 'intro' },
     { name: 'Verse', type: 'verse' },
+    { name: 'Pre-Chorus', type: 'pre-chorus' },
     { name: 'Chorus', type: 'chorus' },
     { name: 'Bridge', type: 'bridge' },
+    { name: 'Interlude', type: 'interlude' },
+    { name: 'Solo', type: 'solo' },
+    { name: 'Breakdown', type: 'breakdown' },
+    { name: 'Tag', type: 'tag' },
+    { name: 'Hook', type: 'hook' },
     { name: 'Outro', type: 'outro' },
-    { name: 'Custom', type: 'custom' },
 ];
-
-// Check if the current section name is a preset or custom
-const isPresetName = (name: string) =>
-    SECTION_NAME_OPTIONS.some(opt => opt.name === name && opt.type !== 'custom');
 
 export const SectionOptionsPopup: React.FC<SectionOptionsPopupProps> = ({
     section,
@@ -72,7 +73,6 @@ export const SectionOptionsPopup: React.FC<SectionOptionsPopupProps> = ({
     onSlotClick,
 }) => {
     const popupRef = useRef<HTMLDivElement>(null);
-    const customInputRef = useRef<HTMLInputElement>(null);
     const sectionTimeSignature = section.timeSignature || songTimeSignature;
     const signatureValue = `${sectionTimeSignature[0]}/${sectionTimeSignature[1]}`;
     const measureCount = section.measures.length;
@@ -81,48 +81,19 @@ export const SectionOptionsPopup: React.FC<SectionOptionsPopupProps> = ({
     const currentStepCount = section.measures[0]?.beats.length ?? 1;
     const stepOptions = getStepOptions(sectionTimeSignature);
 
-    // Track if we're editing a custom name
-    const [isEditingCustom, setIsEditingCustom] = useState(false);
-    const [customName, setCustomName] = useState(section.name);
-
-    // Determine dropdown value: show 'Custom' if it's a custom type or non-preset name
-    const isCustomSection = section.type === 'custom' || !isPresetName(section.name);
-    const dropdownValue = isCustomSection ? 'Custom' : section.name;
-
-    // Focus the input when entering custom edit mode
-    useEffect(() => {
-        if (isEditingCustom && customInputRef.current) {
-            customInputRef.current.focus();
-            customInputRef.current.select();
-        }
-    }, [isEditingCustom]);
-
-    // Close on outside click is handled by the overlay mask
-    // but we'll keep the keyboard listener for Escape
+    // Close on Escape key
     useEffect(() => {
         if (!isOpen) return;
 
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Escape') {
-                if (isEditingCustom) {
-                    setIsEditingCustom(false);
-                } else {
-                    onClose();
-                }
+                onClose();
             }
         };
 
         document.addEventListener('keydown', handleKeyDown);
         return () => document.removeEventListener('keydown', handleKeyDown);
-    }, [isOpen, onClose, isEditingCustom]);
-
-    const handleCustomNameSave = () => {
-        const trimmedName = customName.trim();
-        if (trimmedName && onNameChange) {
-            onNameChange(trimmedName, 'custom');
-        }
-        setIsEditingCustom(false);
-    };
+    }, [isOpen, onClose]);
 
     if (!isOpen) return null;
 
@@ -214,77 +185,34 @@ export const SectionOptionsPopup: React.FC<SectionOptionsPopupProps> = ({
                             />
                         )}
                         {onNameChange ? (
-                            isEditingCustom ? (
-                                // Custom name text input
-                                <input
-                                    ref={customInputRef}
-                                    type="text"
-                                    value={customName}
-                                    onChange={(e) => setCustomName(e.target.value)}
-                                    onBlur={handleCustomNameSave}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                            handleCustomNameSave();
-                                        }
-                                    }}
-                                    placeholder="Section name..."
-                                    className="bg-bg-tertiary text-sm font-bold text-text-primary 
-                                               px-2 py-1 rounded-md border border-border-subtle
-                                               focus:outline-none focus:ring-1 focus:ring-accent-primary/50
-                                               w-full max-w-[140px]"
-                                    maxLength={20}
-                                />
-                            ) : (
-                                // Dropdown selector
-                                <select
-                                    value={dropdownValue}
-                                    onChange={(e) => {
-                                        const selectedValue = e.target.value;
-                                        if (selectedValue === 'Custom') {
-                                            // Enter custom edit mode
-                                            setCustomName(isCustomSection ? section.name : '');
-                                            setIsEditingCustom(true);
-                                        } else {
-                                            const selected = SECTION_NAME_OPTIONS.find(opt => opt.name === selectedValue);
-                                            if (selected) {
-                                                onNameChange(selected.name, selected.type);
-                                            }
-                                        }
-                                    }}
-                                    className="bg-transparent text-sm font-bold text-text-primary 
-                                               focus:outline-none focus:ring-1 focus:ring-accent-primary/50
-                                               appearance-none cursor-pointer pr-5"
-                                    style={{
-                                        backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'10\' height=\'10\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%239ca3af\' stroke-width=\'2\'%3E%3Cpath d=\'M6 9l6 6 6-6\'/%3E%3C/svg%3E")',
-                                        backgroundRepeat: 'no-repeat',
-                                        backgroundPosition: 'right 0 center',
-                                    }}
-                                >
-                                    {SECTION_NAME_OPTIONS.map((opt) => (
-                                        <option key={opt.type} value={opt.name} className="bg-bg-secondary">
-                                            {opt.name}
-                                        </option>
-                                    ))}
-                                </select>
-                            )
+                            // Dropdown selector for section type
+                            <select
+                                value={section.name}
+                                onChange={(e) => {
+                                    const selected = SECTION_NAME_OPTIONS.find(opt => opt.name === e.target.value);
+                                    if (selected) {
+                                        onNameChange(selected.name, selected.type);
+                                    }
+                                }}
+                                className="bg-transparent text-sm font-bold text-text-primary 
+                                           focus:outline-none focus:ring-1 focus:ring-accent-primary/50
+                                           appearance-none cursor-pointer pr-5"
+                                style={{
+                                    backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'10\' height=\'10\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%239ca3af\' stroke-width=\'2\'%3E%3Cpath d=\'M6 9l6 6 6-6\'/%3E%3C/svg%3E")',
+                                    backgroundRepeat: 'no-repeat',
+                                    backgroundPosition: 'right 0 center',
+                                }}
+                            >
+                                {SECTION_NAME_OPTIONS.map((opt) => (
+                                    <option key={opt.type} value={opt.name} className="bg-bg-secondary">
+                                        {opt.name}
+                                    </option>
+                                ))}
+                            </select>
                         ) : (
                             <span className="text-sm font-bold text-text-primary">
                                 {section.name}
                             </span>
-                        )}
-                        {/* Show current custom name next to dropdown if it's a custom section */}
-                        {onNameChange && !isEditingCustom && isCustomSection && section.name !== 'Custom' && (
-                            <button
-                                onClick={() => {
-                                    setCustomName(section.name);
-                                    setIsEditingCustom(true);
-                                }}
-                                className="text-xs text-accent-primary hover:text-accent-primary/80 
-                                           px-1.5 py-0.5 rounded bg-accent-primary/10 truncate max-w-[80px]"
-                                title={`Edit: ${section.name}`}
-                            >
-                                {section.name}
-                            </button>
                         )}
                     </div>
                     <button

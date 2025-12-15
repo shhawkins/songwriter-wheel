@@ -6,7 +6,6 @@ import { getWheelColors, getChordNotes, getIntervalFromKey, invertChord, getMaxI
 import { PanelRightClose, PanelRight, GripVertical, ChevronDown, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { playChord, playNote } from '../../utils/audioEngine';
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
 
 import { useMobileLayout } from '../../hooks/useIsMobile';
 
@@ -78,19 +77,7 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
     const touchCurrentY = useRef<number>(0);
     const [swipeOffset, setSwipeOffset] = useState(0);
 
-    // Toast message state for "no slot selected" feedback
-    const [toastMessage, setToastMessage] = useState<string | null>(null);
-    const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    const showToast = useCallback((message: string) => {
-        if (toastTimeoutRef.current) {
-            clearTimeout(toastTimeoutRef.current);
-        }
-        setToastMessage(message);
-        toastTimeoutRef.current = setTimeout(() => {
-            setToastMessage(null);
-        }, 3000);
-    }, []);
 
     // Refs for auto-scrolling sections into view
     const guitarSectionRef = useRef<HTMLDivElement>(null);
@@ -404,9 +391,6 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
         }
 
         if (!chord || !selectedSectionId || !selectedSlotId) {
-            if (chord && (!selectedSectionId || !selectedSlotId)) {
-                showToast('Select a slot on the timeline first');
-            }
             return;
         }
 
@@ -450,10 +434,6 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
         }
 
         if (!chord || !selectedSectionId || !selectedSlotId) {
-            // Show helpful message if no slot is selected
-            if (chord && (!selectedSectionId || !selectedSlotId)) {
-                showToast('Select a slot on the timeline first');
-            }
             return;
         }
 
@@ -814,36 +794,7 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
                     </div>
                 </div>
 
-                {/* Toast notification - rendered via portal for proper positioning */}
-                {toastMessage && createPortal(
-                    <div
-                        className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[99999] flex items-center gap-3 px-5 py-4 rounded-xl shadow-xl animate-in fade-in zoom-in-95 duration-150"
-                        style={{
-                            background: 'linear-gradient(135deg, #1e1e28 0%, #282833 100%)',
-                            border: '1px solid rgba(245, 158, 11, 0.5)',
-                            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(245, 158, 11, 0.3), 0 0 20px rgba(245, 158, 11, 0.15)'
-                        }}
-                    >
-                        {/* Warning icon */}
-                        <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-400">
-                                <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
-                                <path d="M12 9v4" />
-                                <path d="M12 17h.01" />
-                            </svg>
-                        </div>
-                        {/* Message */}
-                        <div className="flex flex-col gap-0.5">
-                            <span className="text-sm font-semibold text-text-primary">
-                                {toastMessage}
-                            </span>
-                            <span className="text-xs text-text-muted">
-                                Tap a slot in the timeline to select it
-                            </span>
-                        </div>
-                    </div>,
-                    document.body
-                )}
+
                 {/* Content */}
                 {!chord ? (
                     <div className="flex-1 flex flex-col items-center justify-center p-8 gap-4">

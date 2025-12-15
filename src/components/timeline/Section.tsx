@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import type { Section as ISection } from '../../types';
+import React from 'react';
+import { getSectionDisplayName, type Section as ISection } from '../../types';
 import { Measure } from './Measure';
 import { useSongStore } from '../../store/useSongStore';
 import { Trash2, Copy, GripVertical, ChevronUp, ChevronDown } from 'lucide-react';
@@ -18,7 +18,6 @@ export const Section: React.FC<SectionProps> = ({ section, chordSize = 48, scale
     const {
         removeSection,
         duplicateSection,
-        updateSection,
         selectedSectionId,
         setSelectedSlot,
         setSectionMeasures,
@@ -28,41 +27,8 @@ export const Section: React.FC<SectionProps> = ({ section, chordSize = 48, scale
         toggleSectionCollapsed
     } = useSongStore();
 
-    // Editable section name state (Task 24)
-    const [isEditingName, setIsEditingName] = useState(false);
-    const [nameInput, setNameInput] = useState(section.name);
-    const inputRef = useRef<HTMLInputElement>(null);
-
-    // Focus input when editing starts
-    useEffect(() => {
-        if (isEditingName && inputRef.current) {
-            inputRef.current.focus();
-            inputRef.current.select();
-        }
-    }, [isEditingName]);
-
-    const handleNameDoubleClick = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        setNameInput(section.name);
-        setIsEditingName(true);
-    };
-
-    const handleNameSave = () => {
-        const trimmedName = nameInput.trim();
-        if (trimmedName && trimmedName !== section.name) {
-            updateSection(section.id, { name: trimmedName });
-        }
-        setIsEditingName(false);
-    };
-
-    const handleNameKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter') {
-            handleNameSave();
-        } else if (e.key === 'Escape') {
-            setNameInput(section.name);
-            setIsEditingName(false);
-        }
-    };
+    // Get the dynamic display name based on section type and position
+    const displayName = getSectionDisplayName(section, currentSong.sections);
 
     const {
         attributes,
@@ -82,7 +48,7 @@ export const Section: React.FC<SectionProps> = ({ section, chordSize = 48, scale
         e.stopPropagation();
         onRequestConfirm({
             title: 'Delete Section',
-            message: `Delete section "${section.name}"?`,
+            message: `Delete section "${displayName}"?`,
             confirmLabel: 'Delete',
             isDestructive: true,
             onConfirm: () => removeSection(section.id)
@@ -163,38 +129,20 @@ export const Section: React.FC<SectionProps> = ({ section, chordSize = 48, scale
                         <GripVertical size={compactHeader ? 10 : 12} />
                     </div>
 
-                    {/* Editable section name - styled as elongated pill */}
-                    {isEditingName ? (
-                        <input
-                            ref={inputRef}
-                            type="text"
-                            value={nameInput}
-                            onChange={(e) => setNameInput(e.target.value)}
-                            onBlur={handleNameSave}
-                            onKeyDown={handleNameKeyDown}
-                            onClick={(e) => e.stopPropagation()}
-                            className={clsx(
-                                "font-semibold text-white bg-accent-primary border border-accent-primary/50 rounded-full focus:outline-none focus:ring-2 focus:ring-accent-primary/50 text-center",
-                                compactHeader ? "text-[9px] px-3 py-0.5 min-w-[60px]" : "text-[11px] px-4 py-0.5 min-w-[80px]"
-                            )}
-                            maxLength={30}
-                        />
-                    ) : (
-                        <span
-                            className={clsx(
-                                "font-semibold text-white cursor-pointer transition-all truncate text-center rounded-full",
-                                compactHeader ? "text-[9px] px-3 py-0.5 min-w-[50px] max-w-[80px]" : "text-[11px] px-4 py-1 min-w-[70px] max-w-[120px]"
-                            )}
-                            style={{
-                                background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-                                boxShadow: '0 2px 8px rgba(99, 102, 241, 0.3)',
-                            }}
-                            onDoubleClick={handleNameDoubleClick}
-                            title="Double-click to rename"
-                        >
-                            {section.name}
-                        </span>
-                    )}
+                    {/* Section name - displayed as pill (no longer editable) */}
+                    <span
+                        className={clsx(
+                            "font-semibold text-white truncate text-center rounded-full",
+                            compactHeader ? "text-[9px] px-3 py-0.5 min-w-[50px] max-w-[80px]" : "text-[11px] px-4 py-1 min-w-[70px] max-w-[120px]"
+                        )}
+                        style={{
+                            background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                            boxShadow: '0 2px 8px rgba(99, 102, 241, 0.3)',
+                        }}
+                        title={displayName}
+                    >
+                        {displayName}
+                    </span>
                 </div>
 
                 {/* Bars and Meter - visible in all views with compact styling */}
@@ -289,7 +237,7 @@ export const Section: React.FC<SectionProps> = ({ section, chordSize = 48, scale
             {/* Measures Container */}
             {isCollapsed ? (
                 <div className="flex items-center justify-between px-2 py-2 border-t border-border-subtle bg-bg-secondary text-[10px] text-text-muted">
-                    <span className="font-semibold text-text-secondary truncate pr-2">{section.name}</span>
+                    <span className="font-semibold text-text-secondary truncate pr-2">{displayName}</span>
                     <div className="flex items-center gap-2 uppercase tracking-wider">
                         <span>{measureCount} bars</span>
                         <span>{signatureValue}</span>

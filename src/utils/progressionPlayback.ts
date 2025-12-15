@@ -171,7 +171,7 @@ export interface ProgressionPreset {
     genre: string;
     artists?: string;
     color: string;
-    sectionType: 'verse' | 'chorus' | 'bridge' | 'intro' | 'outro' | 'custom';
+    sectionType: 'intro' | 'verse' | 'pre-chorus' | 'chorus' | 'bridge' | 'interlude' | 'solo' | 'breakdown' | 'tag' | 'hook' | 'outro';
     sectionName: string; // Short name for when added to timeline
     beatsPerChord: number; // How many beats each chord lasts (4 = whole note/1 bar, 2 = half note, etc.)
     totalBars?: number; // Optional override for total bars when adding to timeline

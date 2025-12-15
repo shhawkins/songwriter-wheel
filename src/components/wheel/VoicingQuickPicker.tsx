@@ -168,10 +168,10 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
                 // Position varies by mode:
                 // - Landscape mobile: bottom of left panel, over playback controls
                 // - Portrait mobile with panel (both sections collapsed): just above the section headers
-                // - Portrait mobile: lower on screen (above timeline)
+                // - Portrait mobile (no panel): use bottom positioning for consistency whether timeline is open/closed
                 // - Desktop: in the lower portion of the wheel area
-                bottom: isLandscapeMobile ? '56px' : (portraitWithPanel ? '6%' : 'auto'),
-                top: isLandscapeMobile || portraitWithPanel ? 'auto' : (isMobile ? '65%' : '55%'),
+                bottom: isLandscapeMobile ? '56px' : (portraitWithPanel ? '6%' : (isMobile ? '13%' : 'auto')),
+                top: isLandscapeMobile || portraitWithPanel || isMobile ? 'auto' : '55%',
                 // Use left/right positioning for portrait/desktop to ensure modal stays within viewport
                 // Use centered positioning for landscape mobile (narrower content area)
                 ...(isLandscapeMobile

@@ -24,7 +24,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import * as Tone from 'tone';
 import { playSong, pauseSong, skipToSection, unlockAudioForIOS } from '../../utils/audioEngine';
-import type { InstrumentType } from '../../types';
+import { getSectionDisplayName, type InstrumentType } from '../../types';
 
 // Enhanced section colors
 const SECTION_THEMES: Record<string, { bg: string; headers: string; border: string; accent: string }> = {
@@ -58,22 +58,47 @@ const SECTION_THEMES: Record<string, { bg: string; headers: string; border: stri
         border: 'border-emerald-500/30',
         accent: 'bg-emerald-500'
     },
+    interlude: {
+        bg: 'bg-teal-500/10',
+        headers: 'bg-teal-500/30 text-teal-100',
+        border: 'border-teal-500/30',
+        accent: 'bg-teal-500'
+    },
+    solo: {
+        bg: 'bg-orange-500/10',
+        headers: 'bg-orange-500/30 text-orange-100',
+        border: 'border-orange-500/30',
+        accent: 'bg-orange-500'
+    },
+    breakdown: {
+        bg: 'bg-red-500/10',
+        headers: 'bg-red-500/30 text-red-100',
+        border: 'border-red-500/30',
+        accent: 'bg-red-500'
+    },
+    tag: {
+        bg: 'bg-pink-500/10',
+        headers: 'bg-pink-500/30 text-pink-100',
+        border: 'border-pink-500/30',
+        accent: 'bg-pink-500'
+    },
+    hook: {
+        bg: 'bg-yellow-500/10',
+        headers: 'bg-yellow-500/30 text-yellow-100',
+        border: 'border-yellow-500/30',
+        accent: 'bg-yellow-500'
+    },
     outro: {
         bg: 'bg-rose-500/10',
         headers: 'bg-rose-500/30 text-rose-100',
         border: 'border-rose-500/30',
         accent: 'bg-rose-500'
     },
-    custom: {
-        bg: 'bg-slate-500/10',
-        headers: 'bg-slate-500/30 text-slate-100',
-        border: 'border-slate-500/30',
-        accent: 'bg-slate-500'
-    },
 };
 
 interface SortableSectionProps {
     section: any;
+    allSections: any[];
     onSelect: () => void;
     isActive: boolean;
     chordColors: any;
@@ -87,7 +112,15 @@ const BASE_MEASURE_WIDTH = 60;
 // Compact threshold - switch to simplified view below this zoom level
 const COMPACT_THRESHOLD = 0.35;
 
-const SortableSection = ({ section, onSelect, isActive, chordColors, measureWidth, isCompact }: SortableSectionProps) => {
+// Default theme fallback
+const DEFAULT_THEME = {
+    bg: 'bg-slate-500/10',
+    headers: 'bg-slate-500/30 text-slate-100',
+    border: 'border-slate-500/30',
+    accent: 'bg-slate-500'
+};
+
+const SortableSection = ({ section, allSections, onSelect, isActive, chordColors, measureWidth, isCompact }: SortableSectionProps) => {
     const {
         attributes,
         listeners,
@@ -102,8 +135,9 @@ const SortableSection = ({ section, onSelect, isActive, chordColors, measureWidt
         transition,
     };
 
-    const theme = SECTION_THEMES[section.type] || SECTION_THEMES.custom;
+    const theme = SECTION_THEMES[section.type] || DEFAULT_THEME;
     const measures = section.measures;
+    const displayName = getSectionDisplayName(section, allSections);
 
     // Calculate width based on compact mode
     const minWidth = isCompact ? 40 : 100;
@@ -169,7 +203,7 @@ const SortableSection = ({ section, onSelect, isActive, chordColors, measureWidt
                 <div className="flex items-center gap-2">
                     <GripVertical size={14} className="opacity-50" />
                     <span className="font-bold text-xs uppercase tracking-wider truncate max-w-[100px]">
-                        {section.name}
+                        {displayName}
                     </span>
                 </div>
                 {measureWidth >= 70 && (
@@ -569,6 +603,7 @@ export const SongOverview: React.FC = () => {
                                 <SortableSection
                                     key={section.id}
                                     section={section}
+                                    allSections={currentSong.sections}
                                     onSelect={() => {
                                         if (section.measures[0]?.beats[0]) {
                                             setSelectedSlot(section.id, section.measures[0].beats[0].id);

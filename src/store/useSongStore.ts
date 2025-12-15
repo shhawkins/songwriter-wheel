@@ -82,7 +82,7 @@ function suggestNextSectionType(sections: Section[]): Section['type'] {
         return 'verse';
     }
 
-    // After outro, if user still adding, maybe another verse or custom
+    // After outro, if user still adding, maybe another verse
     if (lastType === 'outro') {
         return 'verse';
     }
@@ -92,11 +92,17 @@ function suggestNextSectionType(sections: Section[]): Section['type'] {
         return 'chorus';
     }
 
-    // Default: alternate between verse and chorus
-    // Handle 'custom' type by defaulting to verse
-    if (lastType === 'custom') {
+    // After instrumental sections (interlude, solo, breakdown), usually return to verse or chorus
+    if (lastType === 'interlude' || lastType === 'solo' || lastType === 'breakdown') {
         return 'chorus';
     }
+
+    // After tag/hook sections, continue with verse or outro
+    if (lastType === 'tag' || lastType === 'hook') {
+        return 'verse';
+    }
+
+    // Default: alternate between verse and chorus
     return 'verse';
 }
 
@@ -173,6 +179,8 @@ interface SongState {
 
     // Song Actions
     setTitle: (title: string) => void;
+    setArtist: (artist: string) => void;
+    setTags: (tags: string[]) => void;
     loadSong: (song: Song) => void;
     newSong: () => void;
     addSection: (type: Section['type']) => void;
@@ -470,14 +478,39 @@ export const useSongStore = create<SongState>()(
 
             toggleChordPanel: () => set((state) => ({ chordPanelVisible: !state.chordPanelVisible })),
             toggleTimeline: () => set((state) => ({ timelineVisible: !state.timelineVisible })),
-            openTimeline: () => set(() => {
+            openTimeline: () => set((state) => {
                 // Dispatch custom event for mobile to open its timeline drawer
                 if (typeof window !== 'undefined') {
                     window.dispatchEvent(new CustomEvent('openMobileTimeline'));
                 }
 
-                // Just open the timeline - do NOT auto-select a slot
-                // This allows the "Select a slot on the timeline first" toast to remain relevant
+                // If no slot is selected, auto-select the first slot of the current section
+                // (or first section if none is selected)
+                if (!state.selectedSectionId || !state.selectedSlotId) {
+                    const sections = state.currentSong.sections;
+                    if (sections.length > 0) {
+                        // Use currently selected section if valid, otherwise first section
+                        const targetSection = state.selectedSectionId
+                            ? sections.find(s => s.id === state.selectedSectionId) || sections[0]
+                            : sections[0];
+
+                        if (targetSection.measures.length > 0 && targetSection.measures[0].beats.length > 0) {
+                            const firstSlot = targetSection.measures[0].beats[0];
+                            const slot = { sectionId: targetSection.id, slotId: firstSlot.id };
+                            const chord = firstSlot.chord ?? null;
+
+                            return {
+                                timelineVisible: true,
+                                selectedSectionId: targetSection.id,
+                                selectedSlotId: firstSlot.id,
+                                selectedSlots: [slot],
+                                selectionAnchor: slot,
+                                selectedChord: chord
+                            };
+                        }
+                    }
+                }
+
                 return { timelineVisible: true };
             }),
             toggleSongMap: (force?: boolean) => set((state) => ({
@@ -808,6 +841,22 @@ export const useSongStore = create<SongState>()(
                 return {
                     ...history,
                     currentSong: { ...state.currentSong, title }
+                };
+            }),
+
+            setArtist: (artist) => set((state) => {
+                const history = buildHistoryState(state);
+                return {
+                    ...history,
+                    currentSong: { ...state.currentSong, artist }
+                };
+            }),
+
+            setTags: (tags) => set((state) => {
+                const history = buildHistoryState(state);
+                return {
+                    ...history,
+                    currentSong: { ...state.currentSong, tags }
                 };
             }),
 
