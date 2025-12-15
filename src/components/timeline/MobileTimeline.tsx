@@ -4,7 +4,7 @@ import { getWheelColors, normalizeNote, formatChordForDisplay } from '../../util
 import { playChord } from '../../utils/audioEngine';
 import { Plus, Play, ChevronLeft, ChevronRight, PanelRightClose, Map, Settings2 } from 'lucide-react';
 import { SectionOptionsPopup } from './SectionOptionsPopup';
-import { SongOverview } from './SongOverview';
+
 import { NoteValueSelector } from './NoteValueSelector';
 import clsx from 'clsx';
 
@@ -44,7 +44,9 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
         duplicateSection,
         setMeasureSubdivision,
         selectedChord,
-        addChordToSlot
+        addChordToSlot,
+        toggleSongMap,
+        updateSection
     } = useSongStore();
 
     const songTimeSignature = currentSong.timeSignature;
@@ -62,7 +64,7 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
 
     // Feature state
     const [editingSectionId, setEditingSectionId] = React.useState<string | null>(null);
-    const [isSongOverviewOpen, setIsSongOverviewOpen] = React.useState(false);
+
 
     // Double-tap tracking for empty slots
     const lastTapTimeRef = useRef<{ slotId: string; time: number } | null>(null);
@@ -222,7 +224,7 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                 // Compact: Single row with section dropdown 
                 <div className="flex items-center justify-between shrink-0 px-1 py-1 gap-1">
                     <button
-                        onClick={() => setIsSongOverviewOpen(true)}
+                        onClick={() => toggleSongMap(true)}
                         className="rounded text-text-muted hover:text-accent-primary touch-feedback shrink-0 p-1"
                         title="Song Overview"
                     >
@@ -263,7 +265,7 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                 // Normal mode: full section tabs
                 <div className="flex items-center justify-between shrink-0 px-2 pb-1.5">
                     <button
-                        onClick={() => setIsSongOverviewOpen(true)}
+                        onClick={() => toggleSongMap(true)}
                         className="rounded text-text-muted hover:text-accent-primary touch-feedback shrink-0 p-1.5 mr-0.5"
                         title="Song Overview"
                     >
@@ -367,7 +369,7 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                 {activeSection && (
                     <div className={clsx(
                         isLandscape
-                            ? "flex flex-col gap-1" // Landscape: stack bars vertically with tight spacing (matches compact)
+                            ? "flex flex-col gap-0" // Landscape: stack bars vertically with no extra spacing (matches compact)
                             : "flex flex-row gap-0.5 items-center" // Portrait: horizontal row
                     )}>
                         {activeSection.measures.map((measure, measureIdx) => (
@@ -467,8 +469,8 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                                     </div>
                                 </div>
 
-                                {/* Measure separator - only in portrait mode */}
-                                {!isCompact && measureIdx < activeSection.measures.length - 1 && (
+                                {/* Measure separator - only in portrait mode (not landscape or compact) */}
+                                {!isCompact && !isLandscape && measureIdx < activeSection.measures.length - 1 && (
                                     <div className="w-px h-5 bg-border-medium shrink-0" />
                                 )}
                             </React.Fragment>
@@ -489,6 +491,9 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                     onBarsChange={(val) => {
                         if (editingSectionId) setSectionMeasures(editingSectionId, val);
                     }}
+                    onNameChange={(name, type) => {
+                        if (editingSectionId) updateSection(editingSectionId, { name, type });
+                    }}
                     onCopy={() => {
                         if (editingSectionId) duplicateSection(editingSectionId);
                     }}
@@ -499,18 +504,7 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                 />
             )}
 
-            {/* Song Overview Modal */}
-            <SongOverview
-                isOpen={isSongOverviewOpen}
-                onClose={() => setIsSongOverviewOpen(false)}
-                onSectionSelect={(index) => {
-                    setActiveSectionIndex(index);
-                    const section = currentSong.sections[index];
-                    if (section && section.measures[0]?.beats[0]) {
-                        setSelectedSlot(section.id, section.measures[0].beats[0].id);
-                    }
-                }}
-            />
+
         </div>
     );
 };

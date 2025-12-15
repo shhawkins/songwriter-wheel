@@ -20,6 +20,7 @@ interface SongState {
     wheelMode: 'rotating' | 'fixed';  // Rotating = wheel spins, Fixed = highlights move
     chordPanelVisible: boolean;   // Toggle chord panel visibility
     timelineVisible: boolean;     // Toggle timeline visibility
+    songMapVisible: boolean;      // Toggle Song Map visibility
     collapsedSections: Record<string, boolean>; // Per-section collapsed UI state
 
     // Selection state
@@ -45,6 +46,7 @@ interface SongState {
     toggleWheelMode: () => void;
     toggleChordPanel: () => void;
     toggleTimeline: () => void;
+    toggleSongMap: (force?: boolean) => void;
     toggleSectionCollapsed: (sectionId: string) => void;
 
     setSelectedChord: (chord: Chord | null) => void;
@@ -304,6 +306,7 @@ export const useSongStore = create<SongState>()(
             wheelMode: 'fixed' as const,
             chordPanelVisible: true,
             timelineVisible: true,
+            songMapVisible: false,
             collapsedSections: {},
             selectedChord: null,
             selectedSectionId: null,
@@ -350,6 +353,9 @@ export const useSongStore = create<SongState>()(
 
             toggleChordPanel: () => set((state) => ({ chordPanelVisible: !state.chordPanelVisible })),
             toggleTimeline: () => set((state) => ({ timelineVisible: !state.timelineVisible })),
+            toggleSongMap: (force?: boolean) => set((state) => ({
+                songMapVisible: force !== undefined ? force : !state.songMapVisible
+            })),
             toggleSectionCollapsed: (sectionId) => set((state) => {
                 const next = { ...state.collapsedSections, [sectionId]: !state.collapsedSections?.[sectionId] };
 

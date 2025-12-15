@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 
 interface NoteValueSelectorProps {
@@ -146,13 +147,30 @@ export const NoteValueSelector: React.FC<NoteValueSelectorProps> = ({
     isCompact = false
 }) => {
     const [isOpen, setIsOpen] = useState(false);
-    const containerRef = useRef<HTMLDivElement>(null);
+    const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
+    const buttonRef = useRef<HTMLButtonElement>(null);
+    const dropdownRef = useRef<HTMLDivElement>(null);
     const options = getStepOptions(timeSignature);
+
+    // Calculate dropdown position when opening
+    useEffect(() => {
+        if (isOpen && buttonRef.current) {
+            const rect = buttonRef.current.getBoundingClientRect();
+            // Position above the button, centered horizontally
+            setDropdownPosition({
+                top: rect.top - 8, // 8px gap above button
+                left: rect.left + rect.width / 2
+            });
+        }
+    }, [isOpen]);
 
     // Close on outside click
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
-            if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+            if (
+                buttonRef.current && !buttonRef.current.contains(e.target as Node) &&
+                dropdownRef.current && !dropdownRef.current.contains(e.target as Node)
+            ) {
                 setIsOpen(false);
             }
         };
@@ -163,13 +181,23 @@ export const NoteValueSelector: React.FC<NoteValueSelectorProps> = ({
         }
     }, [isOpen]);
 
+    // Close on scroll (since position is fixed)
+    useEffect(() => {
+        if (isOpen) {
+            const handleScroll = () => setIsOpen(false);
+            window.addEventListener('scroll', handleScroll, true);
+            return () => window.removeEventListener('scroll', handleScroll, true);
+        }
+    }, [isOpen]);
+
     const noteType = getNoteType(value, timeSignature);
     const iconSize = isCompact ? 12 : 16;
 
     return (
-        <div ref={containerRef} className="relative">
+        <div className="relative">
             {/* Current value button */}
             <button
+                ref={buttonRef}
                 onClick={() => setIsOpen(!isOpen)}
                 className={clsx(
                     "flex items-center justify-center rounded transition-all",
@@ -183,19 +211,20 @@ export const NoteValueSelector: React.FC<NoteValueSelectorProps> = ({
                 <NoteIcon type={noteType} size={iconSize} />
             </button>
 
-            {/* Dropdown popup - horizontal layout */}
-            {isOpen && (
+            {/* Dropdown popup - rendered via portal to escape overflow:hidden */}
+            {isOpen && createPortal(
                 <div
+                    ref={dropdownRef}
                     className={clsx(
-                        "absolute z-50 bg-bg-elevated border border-border-medium rounded-xl shadow-xl",
+                        "fixed bg-bg-elevated border border-border-medium rounded-xl shadow-xl",
                         "flex flex-row gap-1 p-1.5",
                         "animate-in fade-in slide-in-from-top-2 duration-150"
                     )}
                     style={{
-                        bottom: '100%',
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        marginBottom: '4px'
+                        top: dropdownPosition.top,
+                        left: dropdownPosition.left,
+                        transform: 'translate(-50%, -100%)',
+                        zIndex: 99999
                     }}
                 >
                     {options.map(steps => {
@@ -222,7 +251,8 @@ export const NoteValueSelector: React.FC<NoteValueSelectorProps> = ({
                             </button>
                         );
                     })}
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );

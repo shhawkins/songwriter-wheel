@@ -4,6 +4,7 @@ import { Timeline } from './components/timeline/Timeline';
 import { MobileTimeline } from './components/timeline/MobileTimeline';
 import { ChordDetails } from './components/panel/ChordDetails';
 import { PlaybackControls } from './components/playback/PlaybackControls';
+import { SongOverview } from './components/timeline/SongOverview';
 import { useSongStore } from './store/useSongStore';
 import { Download, Save, GripHorizontal, ChevronDown, ChevronUp, Plus, Minus, Clock, FolderOpen, FilePlus, Trash2, RotateCcw, RotateCw } from 'lucide-react';
 import { Logo } from './components/Logo';
@@ -834,7 +835,7 @@ function App() {
 
           <div className={`flex items-center gap-2 p-[10px] ${isMobile ? 'text-xs' : 'text-[10px]'} text-text-muted`}>
             <span className="uppercase font-bold">Key</span>
-            <span className={`font-bold text-accent-primary ${isMobile ? 'text-base' : 'text-sm'}`}>{formatChordForDisplay(selectedKey)}</span>
+            <span className={`font-bold text-accent-primary ${isMobile ? 'text-base' : 'text-sm'} min-w-[1.5rem] text-center inline-block`}>{formatChordForDisplay(selectedKey)}</span>
           </div>
 
           {/* Save/Load Menu (Task 30) - fixed styling */}
@@ -964,7 +965,7 @@ function App() {
                   // All modes: set explicit width/height so aspectRatio can work
                   // Without explicit dimensions, aspectRatio has nothing to calculate from
                   width: '100%',
-                  height: '100%',
+                  height: isMobile && isLandscape ? 'auto' : '100%',
                   maxWidth: isMobile && isLandscape
                     ? '100%'
                     : isMobile && !isLandscape && mobileImmersive
@@ -1111,21 +1112,15 @@ function App() {
              When ONLY one panel open: use expanded/full views
           */
           <>
-            {/* Timeline Panel + Handle */}
+            {/* Timeline Panel + Handle - when collapsed, fills space and pushes handle to right edge */}
             <div
-              className={`flex h-full ${mobileTimelineOpen ? 'flex-1' : ''} shrink-0`}
+              className={`flex h-full flex-1 ${mobileTimelineOpen ? '' : 'justify-end'} shrink-0`}
               style={{
                 minWidth: mobileTimelineOpen ? '100px' : '28px',
                 transition: 'all 0.25s ease-out'
               }}
             >
-              {/* Timeline Content - always use mobile view in landscape */}
-              {mobileTimelineOpen && (
-                <div className="flex-1 h-full bg-bg-secondary overflow-hidden border-l border-border-subtle">
-                  <MobileTimeline isOpen={true} onToggle={() => setMobileTimelineOpen(false)} hideCloseButton={true} isCompact={chordPanelVisible} isLandscape={true} />
-                </div>
-              )}
-              {/* Timeline Handle */}
+              {/* Timeline Handle - comes first in DOM, appears on right due to flex-row-reverse */}
               <div
                 className={`h-full flex flex-col items-center justify-center cursor-pointer touch-feedback active:bg-bg-tertiary border-l border-border-subtle shrink-0 ${mobileTimelineOpen ? 'bg-bg-elevated' : 'bg-bg-secondary'}`}
                 style={{ width: '28px' }}
@@ -1142,9 +1137,15 @@ function App() {
                   className="text-[9px] font-bold text-text-muted uppercase tracking-wide"
                   style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
                 >
-                  {mobileTimelineOpen ? '▸' : 'Timeline'}
+                  {mobileTimelineOpen ? '◂' : 'Timeline'}
                 </span>
               </div>
+              {/* Timeline Content - always use mobile view in landscape */}
+              {mobileTimelineOpen && (
+                <div className="flex-1 h-full bg-bg-secondary overflow-hidden border-l border-border-subtle">
+                  <MobileTimeline isOpen={true} onToggle={() => setMobileTimelineOpen(false)} hideCloseButton={true} isCompact={chordPanelVisible} isLandscape={true} />
+                </div>
+              )}
             </div>
 
             {/* Chord Details Panel + Handle */}
@@ -1230,6 +1231,9 @@ function App() {
         confirmLabel={confirmDialog.confirmLabel}
         isDestructive={confirmDialog.isDestructive}
       />
+
+      {/* Song Overview Modal (Map) */}
+      <SongOverview />
     </div>
   );
 }

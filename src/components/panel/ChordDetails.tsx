@@ -963,19 +963,19 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
                                             setTimeout(() => scrollSectionIntoView(voicingsSectionRef), 50);
                                         }
                                     }}
-                                    className={`px-3 flex gap-1 items-center justify-between shrink-0 ${isCompactLandscape ? 'py-0.5' : 'py-1'} cursor-pointer rounded-none`}
+                                    className={`w-full flex items-center justify-between ${showVariations ? 'mb-2' : 'mb-0'} cursor-pointer rounded-none`}
                                     style={{ backgroundColor: 'transparent' }}
                                 >
-                                    <h3 className={`${isMobile ? 'text-[11px]' : 'text-[10px]'} font-semibold text-text-secondary uppercase tracking-wide`}>
+                                    <h3 className={`${isCompactLandscape ? 'text-[9px]' : isMobile ? 'text-[11px]' : 'text-[10px]'} font-semibold text-text-secondary uppercase tracking-wide`}>
                                         Voicings
                                     </h3>
                                     <ChevronDown
-                                        size={14}
+                                        size={isCompactLandscape ? 8 : isMobile ? 14 : 12}
                                         className={`text-text-secondary transition-transform ${showVariations ? 'rotate-180' : ''}`}
                                     />
                                 </button>
                                 {showVariations && (
-                                    <div className={`grid ${isMobile ? 'grid-cols-3' : 'grid-cols-2 sm:grid-cols-3'} ${isMobile ? 'gap-3' : 'gap-2.5'}`}>
+                                    <div className={`grid ${isCompactLandscape ? 'grid-cols-4' : isMobile ? 'grid-cols-3' : 'grid-cols-2 sm:grid-cols-3'} ${isCompactLandscape ? 'gap-2' : isMobile ? 'gap-3' : 'gap-2.5'}`}>
                                         {voicingOptions.map((ext, idx) => {
                                             const isLeftCol = idx % 2 === 0;
                                             const tooltipPositionStyle = isLeftCol
@@ -985,7 +985,7 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar' 
                                             return (
                                                 <button
                                                     key={ext}
-                                                    className={`relative group ${isMobile ? 'px-3 py-3 min-h-[48px] text-xs' : 'px-2 py-1.5 text-[10px]'} rounded font-medium transition-colors touch-feedback`}
+                                                    className={`relative group ${isCompactLandscape ? 'px-1.5 py-1 min-h-[22px] text-[8px]' : isMobile ? 'px-3 py-3 min-h-[48px] text-xs' : 'px-2 py-1.5 text-[10px]'} rounded font-medium transition-colors touch-feedback`}
                                                     style={previewVariant === ext
                                                         ? { backgroundColor: '#4f46e5', color: '#ffffff', border: '1px solid #4f46e5' }
                                                         : { backgroundColor: '#282833', color: '#9898a6', border: '1px solid rgba(255,255,255,0.08)' }
