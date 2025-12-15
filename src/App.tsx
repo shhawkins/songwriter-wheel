@@ -1063,7 +1063,16 @@ function App() {
           <div className={`flex-1 flex flex-col ${isMobile && !isLandscape ? 'justify-center' : isMobile && isLandscape ? 'justify-center items-center' : 'justify-center items-center pt-2'} ${isMobile ? 'overflow-hidden' : 'overflow-visible'}`}>
             {/* Zoom toolbar - show on desktop only, ultra-compact sleek design */}
             {!isMobile ? (
-              <div className="flex justify-end px-2 shrink-0 w-full">
+              <div className="flex justify-between px-2 shrink-0 w-full">
+                {/* Help button */}
+                <button
+                  onClick={() => setShowHelp(true)}
+                  className="no-touch-enlarge w-8 h-8 flex items-center justify-center bg-bg-secondary/60 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-accent-primary transition-colors border border-border-subtle/40"
+                  title="Chord Wheel Guide"
+                >
+                  <HelpCircle size={16} />
+                </button>
+                {/* Zoom controls */}
                 <div className="flex items-center bg-bg-secondary/60 backdrop-blur-sm rounded-full px-0.5 border border-border-subtle/40">
                   <button
                     onClick={handleZoomOut}
@@ -1133,7 +1142,7 @@ function App() {
             </div>
           </div>
 
-          {/* Help button - pinned to lower right of wheel panel area */}
+          {/* Help button - pinned to upper left of wheel panel area */}
           {isMobile && (
             <button
               onClick={() => setShowHelp(true)}
@@ -1142,7 +1151,7 @@ function App() {
                 e.stopPropagation();
                 setShowHelp(true);
               }}
-              className={`absolute ${isLandscape ? 'bottom-2 right-2 w-8 h-8' : 'bottom-3 right-3 w-11 h-11'} flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-accent-primary transition-colors shadow-lg border border-border-subtle z-50`}
+              className={`absolute ${isLandscape ? 'top-2 left-2 w-8 h-8' : 'top-3 left-3 w-11 h-11'} flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-accent-primary transition-colors shadow-lg border border-border-subtle z-50`}
               style={{ touchAction: 'auto', pointerEvents: 'auto' }}
               title="Chord Wheel Guide"
             >

@@ -406,29 +406,29 @@ export const useSongStore = create<SongState>()(
     persist(
         (set) => ({
             currentSong: DEFAULT_SONG,
-            historyPast: [],
-            historyFuture: [],
+            historyPast: [] as Song[],
+            historyFuture: [] as Song[],
             canUndo: false,
             canRedo: false,
             selectedKey: 'C',
             wheelRotation: 0,
-            wheelMode: 'fixed' as const,
+            wheelMode: 'fixed' as SongState['wheelMode'],
             chordPanelVisible: true,
             timelineVisible: true,
             songMapVisible: false,
             collapsedSections: {},
-            selectedChord: DEFAULT_C_CHORD,
-            selectedSectionId: null,
-            selectedSlotId: null,
-            selectedSlots: [],
-            selectionAnchor: null,
+            selectedChord: DEFAULT_C_CHORD as Chord | null,
+            selectedSectionId: null as string | null,
+            selectedSlotId: null as string | null,
+            selectedSlots: [] as SelectionSlot[],
+            selectionAnchor: null as SelectionSlot | null,
             isPlaying: false,
-            playingSectionId: null,
-            playingSlotId: null,
+            playingSectionId: null as string | null,
+            playingSlotId: null as string | null,
             isLooping: false,
             tempo: 120,
             volume: 0.8,
-            instrument: 'piano',
+            instrument: 'piano' as InstrumentType,
             isMuted: false,
 
             setKey: (key) => set({ selectedKey: key }),
@@ -1010,7 +1010,7 @@ export const useSongStore = create<SongState>()(
                 return suggestNextSectionType(state.currentSong.sections);
             },
 
-            updateSection: (id, updates) => set((state) => {
+            updateSection: (id: string, updates: Partial<Section>) => set((state) => {
                 const history = buildHistoryState(state);
                 return {
                     ...history,
@@ -1021,7 +1021,7 @@ export const useSongStore = create<SongState>()(
                 };
             }),
 
-            removeSection: (id) => set((state) => {
+            removeSection: (id: string) => set((state) => {
                 const history = buildHistoryState(state);
                 const { [id]: _removed, ...remainingCollapsed } = state.collapsedSections || {};
                 return {
@@ -1034,7 +1034,7 @@ export const useSongStore = create<SongState>()(
                 };
             }),
 
-            clearSection: (id) => set((state) => {
+            clearSection: (id: string) => set((state) => {
                 // Check if the section has any chords to clear
                 const section = state.currentSong.sections.find(s => s.id === id);
                 if (!section) return {};
@@ -1067,7 +1067,7 @@ export const useSongStore = create<SongState>()(
                 };
             }),
 
-            duplicateSection: (id) => set((state) => {
+            duplicateSection: (id: string) => set((state) => {
                 const sectionToCopy = state.currentSong.sections.find(s => s.id === id);
                 if (!sectionToCopy) return {};
 
@@ -1098,7 +1098,7 @@ export const useSongStore = create<SongState>()(
                 };
             }),
 
-            reorderSections: (sections) => set((state) => {
+            reorderSections: (sections: Section[]) => set((state) => {
                 const history = buildHistoryState(state);
                 return {
                     ...history,
@@ -1106,7 +1106,7 @@ export const useSongStore = create<SongState>()(
                 };
             }),
 
-            setSectionMeasures: (id, count) => set((state) => {
+            setSectionMeasures: (id: string, count: number) => set((state) => {
                 const targetCount = Math.max(1, Math.min(16, Math.round(count)));
 
                 const newSections = state.currentSong.sections.map((section) => {
@@ -1143,7 +1143,7 @@ export const useSongStore = create<SongState>()(
                 };
             }),
 
-            setSectionTimeSignature: (id, signature) => set((state) => {
+            setSectionTimeSignature: (id: string, signature: [number, number]) => set((state) => {
                 const newSections = state.currentSong.sections.map((section) => {
                     if (section.id !== id) return section;
 
@@ -1183,7 +1183,7 @@ export const useSongStore = create<SongState>()(
                 };
             }),
 
-            setMeasureSubdivision: (sectionId, measureId, steps) => set((state) => {
+            setMeasureSubdivision: (sectionId: string, measureId: string, steps: number) => set((state) => {
                 const targetSteps = Math.max(1, Math.min(16, Math.round(steps)));
 
                 const newSections = state.currentSong.sections.map((section) => {
@@ -1228,7 +1228,7 @@ export const useSongStore = create<SongState>()(
                 };
             }),
 
-            setSectionSubdivision: (sectionId, steps) => set((state) => {
+            setSectionSubdivision: (sectionId: string, steps: number) => set((state) => {
                 const targetSteps = Math.max(1, Math.min(16, Math.round(steps)));
 
                 const newSections = state.currentSong.sections.map((section) => {

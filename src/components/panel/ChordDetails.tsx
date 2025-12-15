@@ -42,6 +42,7 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
     const { isMobile } = useMobileLayout();
     const isLandscapeVariant = variant === 'landscape-panel' || variant === 'landscape-expanded';
     const isCompactLandscape = variant === 'landscape-panel'; // Only compact when both timeline AND chord details are open
+    const isNarrowPanel = !isDrawer && !isLandscapeVariant && panelWidth < 360; // For sidebar at narrow widths
 
 
 
@@ -464,26 +465,6 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
         }
     }, [chord, handleDiagramClick, handleDiagramDoubleClick]);
 
-    // Get theory note
-    const getTheoryNote = () => {
-        if (!chord) return '';
-        const numeral = chord.numeral;
-
-        const theoryNotes: Record<string, string> = {
-            'I': 'The tonic chord — your home base. Most songs begin and end here. Try adding maj7 or 6 for a jazzier sound.',
-            'ii': 'The supertonic — a pre-dominant chord that naturally leads to V. The ii-V-I progression is fundamental in jazz and pop.',
-            'iii': 'The mediant — shares two notes with I. Can substitute for I or lead to vi. Often used for color.',
-            'IV': 'The subdominant — creates a "plagal" sound. The IV-I is the "Amen" cadence. Adds warmth to choruses.',
-            'V': 'The dominant — creates tension that resolves to I. Add a 7th for extra pull toward home.',
-            'vi': 'The relative minor — shares the same notes as I major. The vi-IV-I-V is hugely popular in pop music.',
-            'vii°': 'The leading tone chord — unstable and wants to resolve to I. Often used as a passing chord.',
-            'II': 'Secondary dominant (V/V) — borrows dominant function to approach V. Common in jazz.',
-            'III': 'Secondary dominant (V/vi) — leads strongly to vi. Creates a dramatic shift.',
-        };
-
-        return theoryNotes[numeral || ''] || 'This chord adds color and interest to your progression.';
-    };
-
     // Get suggested voicings based on chord function
     const getSuggestedVoicings = (): { extensions: string[], description: string } => {
         if (!chord) return { extensions: [], description: '' };
@@ -598,9 +579,9 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
                     ? "h-full w-full flex flex-col bg-bg-secondary overflow-hidden"
                     : isDrawer
                         ? `${isMobile ? 'relative w-full' : 'fixed inset-x-3 bottom-[88px]'} ${isMobile ? 'max-h-[60vh]' : 'max-h-[70vh]'} bg-bg-secondary ${isMobile ? 'border-t-2 border-border-subtle' : 'border-2 border-border-subtle rounded-2xl'} shadow-2xl overflow-hidden ${isMobile ? '' : 'z-40'} flex`
-                        : "h-full flex bg-bg-secondary border-l border-border-subtle shrink-0"
+                        : "h-full flex bg-bg-secondary border-l border-border-subtle overflow-x-hidden"
             }
-            style={!isDrawer && !isLandscapePanel && !isLandscapeExpanded ? { width: panelWidth, minWidth: panelWidth } : isDrawer ? {
+            style={!isDrawer && !isLandscapePanel && !isLandscapeExpanded ? { width: panelWidth, minWidth: 0, maxWidth: '100%' } : isDrawer ? {
                 transform: swipeOffset > 0 ? `translateY(${swipeOffset}px)` : undefined,
                 opacity: swipeOffset > 0 ? Math.max(0, 1 - (swipeOffset / 300)) : 1,
                 // Enable transitions for: initial open, snap-back, and slide-out animation (swipeOffset >= 150)
@@ -784,7 +765,7 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
                         </p>
                     </div>
                 ) : (
-                    <div ref={scrollContainerRef} className={`flex-1 ${isLandscapeExpanded ? 'flex flex-row overflow-hidden' : 'overflow-y-auto'} min-h-0 overscroll-contain`}>
+                    <div ref={scrollContainerRef} className={`flex-1 ${isLandscapeExpanded ? 'flex flex-row overflow-hidden' : 'overflow-y-auto overflow-x-hidden'} min-h-0 overscroll-contain`}>
                         {/* Piano & Voicing Section - hidden in landscape-expanded to save space */}
                         {!isLandscapeExpanded && (
                             <div className={`${isMobile ? 'px-5 pt-4 pb-4' : 'px-5 py-4'} border-b border-border-subtle`}>
@@ -897,11 +878,11 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
                                             <div className="flex-1 flex flex-col justify-start pl-1">
                                                 {getSuggestedVoicings().extensions.length > 0 ? (
                                                     <>
-                                                        <div className={`grid ${isCompactLandscape || panelWidth < 360 ? 'grid-cols-1' : 'grid-cols-2'}`} style={{ gap: isCompactLandscape ? '3px' : isMobile ? '6px' : '5px', marginBottom: isCompactLandscape ? '2px' : '4px' }}>
+                                                        <div className={`grid ${isCompactLandscape || isNarrowPanel ? 'grid-cols-1' : 'grid-cols-2'}`} style={{ gap: isCompactLandscape ? '3px' : isNarrowPanel ? '4px' : isMobile ? '6px' : '5px', marginBottom: isCompactLandscape ? '2px' : '4px', marginRight: isNarrowPanel ? '12px' : undefined }}>
                                                             {getSuggestedVoicings().extensions.map((ext) => (
                                                                 <button
                                                                     key={ext}
-                                                                    className={`relative group ${isCompactLandscape ? 'px-1 py-0.5 text-[8px] min-h-[20px]' : isMobile ? 'px-2 py-2 text-xs min-h-[36px]' : 'px-1.5 py-1 text-[10px]'} rounded font-semibold transition-colors touch-feedback overflow-hidden text-ellipsis whitespace-nowrap`}
+                                                                    className={`relative group ${isCompactLandscape ? 'px-1 py-0.5 text-[8px] min-h-[20px]' : isNarrowPanel ? 'px-2 py-1.5 text-[9px] min-h-[28px]' : isMobile ? 'px-2 py-2 text-xs min-h-[36px]' : 'px-1.5 py-1 text-[10px]'} rounded font-semibold transition-colors touch-feedback overflow-hidden text-ellipsis whitespace-nowrap`}
                                                                     style={previewVariant === ext
                                                                         ? { backgroundColor: '#4f46e5', color: '#ffffff', border: '1px solid #4f46e5' }
                                                                         : { backgroundColor: '#282833', color: '#f0f0f5', border: '1px solid rgba(255,255,255,0.08)' }
@@ -931,17 +912,19 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
                                                                 </button>
                                                             ))}
                                                         </div>
-                                                        {/* Compact Musical Staff - below voicings */}
-                                                        <div style={{ marginTop: isCompactLandscape ? '2px' : '6px' }}>
-                                                            <MusicStaff
-                                                                notes={displayNotes}
-                                                                rootNote={chord.root}
-                                                                color={chordColor}
-                                                                numerals={displayNotes.map(note => getAbsoluteDegree(note))}
-                                                                onNotePlay={handleNotePlay}
-                                                                compact={true}
-                                                            />
-                                                        </div>
+                                                        {/* Compact Musical Staff - below voicings, hidden when panel is narrow */}
+                                                        {!isNarrowPanel && (
+                                                            <div style={{ marginTop: isCompactLandscape ? '2px' : '6px' }}>
+                                                                <MusicStaff
+                                                                    notes={displayNotes}
+                                                                    rootNote={chord.root}
+                                                                    color={chordColor}
+                                                                    numerals={displayNotes.map(note => getAbsoluteDegree(note))}
+                                                                    onNotePlay={handleNotePlay}
+                                                                    compact={true}
+                                                                />
+                                                            </div>
+                                                        )}
                                                     </>
                                                 ) : (
                                                     /* Out-of-key: show message inline with a larger, centered music staff */

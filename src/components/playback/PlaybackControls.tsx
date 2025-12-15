@@ -20,8 +20,7 @@ export const PlaybackControls: React.FC = () => {
         toggleLoop,
         isLooping,
         playingSectionId,
-        selectedSectionId,
-        toggleSongMap
+        selectedSectionId
     } = useSongStore();
 
     const { isMobile, isLandscape } = useMobileLayout();
