@@ -117,6 +117,10 @@ interface SongState {
     songMapVisible: boolean;      // Toggle Song Map visibility
     collapsedSections: Record<string, boolean>; // Per-section collapsed UI state
 
+    // Chord panel sections state (for portrait mode voicing picker logic)
+    chordPanelGuitarExpanded: boolean;
+    chordPanelVoicingsExpanded: boolean;
+
     // Selection state
     selectedChord: Chord | null;
     selectedSectionId: string | null;
@@ -143,6 +147,8 @@ interface SongState {
     openTimeline: () => void;  // Opens timeline if not already open (for double-tap from wheel/details)
     toggleSongMap: (force?: boolean) => void;
     toggleSectionCollapsed: (sectionId: string) => void;
+    setChordPanelGuitarExpanded: (expanded: boolean) => void;
+    setChordPanelVoicingsExpanded: (expanded: boolean) => void;
 
     setSelectedChord: (chord: Chord | null) => void;
     setSelectedSlot: (sectionId: string | null, slotId: string | null) => void;
@@ -417,6 +423,8 @@ export const useSongStore = create<SongState>()(
             timelineVisible: true,
             songMapVisible: false,
             collapsedSections: {},
+            chordPanelGuitarExpanded: false,  // Collapsed by default on mobile
+            chordPanelVoicingsExpanded: false, // Collapsed by default
             selectedChord: DEFAULT_C_CHORD as Chord | null,
             selectedSectionId: null as string | null,
             selectedSlotId: null as string | null,
@@ -462,27 +470,14 @@ export const useSongStore = create<SongState>()(
 
             toggleChordPanel: () => set((state) => ({ chordPanelVisible: !state.chordPanelVisible })),
             toggleTimeline: () => set((state) => ({ timelineVisible: !state.timelineVisible })),
-            openTimeline: () => set((state) => {
+            openTimeline: () => set(() => {
                 // Dispatch custom event for mobile to open its timeline drawer
                 if (typeof window !== 'undefined') {
                     window.dispatchEvent(new CustomEvent('openMobileTimeline'));
                 }
 
-                // Open timeline and ensure a slot is selected so it has a place to center
-                if (!state.selectedSectionId || !state.selectedSlotId) {
-                    // Select first slot of first section if nothing selected
-                    const firstSection = state.currentSong.sections[0];
-                    const firstBeat = firstSection?.measures[0]?.beats[0];
-                    if (firstSection && firstBeat) {
-                        return {
-                            timelineVisible: true,
-                            selectedSectionId: firstSection.id,
-                            selectedSlotId: firstBeat.id,
-                            selectedSlots: [{ sectionId: firstSection.id, slotId: firstBeat.id }],
-                            selectionAnchor: { sectionId: firstSection.id, slotId: firstBeat.id }
-                        };
-                    }
-                }
+                // Just open the timeline - do NOT auto-select a slot
+                // This allows the "Select a slot on the timeline first" toast to remain relevant
                 return { timelineVisible: true };
             }),
             toggleSongMap: (force?: boolean) => set((state) => ({
@@ -498,6 +493,8 @@ export const useSongStore = create<SongState>()(
 
                 return { collapsedSections: next };
             }),
+            setChordPanelGuitarExpanded: (expanded) => set({ chordPanelGuitarExpanded: expanded }),
+            setChordPanelVoicingsExpanded: (expanded) => set({ chordPanelVoicingsExpanded: expanded }),
 
             setSelectedChord: (chord) => set({ selectedChord: chord }),
             setSelectedSlot: (sectionId, slotId) => set((state) => {

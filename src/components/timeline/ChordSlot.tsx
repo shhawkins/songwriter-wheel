@@ -26,7 +26,8 @@ export const ChordSlot: React.FC<ChordSlotProps> = ({ slot, sectionId, size = 48
         playingSectionId,
         playingSlotId,
         selectedChord,
-        addChordToSlot
+        addChordToSlot,
+        clearSlot
     } = useSongStore();
     const colors = getWheelColors();
     const resolvedWidth = width ?? size;
@@ -140,6 +141,13 @@ export const ChordSlot: React.FC<ChordSlotProps> = ({ slot, sectionId, size = 48
         selectSlotOnly(sectionId, slot.id);
     };
 
+    // Handle delete badge click - remove chord from slot
+    const handleDeleteClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        e.preventDefault();
+        clearSlot(sectionId, slot.id);
+    };
+
     // Get color for this chord based on its root
     const getChordColor = () => {
         if (!slot.chord) return undefined;
@@ -174,7 +182,7 @@ export const ChordSlot: React.FC<ChordSlotProps> = ({ slot, sectionId, size = 48
             onDoubleClick={handleSlotDoubleClick}
             style={{ width: resolvedWidth, height: size }}
             className={clsx(
-                "rounded-md flex items-center justify-center transition-all relative flex-shrink-0",
+                "rounded-md flex items-center justify-center transition-all relative flex-shrink-0 group",
                 isOver ? "border-2 border-accent-primary bg-accent-glow scale-105" : "",
                 !isOver && !slot.chord && "border-2 border-dashed border-border-medium bg-bg-elevated hover:border-text-muted cursor-pointer",
                 !isOver && slot.chord && "border-0",
@@ -217,6 +225,18 @@ export const ChordSlot: React.FC<ChordSlotProps> = ({ slot, sectionId, size = 48
                         {formatChordForDisplay(slot.chord.symbol)}
                     </span>
                 </div>
+            )}
+
+            {/* Delete badge - appears on hover */}
+            {slot.chord && !isDragging && (
+                <button
+                    onClick={handleDeleteClick}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    className="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-black/70 backdrop-blur-sm hover:bg-white/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all z-30 border border-white/30 hover:border-white/50"
+                    title="Remove chord"
+                >
+                    <span className="text-white/90 text-[10px] font-bold leading-none">×</span>
+                </button>
             )}
         </div>
     );

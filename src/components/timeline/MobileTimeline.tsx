@@ -53,7 +53,8 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
         undo,
         redo,
         canUndo,
-        canRedo
+        canRedo,
+        clearSlot
     } = useSongStore();
 
     const songTimeSignature = currentSong.timeSignature;
@@ -580,7 +581,7 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                 ref={scrollRef}
                 className={clsx(
                     "flex-1",
-                    isDesktop ? "px-3 pb-2 pt-1" : "px-1 pb-1 pt-1",
+                    isDesktop ? "px-3 pb-2 pt-3" : "px-1 pb-1 pt-3", // Extra top padding for delete badge
                     isLandscape
                         ? "overflow-y-auto overflow-x-hidden" // Landscape: vertical scroll, bars stacked
                         : "overflow-x-auto overflow-y-hidden" // Portrait: horizontal scroll
@@ -589,7 +590,9 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                 {activeSection && (
                     <div className={clsx(
                         isLandscape
-                            ? "flex flex-col gap-0" // Landscape: stack bars vertically with no extra spacing (matches compact)
+                            ? isCompact
+                                ? "flex flex-col gap-0" // Landscape compact: stack bars vertically
+                                : "grid grid-cols-4 gap-0.5" // Landscape full width: 4 bars per row
                             : clsx(
                                 "flex flex-row items-center",
                                 isDesktop ? "gap-1.5" : "gap-0.5" // Desktop: larger gap between measures
@@ -601,7 +604,9 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                                 <div className={clsx(
                                     "flex items-center",
                                     isLandscape
-                                        ? "gap-0.5 w-full min-w-0" // Landscape: full width row, can shrink
+                                        ? isCompact
+                                            ? "gap-0.5 w-full min-w-0" // Landscape compact: full width row, can shrink
+                                            : "gap-0.5" // Landscape full width: grid handles sizing
                                         : isDesktop ? "gap-1 shrink-0" : "gap-0.5 shrink-0" // Portrait: compact, don't shrink (larger gap on desktop)
                                 )}>
                                     {/* Bar number + Note Value Selector - stacked vertically */}
@@ -628,7 +633,9 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                                     <div className={clsx(
                                         "flex items-center",
                                         isLandscape
-                                            ? `flex-1 gap-0.5 min-w-0 ${measure.beats.length > 4 ? 'overflow-x-auto scrollbar-hide' : 'overflow-hidden'}` // Landscape: only scroll for 8+ beats
+                                            ? isCompact
+                                                ? `flex-1 gap-0.5 min-w-0 ${measure.beats.length > 4 ? 'overflow-x-auto scrollbar-hide' : 'overflow-hidden'}` // Landscape compact: fill row
+                                                : `flex-1 gap-0.5 min-w-0 ${measure.beats.length > 4 ? 'overflow-x-auto scrollbar-hide' : 'overflow-hidden'}` // Landscape grid: fill grid cell
                                             : "gap-0.5" // Portrait: natural sizing
                                     )}>
                                         {measure.beats.map((beat) => {
@@ -659,7 +666,9 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                                             const finalWidth = Math.max(isDesktop ? 36 : 28, Math.min(isDesktop ? 192 : 144, slotWidth));
 
                                             // Determine height based on device mode
-                                            const slotHeight = isDesktop ? 40 : (isLandscape ? (beatCount <= 4 ? 26 : 24) : 32);
+                                            // Landscape compact: shorter heights since space is limited
+                                            // Landscape full width (grid): taller heights since we have more room
+                                            const slotHeight = isDesktop ? 40 : (isLandscape ? (isCompact ? (beatCount <= 4 ? 26 : 24) : 32) : 32);
 
                                             return (
                                                 <button
@@ -667,7 +676,7 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                                                     data-slot-id={beat.id}
                                                     onClick={() => handleSlotClick(activeSection.id, beat.id, beat.chord)}
                                                     className={clsx(
-                                                        "no-touch-enlarge relative flex items-center justify-center rounded-md transition-all touch-feedback",
+                                                        "no-touch-enlarge relative flex items-center justify-center rounded-md transition-all touch-feedback group",
                                                         isLandscape
                                                             ? beatCount <= 4 ? "flex-1 min-w-0" : "shrink-0" // Landscape: flex with no min for 1-4 beats, fixed for more
                                                             : "shrink-0", // Portrait/Desktop: no shrink
@@ -720,6 +729,28 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                                                     {isPlaying && (
                                                         <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-green-500 flex items-center justify-center">
                                                             <Play size={6} fill="white" className="text-white" />
+                                                        </div>
+                                                    )}
+
+                                                    {/* Delete badge - appears on hover/selection for filled slots */}
+                                                    {beat.chord && !isPlaying && (isSelected || isDesktop) && (
+                                                        <div
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                clearSlot(activeSection.id, beat.id);
+                                                            }}
+                                                            className={clsx(
+                                                                "absolute rounded-full bg-black/70 backdrop-blur-sm flex items-center justify-center cursor-pointer border border-white/30 active:bg-white/30",
+                                                                isDesktop
+                                                                    ? "w-4 h-4 -top-2 -right-2 opacity-0 group-hover:opacity-100 hover:bg-white/20 hover:border-white/50 transition-all z-30"
+                                                                    : "w-5 h-5 -top-2.5 -right-2.5 opacity-100 z-30" // Centered on corner, high z-index
+                                                            )}
+                                                            title="Remove chord"
+                                                        >
+                                                            <span className={clsx(
+                                                                "text-white/90 font-bold leading-none",
+                                                                isDesktop ? "text-[10px]" : "text-xs"
+                                                            )}>×</span>
                                                         </div>
                                                     )}
                                                 </button>

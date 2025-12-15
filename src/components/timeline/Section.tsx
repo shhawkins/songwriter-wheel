@@ -296,7 +296,7 @@ export const Section: React.FC<SectionProps> = ({ section, chordSize = 48, scale
                     </div>
                 </div>
             ) : (
-                <div className="flex p-1.5 gap-0 overflow-x-auto flex-1">
+                <div className="flex p-1.5 pt-3 gap-0 overflow-x-auto flex-1">
                     {section.measures.map((measure, idx) => (
                         <Measure
                             key={measure.id}

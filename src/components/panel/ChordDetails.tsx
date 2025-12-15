@@ -6,6 +6,7 @@ import { getWheelColors, getChordNotes, getIntervalFromKey, invertChord, getMaxI
 import { PanelRightClose, PanelRight, GripVertical, ChevronDown, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { playChord, playNote } from '../../utils/audioEngine';
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 
 import { useMobileLayout } from '../../hooks/useIsMobile';
 
@@ -27,7 +28,9 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
         selectNextSlotAfter,
         setSelectedSlot,
         timelineVisible,
-        openTimeline
+        openTimeline,
+        setChordPanelGuitarExpanded,
+        setChordPanelVoicingsExpanded
     } = useSongStore();
     const colors = getWheelColors();
     const [previewVariant, setPreviewVariant] = useState<string | null>(null);
@@ -43,15 +46,32 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
     const isLandscapeVariant = variant === 'landscape-panel' || variant === 'landscape-expanded';
     const isCompactLandscape = variant === 'landscape-panel'; // Only compact when both timeline AND chord details are open
     const isNarrowPanel = !isDrawer && !isLandscapeVariant && panelWidth < 360; // For sidebar at narrow widths
+    const isVeryNarrowPanel = !isDrawer && !isLandscapeVariant && panelWidth < 290; // For stacking header elements vertically
 
 
 
     // Collapsible sections state - all collapsed by default on mobile for compact view
-    const [showVariations, setShowVariations] = useState(false); // Collapsed by default
+    const [showVariations, setShowVariationsLocal] = useState(false); // Collapsed by default
     const [showTheory, setShowTheory] = useState(false); // Collapsed by default
-    const [showGuitar, setShowGuitar] = useState(!isMobile || isLandscapeVariant); // Collapsed on mobile (except landscape), expanded on desktop
+    const [showGuitar, setShowGuitarLocal] = useState(!isMobile || isLandscapeVariant); // Collapsed on mobile (except landscape), expanded on desktop
     const [chordInversion, setChordInversion] = useState(0); // Chord inversion (0 = root position)
     const pianoOctave = 4; // Fixed octave for piano keyboard
+
+    // Sync local state to global store for voicing picker logic
+    const setShowVariations = (value: boolean) => {
+        setShowVariationsLocal(value);
+        setChordPanelVoicingsExpanded(value);
+    };
+    const setShowGuitar = (value: boolean) => {
+        setShowGuitarLocal(value);
+        setChordPanelGuitarExpanded(value);
+    };
+
+    // Sync initial state to store on mount
+    useEffect(() => {
+        setChordPanelGuitarExpanded(showGuitar);
+        setChordPanelVoicingsExpanded(showVariations);
+    }, []); // Only run on mount
 
     // Swipe-to-close gesture handling for drawer mode
     const touchStartY = useRef<number>(0);
@@ -641,10 +661,10 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
                         </div>
                     </div>
                 )}
-                {/* Consolidated Header - 3-column grid: title left, inversion center, buttons right */}
-                <div className={`${isLandscapeVariant ? 'px-3 py-2' : isMobile && isDrawer ? 'px-2 py-2' : 'px-4 py-3'} border-b border-border-subtle grid grid-cols-[1fr_auto_1fr] items-center gap-2 shrink-0 ${isDrawer ? 'bg-bg-secondary/80 backdrop-blur-md' : ''}`}>
-                    {/* Left column: Chord title */}
-                    <div className="flex items-center min-w-0" style={{ gap: '8px' }}>
+                {/* Consolidated Header - stacks vertically when panel is very narrow, otherwise 3-column grid */}
+                <div className={`${isLandscapeVariant ? 'px-3 py-2' : isMobile && isDrawer ? 'px-2 py-2' : 'px-4 py-3'} border-b border-border-subtle ${isVeryNarrowPanel ? 'flex flex-col gap-2' : 'grid grid-cols-[1fr_auto_1fr] items-center gap-2'} shrink-0 ${isDrawer ? 'bg-bg-secondary/80 backdrop-blur-md' : ''}`}>
+                    {/* Left column: Chord title (centered when stacked) */}
+                    <div className={`flex items-center min-w-0 ${isVeryNarrowPanel ? 'justify-center' : ''}`} style={{ gap: '8px' }}>
                         {isCompactLandscape && chord ? (
                             <>
                                 {/* Landscape view: show chord badge, numeral, and inversion controls */}
@@ -727,65 +747,66 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
                         )}
                     </div>
 
-                    {/* Center column: Inversion controls - compact and sleek */}
-                    <div className="flex items-center justify-center">
-                        {chord && !isCompactLandscape && (
-                            <div className="flex items-center bg-bg-tertiary/40 rounded-full px-0.5 ml-3" title="Chord inversion - which note is in the bass">
-                                <button
-                                    onClick={() => {
-                                        const newInversion = Math.max(0, chordInversion - 1);
-                                        setChordInversion(newInversion);
-                                        const notes = invertChord(baseNotes, newInversion);
-                                        playChord(notes);
-                                    }}
-                                    disabled={chordInversion <= 0}
-                                    className="w-4 h-4 flex items-center justify-center hover:bg-accent-primary/20 rounded-full text-text-muted hover:text-accent-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                                    title="Previous inversion"
-                                >
-                                    <ChevronLeft size={8} />
-                                </button>
-                                <span className="text-[11px] font-semibold text-text-secondary min-w-[20px] text-center">
-                                    {getInversionName(chordInversion)}
-                                </span>
-                                <button
-                                    onClick={() => {
-                                        const newInversion = Math.min(maxInversion, chordInversion + 1);
-                                        setChordInversion(newInversion);
-                                        const notes = invertChord(baseNotes, newInversion);
-                                        playChord(notes);
-                                    }}
-                                    disabled={chordInversion >= maxInversion}
-                                    className="w-4 h-4 flex items-center justify-center hover:bg-accent-primary/20 rounded-full text-text-muted hover:text-accent-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                                    title="Next inversion"
-                                >
-                                    <ChevronRight size={8} />
-                                </button>
-                            </div>
-                        )}
-                    </div>
+                    {/* Center column: Inversion controls - hidden when very narrow to save space */}
+                    {!isVeryNarrowPanel && (
+                        <div className="flex items-center justify-center">
+                            {chord && !isCompactLandscape && (
+                                <div className="flex items-center bg-bg-tertiary/40 rounded-full px-0.5 ml-3" title="Chord inversion - which note is in the bass">
+                                    <button
+                                        onClick={() => {
+                                            const newInversion = Math.max(0, chordInversion - 1);
+                                            setChordInversion(newInversion);
+                                            const notes = invertChord(baseNotes, newInversion);
+                                            playChord(notes);
+                                        }}
+                                        disabled={chordInversion <= 0}
+                                        className="w-4 h-4 flex items-center justify-center hover:bg-accent-primary/20 rounded-full text-text-muted hover:text-accent-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                        title="Previous inversion"
+                                    >
+                                        <ChevronLeft size={8} />
+                                    </button>
+                                    <span className="text-[11px] font-semibold text-text-secondary min-w-[20px] text-center">
+                                        {getInversionName(chordInversion)}
+                                    </span>
+                                    <button
+                                        onClick={() => {
+                                            const newInversion = Math.min(maxInversion, chordInversion + 1);
+                                            setChordInversion(newInversion);
+                                            const notes = invertChord(baseNotes, newInversion);
+                                            playChord(notes);
+                                        }}
+                                        disabled={chordInversion >= maxInversion}
+                                        className="w-4 h-4 flex items-center justify-center hover:bg-accent-primary/20 rounded-full text-text-muted hover:text-accent-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                        title="Next inversion"
+                                    >
+                                        <ChevronRight size={8} />
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
                     {/* Right column: Add button + Close button */}
-                    <div className="flex items-center justify-end gap-2 shrink-0">
+                    <div className={`flex items-center gap-2 shrink-0 ${isVeryNarrowPanel ? 'justify-center w-full' : 'justify-end'}`}>
                         {/* Add to Timeline button */}
                         {chord && (
                             <button
                                 onClick={handleDiagramDoubleClick}
-                                className={`${isMobile ? 'px-3 py-1.5' : 'px-2.5 py-1'} bg-gradient-to-r from-accent-primary to-purple-600 hover:opacity-90 rounded-lg transition-all touch-feedback flex items-center gap-1.5 shadow-md shadow-accent-primary/20 active:scale-95`}
+                                className={`${isVeryNarrowPanel ? 'flex-1 py-2' : isMobile ? 'px-3 py-1.5' : 'px-2.5 py-1'} bg-gradient-to-r from-accent-primary to-purple-600 hover:opacity-90 rounded-lg transition-all touch-feedback flex items-center justify-center gap-1.5 shadow-md shadow-accent-primary/20 active:scale-95`}
                                 title="Add chord to timeline"
                             >
-                                <Plus size={isMobile ? 14 : 12} className="text-white" />
-                                <span className={`${isMobile ? 'text-xs' : 'text-[11px]'} font-semibold text-white`}>Add</span>
+                                <Plus size={isVeryNarrowPanel ? 16 : isMobile ? 14 : 12} className="text-white" />
+                                <span className={`${isVeryNarrowPanel ? 'text-sm' : isMobile ? 'text-xs' : 'text-[11px]'} font-semibold text-white`}>Add</span>
                             </button>
                         )}
                         {/* Hide close button in landscape variants - use handle instead */}
                         {!isLandscapeVariant && (
                             <button
                                 onClick={toggleChordPanel}
-                                className={`${isMobile ? 'p-2 min-w-[40px] min-h-[40px]' : 'p-1'} hover:bg-bg-tertiary rounded transition-colors touch-feedback flex items-center justify-center`}
+                                className={`${isVeryNarrowPanel ? 'p-2 bg-bg-tertiary/60 rounded-lg' : isMobile ? 'p-2 min-w-[40px] min-h-[40px]' : 'p-1'} hover:bg-bg-tertiary rounded transition-colors touch-feedback flex items-center justify-center`}
                                 title="Hide panel"
                             >
-                                {/* Rotate icon to point down on mobile drawer mode */}
                                 <PanelRightClose
-                                    size={isMobile ? 18 : 16}
+                                    size={isVeryNarrowPanel ? 18 : isMobile ? 18 : 16}
                                     className={`text-text-muted ${isMobile && isDrawer ? 'rotate-90' : ''}`}
                                 />
                             </button>
@@ -793,18 +814,54 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
                     </div>
                 </div>
 
-                {/* Toast notification */}
-                {toastMessage && (
-                    <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-amber-500/90 text-white text-xs font-medium rounded-lg shadow-lg animate-pulse">
-                        {toastMessage}
-                    </div>
+                {/* Toast notification - rendered via portal for proper positioning */}
+                {toastMessage && createPortal(
+                    <div
+                        className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[99999] flex items-center gap-3 px-5 py-4 rounded-xl shadow-xl animate-in fade-in zoom-in-95 duration-150"
+                        style={{
+                            background: 'linear-gradient(135deg, #1e1e28 0%, #282833 100%)',
+                            border: '1px solid rgba(245, 158, 11, 0.5)',
+                            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(245, 158, 11, 0.3), 0 0 20px rgba(245, 158, 11, 0.15)'
+                        }}
+                    >
+                        {/* Warning icon */}
+                        <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-400">
+                                <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+                                <path d="M12 9v4" />
+                                <path d="M12 17h.01" />
+                            </svg>
+                        </div>
+                        {/* Message */}
+                        <div className="flex flex-col gap-0.5">
+                            <span className="text-sm font-semibold text-text-primary">
+                                {toastMessage}
+                            </span>
+                            <span className="text-xs text-text-muted">
+                                Tap a slot in the timeline to select it
+                            </span>
+                        </div>
+                    </div>,
+                    document.body
                 )}
                 {/* Content */}
                 {!chord ? (
-                    <div className="flex-1 flex items-center justify-center p-6">
-                        <p className={`${isMobile ? 'text-base' : 'text-sm'} text-text-muted text-center`}>
-                            Select a chord from the wheel or timeline
-                        </p>
+                    <div className="flex-1 flex flex-col items-center justify-center p-8 gap-4">
+                        {/* Music note icon */}
+                        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-accent-primary/20 to-purple-600/20 flex items-center justify-center border border-accent-primary/30">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-accent-primary">
+                                <circle cx="8" cy="18" r="4" />
+                                <path d="M12 18V2l7 4" />
+                            </svg>
+                        </div>
+                        <div className="text-center space-y-2">
+                            <p className={`${isMobile ? 'text-base' : 'text-sm'} font-semibold text-text-primary`}>
+                                No chord selected
+                            </p>
+                            <p className={`${isMobile ? 'text-sm' : 'text-xs'} text-text-muted max-w-[200px]`}>
+                                Tap a chord on the wheel or select one from the timeline
+                            </p>
+                        </div>
                     </div>
                 ) : (
                     <div ref={scrollContainerRef} className={`flex-1 ${isLandscapeExpanded ? 'flex flex-row overflow-hidden' : 'overflow-y-auto overflow-x-hidden'} min-h-0 overscroll-contain`}>

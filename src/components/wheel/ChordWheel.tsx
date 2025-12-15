@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useCallback, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useSongStore } from '../../store/useSongStore';
 import {
     MAJOR_POSITIONS,
@@ -52,14 +53,16 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
         addChordToSlot,
         selectedSectionId,
         selectedSlotId,
-        currentSong,
         setSelectedChord,
         selectedChord,
         selectNextSlotAfter,
         setSelectedSlot,
         timelineVisible,
         openTimeline,
-        chordPanelVisible
+        chordPanelVisible,
+        toggleChordPanel,
+        chordPanelGuitarExpanded,
+        chordPanelVoicingsExpanded
     } = useSongStore();
 
     // Calculate wheel rotation
@@ -95,6 +98,20 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
         voicingSuggestion: string;
         baseQuality: string;
     }>({ isOpen: false, chord: null, voicingSuggestion: '', baseQuality: '' });
+
+    // Toast message state for feedback
+    const [toastMessage, setToastMessage] = useState<string | null>(null);
+    const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const showToast = useCallback((message: string) => {
+        if (toastTimeoutRef.current) {
+            clearTimeout(toastTimeoutRef.current);
+        }
+        setToastMessage(message);
+        toastTimeoutRef.current = setTimeout(() => {
+            setToastMessage(null);
+        }, 2500);
+    }, []);
 
     // Use external pan offset if provided, otherwise use internal state
     const panOffset = externalPanOffset ?? internalPanOffset;
@@ -465,90 +482,61 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
         setSelectedSegmentId(wheelChord.segmentId ?? null);
         setSelectedChord(chord);
 
-        // Check if this chord has voicing suggestions (i.e., it's diatonic)
+        // Get voicing suggestions if this is a diatonic chord
+        let voicingSuggestion = '';
         if (wheelChord.positionIndex !== undefined && wheelChord.ringType) {
-            const voicingSuggestion = getVoicingSuggestion(
+            voicingSuggestion = getVoicingSuggestion(
                 wheelChord.positionIndex,
                 wheelChord.ringType === 'major' ? 'major' :
                     wheelChord.ringType === 'minor' ?
                         (wheelChord.numeral === 'ii' || wheelChord.numeral === 'vi' ? 'ii' : 'iii') :
                         'dim'
             );
+        }
 
-            if (voicingSuggestion) {
-                // Hide voicing picker ONLY in mobile portrait with chord panel open
-                // Show everywhere else: desktop, mobile landscape (even with panel), mobile portrait without panel
-                const isMobilePortrait = isMobile && !isLandscape;
-                const shouldShowPicker = !(isMobilePortrait && chordPanelVisible);
+        // Show voicing picker for ALL chords (with or without suggestions)
+        // - Always show on desktop and landscape mobile
+        // - In mobile portrait with chord panel open: only show if BOTH Guitar and Voicings sections are collapsed
+        //   (if either is expanded, the picker is redundant)
+        const isMobilePortrait = isMobile && !isLandscape;
+        const bothSectionsCollapsed = !chordPanelGuitarExpanded && !chordPanelVoicingsExpanded;
+        const shouldShowPicker = !isMobilePortrait || !chordPanelVisible || bothSectionsCollapsed;
 
-                if (shouldShowPicker) {
-                    setVoicingPickerState({
-                        isOpen: true,
-                        chord: wheelChord,
-                        voicingSuggestion,
-                        baseQuality: wheelChord.quality
-                    });
-                }
-            }
+        if (shouldShowPicker) {
+            setVoicingPickerState({
+                isOpen: true,
+                chord: wheelChord,
+                voicingSuggestion, // May be empty for out-of-key chords
+                baseQuality: wheelChord.quality
+            });
         }
     };
 
     const handleChordDoubleClick = (chord: Chord) => {
-        // If timeline is hidden, just open it so user can see where chord would go
-        // User must double-tap again to actually add the chord
-        if (!timelineVisible) {
-            openTimeline();
+        const wheelChord = chord as WheelChord;
+
+        // If no slot is selected, show toast and open timeline (but don't auto-select)
+        if (!selectedSectionId || !selectedSlotId) {
+            showToast('Select a slot on the timeline first');
+            if (!timelineVisible) {
+                openTimeline();
+            }
             return;
         }
 
-        const wheelChord = chord as WheelChord;
-        let targetSectionId: string | null = null;
-        let targetSlotId: string | null = null;
+        // Add chord to the selected slot
+        addChordToSlot(chord, selectedSectionId, selectedSlotId);
+        const advanced = selectNextSlotAfter(selectedSectionId, selectedSlotId);
 
-        if (selectedSectionId && selectedSlotId) {
-            targetSectionId = selectedSectionId;
-            targetSlotId = selectedSlotId;
-        } else if (selectedSectionId) {
-            const section = currentSong.sections.find((s) => s.id === selectedSectionId);
-            if (section) {
-                for (const measure of section.measures) {
-                    for (const beat of measure.beats) {
-                        if (!beat.chord) {
-                            targetSectionId = section.id;
-                            targetSlotId = beat.id;
-                            break;
-                        }
-                    }
-                    if (targetSlotId) break;
-                }
-            }
+        if (!advanced) {
+            setSelectedSlot(selectedSectionId, selectedSlotId);
+            setSelectedSegmentId(wheelChord.segmentId ?? null);
+            setSelectedChord(chord);
         }
 
-        if (!targetSectionId || !targetSlotId) {
-            for (const section of currentSong.sections) {
-                for (const measure of section.measures) {
-                    for (const beat of measure.beats) {
-                        if (!beat.chord) {
-                            targetSectionId = section.id;
-                            targetSlotId = beat.id;
-                            break;
-                        }
-                    }
-                    if (targetSlotId) break;
-                }
-                if (targetSlotId) break;
-            }
-        }
-
-        if (targetSectionId && targetSlotId) {
-            addChordToSlot(chord, targetSectionId, targetSlotId);
-            const advanced = selectNextSlotAfter(targetSectionId, targetSlotId);
-
-            if (!advanced) {
-                setSelectedSlot(targetSectionId, targetSlotId);
-                setSelectedSegmentId(wheelChord.segmentId ?? null);
-                setSelectedChord(chord);
-            }
+        // Open timeline if it's hidden so user can see the result
+        if (!timelineVisible) {
+            openTimeline();
         }
     };
 
@@ -1109,37 +1097,67 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
                             notes: newNotes,
                             symbol: `${voicingPickerState.chord.root}${quality === 'major' ? '' : quality === 'minor' ? 'm' : quality}`
                         };
-                        // Add to timeline using same logic as handleChordDoubleClick
-                        let targetSectionId: string | null = selectedSectionId;
-                        let targetSlotId: string | null = selectedSlotId;
 
-                        if (!targetSectionId || !targetSlotId) {
-                            // Find first empty slot
-                            for (const section of currentSong.sections) {
-                                for (const measure of section.measures) {
-                                    for (const beat of measure.beats) {
-                                        if (!beat.chord) {
-                                            targetSectionId = section.id;
-                                            targetSlotId = beat.id;
-                                            break;
-                                        }
-                                    }
-                                    if (targetSlotId) break;
-                                }
-                                if (targetSlotId) break;
+                        // If no slot is selected, show toast, open timeline if needed, and don't proceed
+                        if (!selectedSectionId || !selectedSlotId) {
+                            showToast('Select a slot on the timeline first');
+                            if (!timelineVisible) {
+                                openTimeline();
                             }
+                            return;
                         }
 
-                        if (targetSectionId && targetSlotId) {
-                            addChordToSlot(newChord, targetSectionId, targetSlotId);
-                            selectNextSlotAfter(targetSectionId, targetSlotId);
+                        // Add chord to the selected slot
+                        addChordToSlot(newChord, selectedSectionId, selectedSlotId);
+                        selectNextSlotAfter(selectedSectionId, selectedSlotId);
+
+                        // Open timeline if it's hidden so user can see the result
+                        if (!timelineVisible) {
+                            openTimeline();
                         }
+                    }
+                }}
+                onOpenDetails={() => {
+                    if (!chordPanelVisible) {
+                        toggleChordPanel();
                     }
                 }}
                 chordRoot={voicingPickerState.chord?.root || 'C'}
                 voicings={parseVoicingSuggestions(voicingPickerState.voicingSuggestion, voicingPickerState.baseQuality)}
                 selectedQuality={voicingPickerState.chord?.quality}
+                portraitWithPanel={isMobile && !isLandscape && chordPanelVisible && !chordPanelGuitarExpanded && !chordPanelVoicingsExpanded}
             />
+
+            {/* Toast notification - rendered via portal for proper positioning */}
+            {toastMessage && createPortal(
+                <div
+                    className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[99999] flex items-center gap-3 px-5 py-4 rounded-xl shadow-xl animate-in fade-in zoom-in-95 duration-150"
+                    style={{
+                        background: 'linear-gradient(135deg, #1e1e28 0%, #282833 100%)',
+                        border: '1px solid rgba(245, 158, 11, 0.5)',
+                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(245, 158, 11, 0.3), 0 0 20px rgba(245, 158, 11, 0.15)'
+                    }}
+                >
+                    {/* Warning icon */}
+                    <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-400">
+                            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+                            <path d="M12 9v4" />
+                            <path d="M12 17h.01" />
+                        </svg>
+                    </div>
+                    {/* Message */}
+                    <div className="flex flex-col gap-0.5">
+                        <span className="text-sm font-semibold text-text-primary">
+                            {toastMessage}
+                        </span>
+                        <span className="text-xs text-text-muted">
+                            Tap a slot in the timeline to select it
+                        </span>
+                    </div>
+                </div>,
+                document.body
+            )}
         </div>
     );
 };

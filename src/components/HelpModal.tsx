@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Music, Circle, Hash, Layers, Volume2 } from 'lucide-react';
+import { X, Music, Circle, Hash, Layers, Volume2, Hand, RotateCw, ListMusic, Map, Download, MousePointer2, HelpCircle } from 'lucide-react';
 import { PlayableProgression } from './interactive/PlayableProgression';
 import { PlayableCadence } from './interactive/PlayableCadence';
 import { PROGRESSION_PRESETS, CADENCE_PRESETS } from '../utils/progressionPlayback';
@@ -21,39 +21,106 @@ const HelpContent: React.FC<HelpContentProps> = ({ onClose }) => {
     return (
         <>
             {/* 1. Quick Start */}
-            <section>
-                <h3 className="text-accent-primary font-bold text-sm uppercase tracking-wider mb-3 flex items-center gap-2">
+            <section className="relative">
+                {/* Decorative gradient glow - matching OnboardingTooltip */}
+                <div className="absolute -top-10 -left-10 w-32 h-32 bg-accent-primary/20 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute -bottom-5 -right-5 w-24 h-24 bg-purple-500/15 rounded-full blur-3xl pointer-events-none" />
+
+                <h3 className="text-accent-primary font-bold text-sm uppercase tracking-wider mb-4 flex items-center gap-2 relative">
                     <Circle size={12} className="fill-accent-primary" />
                     Quick Start
                 </h3>
-                <div className="bg-bg-elevated/50 rounded-lg p-4 space-y-4 text-sm">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <div className="flex items-start gap-2">
-                                <span className="shrink-0 w-5 h-5 rounded-full bg-accent-primary/20 text-accent-primary text-xs font-bold flex items-center justify-center">1</span>
-                                <p className="text-gray-300"><strong className="text-white">Tap a chord</strong> on the wheel to hear it and see details.</p>
-                            </div>
-                            <div className="flex items-start gap-2">
-                                <span className="shrink-0 w-5 h-5 rounded-full bg-accent-primary/20 text-accent-primary text-xs font-bold flex items-center justify-center">2</span>
-                                <p className="text-gray-300"><strong className="text-white">Double-tap</strong> a chord to add it to your timeline. (If the timeline is closed, this also opens it.)</p>
-                            </div>
-                            <div className="flex items-start gap-2">
-                                <span className="shrink-0 w-5 h-5 rounded-full bg-accent-primary/20 text-accent-primary text-xs font-bold flex items-center justify-center">3</span>
-                                <p className="text-gray-300"><strong className="text-white">Drag the wheel</strong> to change keys.</p>
-                            </div>
-                            <div className="flex items-start gap-2">
-                                <span className="shrink-0 w-5 h-5 rounded-full bg-accent-primary/20 text-accent-primary text-xs font-bold flex items-center justify-center">4</span>
-                                <p className="text-gray-300"><strong className="text-white">Tap the compass</strong> to switch orientation — the wheel starts with C at top, or tap to put your selected key at top instead.</p>
-                            </div>
+                <div className="relative bg-gradient-to-b from-bg-elevated/60 to-bg-elevated/40 rounded-xl p-5 border border-white/5 space-y-4">
+                    {/* Step 1 */}
+                    <div className="flex items-start gap-4 group">
+                        <div className="shrink-0 w-10 h-10 rounded-xl bg-accent-primary/10 border border-accent-primary/20 flex items-center justify-center group-hover:bg-accent-primary/20 transition-colors">
+                            <Hand size={18} className="text-accent-primary" />
                         </div>
-                        <div className="bg-bg-tertiary/60 rounded-lg p-3 border-l-2 border-accent-primary">
-                            <p className="text-xs text-gray-400 mb-2"><strong className="text-white">Understanding the Wheel</strong></p>
-                            <ul className="space-y-1 text-xs text-gray-400">
-                                <li>• <strong className="text-gray-300">Highlighted chords</strong> = sound good together in your key</li>
-                                <li>• <strong className="text-gray-300">Outer ring</strong> = Major chords (I, IV, V)</li>
-                                <li>• <strong className="text-gray-300">Middle ring</strong> = Minor chords (ii, iii, vi)</li>
-                                <li>• <strong className="text-gray-300">Inner ring</strong> = Diminished (vii°)</li>
-                            </ul>
+                        <div className="pt-0.5">
+                            <h4 className="text-sm font-semibold text-white mb-1">Tap any chord</h4>
+                            <p className="text-xs text-gray-400 leading-relaxed">
+                                Tap a chord on the wheel to hear it and see voicings, or <strong className="text-gray-300">double-tap</strong> to add it to your timeline.
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Step 2 */}
+                    <div className="flex items-start gap-4 group">
+                        <div className="shrink-0 w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center group-hover:bg-purple-500/20 transition-colors">
+                            <RotateCw size={18} className="text-purple-400" />
+                        </div>
+                        <div className="pt-0.5">
+                            <h4 className="text-sm font-semibold text-white mb-1">Change the key</h4>
+                            <p className="text-xs text-gray-400 leading-relaxed">
+                                <strong className="text-gray-300">Drag the wheel</strong> to rotate and change keys. Highlighted chords always sound good together.
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Step 3 */}
+                    <div className="flex items-start gap-4 group">
+                        <div className="shrink-0 w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center group-hover:bg-emerald-500/20 transition-colors">
+                            <ListMusic size={18} className="text-emerald-400" />
+                        </div>
+                        <div className="pt-0.5">
+                            <h4 className="text-sm font-semibold text-white mb-1">Add to your timeline</h4>
+                            <p className="text-xs text-gray-400 leading-relaxed">
+                                Tap the <strong className="text-emerald-400">+ Add</strong> button, or <strong className="text-gray-300">double-tap</strong> any chord preview to place it on your timeline.
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Step 4 */}
+                    <div className="flex items-start gap-4 group">
+                        <div className="shrink-0 w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center group-hover:bg-amber-500/20 transition-colors">
+                            <Map size={18} className="text-amber-400" />
+                        </div>
+                        <div className="pt-0.5">
+                            <h4 className="text-sm font-semibold text-white mb-1">Arrange your song</h4>
+                            <p className="text-xs text-gray-400 leading-relaxed">
+                                Open the <strong className="text-gray-300">Song Map</strong> to see your full arrangement, reorder sections, and play back your progression.
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Step 5 */}
+                    <div className="flex items-start gap-4 group">
+                        <div className="shrink-0 w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center group-hover:bg-sky-500/20 transition-colors">
+                            <Download size={18} className="text-sky-400" />
+                        </div>
+                        <div className="pt-0.5">
+                            <h4 className="text-sm font-semibold text-white mb-1">Export your chord sheet</h4>
+                            <p className="text-xs text-gray-400 leading-relaxed">
+                                <strong className="text-gray-300">Tap the download icon</strong> in the header to export a printable PDF with chords and guitar diagrams.
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Understanding the Wheel - styled callout */}
+                    <div className="mt-5 p-4 rounded-xl bg-white/5 border border-white/10">
+                        <div className="flex items-center gap-2 mb-2">
+                            <MousePointer2 size={14} className="text-accent-primary shrink-0" />
+                            <strong className="text-sm text-white">Understanding the Wheel</strong>
+                        </div>
+                        <ul className="space-y-1.5 text-xs text-gray-400 ml-5">
+                            <li>• <strong className="text-gray-300">Highlighted chords</strong> = sound good together in your key</li>
+                            <li>• <strong className="text-gray-300">Outer ring</strong> = Major chords (I, IV, V)</li>
+                            <li>• <strong className="text-gray-300">Middle ring</strong> = Minor chords (ii, iii, vi)</li>
+                            <li>• <strong className="text-gray-300">Inner ring</strong> = Diminished (vii°)</li>
+                        </ul>
+                    </div>
+
+                    {/* Pro tip callout */}
+                    <div className="p-3 rounded-xl bg-accent-primary/5 border border-accent-primary/20">
+                        <div className="flex items-center gap-2 text-xs text-gray-400">
+                            <HelpCircle size={14} className="text-accent-primary shrink-0" />
+                            <span className="flex items-center gap-1.5 flex-wrap">
+                                <strong className="text-accent-primary">Pro tip:</strong> Tap the
+                                <span className="inline-flex items-center justify-center w-5 h-5 bg-bg-secondary/80 rounded-full text-text-muted border border-border-subtle/60">
+                                    <HelpCircle size={10} />
+                                </span>
+                                button anytime to reopen this guide.
+                            </span>
                         </div>
                     </div>
                 </div>

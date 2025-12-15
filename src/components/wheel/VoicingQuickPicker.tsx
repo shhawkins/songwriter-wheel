@@ -4,6 +4,7 @@ import clsx from 'clsx';
 import { playChord } from '../../utils/audioEngine';
 import { getChordNotes } from '../../utils/musicTheory';
 import { useMobileLayout } from '../../hooks/useIsMobile';
+import { Info, Plus } from 'lucide-react';
 
 interface VoicingOption {
     quality: string;
@@ -15,9 +16,11 @@ interface VoicingQuickPickerProps {
     onClose: () => void;
     onSelect: (quality: string) => void;
     onAddToTimeline?: (quality: string) => void;  // Double-tap action
+    onOpenDetails?: () => void;  // Open chord details panel
     chordRoot: string;
     voicings: VoicingOption[];
     selectedQuality?: string;
+    portraitWithPanel?: boolean; // Special positioning for portrait mode with chord panel open (both sections collapsed)
 }
 
 // Auto-fade timeout in milliseconds
@@ -34,9 +37,11 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
     onClose,
     onSelect,
     onAddToTimeline,
+    onOpenDetails,
     chordRoot,
     voicings,
-    selectedQuality
+    selectedQuality,
+    portraitWithPanel = false
 }) => {
     const modalRef = useRef<HTMLDivElement>(null);
     // Use useMobileLayout for consistent mobile/landscape detection
@@ -154,25 +159,33 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
             ref={modalRef}
             className={clsx(
                 "fixed bg-bg-elevated border border-border-medium rounded-xl shadow-xl",
-                "flex flex-row",
+                "flex flex-row flex-nowrap items-center justify-center",
                 "animate-in fade-in zoom-in-95 duration-150",
-                isLandscapeMobile ? "p-1 gap-1" : "p-2 gap-2"
+                // Smaller padding/gap when many voicings
+                voicings.length > 5 ? "p-1 gap-1" : (isLandscapeMobile ? "p-1 gap-1" : "p-2 gap-2")
             )}
             style={{
                 // Position varies by mode:
                 // - Landscape mobile: bottom of left panel, over playback controls
+                // - Portrait mobile with panel (both sections collapsed): just above the section headers
                 // - Portrait mobile: lower on screen (above timeline)
                 // - Desktop: in the lower portion of the wheel area
-                bottom: isLandscapeMobile ? '56px' : 'auto',
-                top: isLandscapeMobile ? 'auto' : (isMobile ? '65%' : '55%'),
-                left: isLandscapeMobile ? '18%' : '50%',
-                transform: 'translateX(-50%)',
-                zIndex: 99999,
-                maxWidth: isLandscapeMobile ? '40vw' : 'calc(100vw - 32px)'
+                bottom: isLandscapeMobile ? '56px' : (portraitWithPanel ? '6%' : 'auto'),
+                top: isLandscapeMobile || portraitWithPanel ? 'auto' : (isMobile ? '65%' : '55%'),
+                // Use left/right positioning for portrait/desktop to ensure modal stays within viewport
+                // Use centered positioning for landscape mobile (narrower content area)
+                ...(isLandscapeMobile
+                    ? { left: '24%', transform: 'translateX(-50%)', maxWidth: 'min(55vw, fit-content)' }
+                    : { left: '50%', transform: 'translateX(-50%)', maxWidth: 'calc(100vw - 32px)' }
+                ),
+                zIndex: 99999
             }}
         >
             {voicings.map((voicing) => {
                 const isSelected = voicing.quality === currentQuality;
+                // Dynamic sizing: smaller buttons when there are many voicings
+                const isCompact = voicings.length > 4 || isLandscapeMobile;
+                const isTiny = voicings.length >= 6;
 
                 return (
                     <button
@@ -186,10 +199,12 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
                             // Let onClick handle it for consistency
                         }}
                         className={clsx(
-                            "flex items-center justify-center rounded-lg transition-all",
-                            isLandscapeMobile
-                                ? "min-w-[44px] h-10 px-2"
-                                : "min-w-[56px] h-14 px-3",
+                            "flex items-center justify-center rounded-lg transition-all shrink-0",
+                            isTiny
+                                ? "min-w-[32px] h-9 px-0.5"
+                                : isCompact
+                                    ? "min-w-[40px] h-10 px-1.5"
+                                    : "min-w-[48px] h-12 px-2",
                             isSelected
                                 ? "bg-accent-primary text-white shadow-lg"
                                 : "text-text-secondary hover:text-text-primary hover:bg-bg-tertiary"
@@ -198,15 +213,82 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
                     >
                         <span className={clsx(
                             "font-semibold",
-                            isLandscapeMobile
-                                ? "text-xs"
-                                : (isSelected ? "text-sm" : "text-xs")
+                            isTiny ? "text-[10px]" : isCompact ? "text-xs" : (isSelected ? "text-sm" : "text-xs")
                         )}>
                             {voicing.label || 'maj'}
                         </span>
                     </button>
                 );
             })}
+            {/* Divider between voicing pills and action buttons - only show if there are voicings */}
+            {voicings.length > 0 && (
+                <div className="w-px bg-border-subtle self-stretch my-1 shrink-0" />
+            )}
+
+            {/* Action buttons - always visible */}
+            {/* Add to timeline button */}
+            {onAddToTimeline && (
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        const qualityToAdd = currentQuality || selectedQuality || voicings[0]?.quality;
+                        if (qualityToAdd) {
+                            onAddToTimeline(qualityToAdd);
+                            onClose();
+                        }
+                    }}
+                    onTouchEnd={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const qualityToAdd = currentQuality || selectedQuality || voicings[0]?.quality;
+                        if (qualityToAdd) {
+                            onAddToTimeline(qualityToAdd);
+                            onClose();
+                        }
+                    }}
+                    className={clsx(
+                        "flex items-center justify-center rounded-lg transition-all shrink-0",
+                        "text-accent-primary hover:text-white hover:bg-accent-primary/20",
+                        voicings.length >= 6
+                            ? "w-7 h-9"
+                            : voicings.length > 4 || isLandscapeMobile
+                                ? "w-8 h-10"
+                                : "w-10 h-12"
+                    )}
+                    title="Add to timeline"
+                >
+                    <Plus size={voicings.length >= 6 ? 14 : (voicings.length > 4 || isLandscapeMobile ? 16 : 18)} />
+                </button>
+            )}
+
+            {/* Chord Details shortcut button */}
+            {onOpenDetails && (
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenDetails();
+                        onClose();
+                    }}
+                    onTouchEnd={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onOpenDetails();
+                        onClose();
+                    }}
+                    className={clsx(
+                        "flex items-center justify-center rounded-lg transition-all shrink-0",
+                        "text-text-tertiary hover:text-text-secondary hover:bg-bg-tertiary",
+                        voicings.length >= 6
+                            ? "w-7 h-9"
+                            : voicings.length > 4 || isLandscapeMobile
+                                ? "w-8 h-10"
+                                : "w-10 h-12"
+                    )}
+                    title="Open chord details"
+                >
+                    <Info size={voicings.length >= 6 ? 12 : (voicings.length > 4 || isLandscapeMobile ? 14 : 16)} />
+                </button>
+            )}
         </div>,
         document.body
     );
