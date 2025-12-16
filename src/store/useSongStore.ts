@@ -1167,7 +1167,7 @@ export const useSongStore = create<SongState>()(
             }),
 
             setSectionMeasures: (id: string, count: number) => set((state) => {
-                const targetCount = Math.max(1, Math.min(16, Math.round(count)));
+                const targetCount = Math.max(1, Math.min(32, Math.round(count)));
 
                 const newSections = state.currentSong.sections.map((section) => {
                     if (section.id !== id) return section;
@@ -1244,7 +1244,7 @@ export const useSongStore = create<SongState>()(
             }),
 
             setMeasureSubdivision: (sectionId: string, measureId: string, steps: number) => set((state) => {
-                const targetSteps = Math.max(1, Math.min(16, Math.round(steps)));
+                const targetSteps = Math.max(1, Math.min(32, Math.round(steps)));
 
                 const newSections = state.currentSong.sections.map((section) => {
                     if (section.id !== sectionId) return section;
@@ -1289,7 +1289,7 @@ export const useSongStore = create<SongState>()(
             }),
 
             setSectionSubdivision: (sectionId: string, steps: number) => set((state) => {
-                const targetSteps = Math.max(1, Math.min(16, Math.round(steps)));
+                const targetSteps = Math.max(1, Math.min(32, Math.round(steps)));
 
                 const newSections = state.currentSong.sections.map((section) => {
                     if (section.id !== sectionId) return section;

@@ -111,6 +111,7 @@ interface SortableSectionProps {
     allSections: any[];
     onSelectBeat: (sectionId: string, beatId: string) => void;
     onBeatTap: (sectionId: string, beatId: string, chord: Chord | null) => void;
+    onEmptySlotTap: (sectionId: string, beatId: string) => void;
     isActive: boolean;
     playingSlotId: string | null;
     selectedBeatId: string | null;
@@ -133,7 +134,7 @@ const DEFAULT_THEME = {
     accent: 'bg-slate-500'
 };
 
-const SortableSection = ({ section, allSections, onSelectBeat, onBeatTap, isActive, playingSlotId, selectedBeatId, chordColors, measureWidth, isCompact }: SortableSectionProps) => {
+const SortableSection = ({ section, allSections, onSelectBeat, onBeatTap, onEmptySlotTap, isActive, playingSlotId, selectedBeatId, chordColors, measureWidth, isCompact }: SortableSectionProps) => {
     const {
         attributes,
         listeners,
@@ -253,9 +254,20 @@ const SortableSection = ({ section, allSections, onSelectBeat, onBeatTap, isActi
                             const chordCount = chordsInMeasure.length;
 
                             if (chordCount === 0) {
+                                // Show empty beats as tappable slots
+                                const firstEmptyBeat = measure.beats[0];
                                 return (
-                                    <div className="flex-1 rounded-sm bg-white/5 border border-dashed border-white/10 flex items-center justify-center">
-                                        <span className="text-[10px] text-white/10">-</span>
+                                    <div
+                                        className="flex-1 rounded-sm bg-white/5 border border-dashed border-white/10 flex items-center justify-center cursor-pointer hover:bg-white/10 hover:border-white/20 transition-colors"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (firstEmptyBeat) {
+                                                onEmptySlotTap(section.id, firstEmptyBeat.id);
+                                            }
+                                        }}
+                                        title="Tap to select this slot"
+                                    >
+                                        <span className="text-[10px] text-white/20">+</span>
                                     </div>
                                 );
                             }
@@ -565,7 +577,8 @@ export const SongOverview: React.FC = () => {
         isPlaying,
         tempo,
         setTempo,
-        playingSectionId
+        playingSectionId,
+        openTimeline
     } = useSongStore();
 
     // BPM editing state
@@ -914,6 +927,12 @@ export const SongOverview: React.FC = () => {
                                             }
                                         }
                                     }}
+                                    onEmptySlotTap={(sectionId, beatId) => {
+                                        // Close modal, open timeline, select the slot
+                                        setSelectedSlot(sectionId, beatId);
+                                        toggleSongMap(false);
+                                        openTimeline();
+                                    }}
                                     isActive={isPlaying && currentSong.sections.findIndex((s: Section) => s.id === section.id) === currentSong.sections.findIndex((s: Section) => s.id === playingSectionId)}
                                     playingSlotId={useSongStore.getState().isPlaying ? useSongStore.getState().playingSlotId : null}
                                     selectedBeatId={selectedMapBeatId}
@@ -942,10 +961,15 @@ export const SongOverview: React.FC = () => {
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Row 1: Zoom & Secondary Controls */}
-                <div className="flex items-center justify-between px-4 py-2 border-b border-white/5">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
                     {/* Zoom Control */}
-                    <div className="flex items-center gap-3 w-full">
-                        <ZoomOut size={14} className="text-text-secondary" />
+                    <div className="flex items-center gap-4 w-full">
+                        <button
+                            onClick={() => setZoomLevel(Math.max(0.15, zoomLevel - 0.1))}
+                            className="p-2 -m-2 text-text-secondary active:text-white transition-colors"
+                        >
+                            <ZoomOut size={18} />
+                        </button>
                         <input
                             type="range"
                             min="0.15"
@@ -953,9 +977,17 @@ export const SongOverview: React.FC = () => {
                             step="0.05"
                             value={zoomLevel}
                             onChange={handleZoomChange}
-                            className="flex-1 h-1 bg-white/10 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg"
+                            onTouchStart={(e) => e.stopPropagation()}
+                            onTouchMove={(e) => e.stopPropagation()}
+                            className="flex-1 h-2 bg-white/10 rounded-full appearance-none cursor-pointer touch-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-accent-primary"
+                            style={{ WebkitAppearance: 'none' }}
                         />
-                        <ZoomIn size={14} className="text-text-secondary" />
+                        <button
+                            onClick={() => setZoomLevel(Math.min(2, zoomLevel + 0.1))}
+                            className="p-2 -m-2 text-text-secondary active:text-white transition-colors"
+                        >
+                            <ZoomIn size={18} />
+                        </button>
                     </div>
                 </div>
 
