@@ -25,6 +25,8 @@ interface ChordWheelProps {
     rotationOffset?: number;
     /** Disable the wheel mode toggle button (used during portrait panel centering) */
     disableModeToggle?: boolean;
+    /** Whether the footer (playback controls) is visible - affects floating chord tag position */
+    footerVisible?: boolean;
 }
 
 type WheelChord = Chord & {
@@ -40,7 +42,8 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
     panOffset: externalPanOffset,
     onPanChange,
     rotationOffset = 0,
-    disableModeToggle = false
+    disableModeToggle = false,
+    footerVisible = true
 }) => {
     const {
         selectedKey,
@@ -1172,8 +1175,12 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
                     <div
                         className="fixed flex items-center gap-1 z-10 cursor-pointer touch-feedback active:scale-95"
                         style={{
-                            // Dynamic positioning: move up when timeline is open
-                            bottom: timelineVisible ? '260px' : '175px',
+                            // Dynamic positioning: move up when timeline is open, down when footer is hidden
+                            // Base positions: 175px (timeline closed), 260px (timeline open)
+                            // Footer hidden: subtract ~56px to move tag down
+                            bottom: timelineVisible
+                                ? (footerVisible ? '260px' : '204px')
+                                : (footerVisible ? '175px' : '119px'),
                             right: '12px',
                             backgroundColor: 'transparent',
                             color: chordColor,

@@ -642,7 +642,7 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                                     )}>
                                         {measure.beats.map((beat) => {
                                             const isSelected = selectedSectionId === activeSection.id && selectedSlotId === beat.id;
-                                            const isPlaying = playingSectionId === activeSection.id && playingSlotId === beat.id;
+                                            const isPlayingThisSlot = isPlaying && playingSectionId === activeSection.id && playingSlotId === beat.id;
                                             const chordColor = beat.chord ? getChordColor(beat.chord.root) : undefined;
 
                                             // Calculate proportional width based on beat count
@@ -682,8 +682,8 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                                                         isLandscape
                                                             ? beatCount <= 4 ? "flex-1 min-w-0" : "shrink-0" // Landscape: flex with no min for 1-4 beats, fixed for more
                                                             : "shrink-0", // Portrait/Desktop: no shrink
-                                                        isPlaying && "ring-2 ring-green-500 ring-offset-1 ring-offset-bg-primary shadow-[0_0_12px_rgba(34,197,94,0.5)] scale-105 z-10",
-                                                        isSelected && !isPlaying && "ring-2 ring-accent-primary ring-offset-1 ring-offset-bg-primary",
+                                                        isPlayingThisSlot && "ring-2 ring-green-500 ring-offset-1 ring-offset-bg-primary shadow-[0_0_12px_rgba(34,197,94,0.5)] scale-105 z-10",
+                                                        isSelected && !isPlayingThisSlot && "ring-2 ring-accent-primary ring-offset-1 ring-offset-bg-primary",
                                                         !beat.chord && "border-2 border-dashed border-border-medium bg-bg-elevated hover:border-text-muted"
                                                     )}
                                                     style={{
@@ -728,14 +728,14 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                                                     )}
 
                                                     {/* Playing indicator */}
-                                                    {isPlaying && (
+                                                    {isPlayingThisSlot && (
                                                         <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-green-500 flex items-center justify-center">
                                                             <Play size={6} fill="white" className="text-white" />
                                                         </div>
                                                     )}
 
                                                     {/* Delete badge - appears on hover/selection for filled slots */}
-                                                    {beat.chord && !isPlaying && (isSelected || isDesktop) && (
+                                                    {beat.chord && !isPlayingThisSlot && (isSelected || isDesktop) && (
                                                         <div
                                                             onClick={(e) => {
                                                                 e.stopPropagation();

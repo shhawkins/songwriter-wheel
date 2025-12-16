@@ -1,10 +1,22 @@
-import React, { useEffect, useState } from 'react';
-import { useSongStore } from '../../store/useSongStore';
-import { X, GripVertical, Play, Pause, SkipBack, SkipForward, Repeat, Loader2, Minus, Plus, Music } from 'lucide-react';
-import clsx from 'clsx';
-import { getWheelColors, formatChordForDisplay } from '../../utils/musicTheory';
+import React, { useEffect, useState, useRef } from 'react';
 import { useMobileLayout } from '../../hooks/useIsMobile';
-import { PlaybackControls } from '../playback/PlaybackControls';
+import { useSongStore } from '../../store/useSongStore';
+import {
+    X,
+    GripVertical,
+    ZoomIn,
+    ZoomOut,
+    Play,
+    Pause,
+    SkipBack,
+    SkipForward
+} from 'lucide-react';
+import clsx from 'clsx';
+import { getWheelColors, formatChordForDisplay, type Chord } from '../../utils/musicTheory';
+import { PianoKeyboard } from '../panel/PianoKeyboard';
+import { GuitarChord } from '../panel/GuitarChord';
+import { playChord } from '../../utils/audioEngine';
+// PlaybackControls removed as we use custom controls
 import {
     DndContext,
     closestCenter,
@@ -22,9 +34,7 @@ import {
     useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import * as Tone from 'tone';
-import { playSong, pauseSong, skipToSection, unlockAudioForIOS } from '../../utils/audioEngine';
-import { getSectionDisplayName, type InstrumentType } from '../../types';
+import { getSectionDisplayName, type Section } from '../../types';
 
 // Enhanced section colors
 const SECTION_THEMES: Record<string, { bg: string; headers: string; border: string; accent: string }> = {
@@ -99,8 +109,11 @@ const SECTION_THEMES: Record<string, { bg: string; headers: string; border: stri
 interface SortableSectionProps {
     section: any;
     allSections: any[];
-    onSelect: () => void;
+    onSelectBeat: (sectionId: string, beatId: string) => void;
+    onBeatTap: (sectionId: string, beatId: string, chord: Chord | null) => void;
     isActive: boolean;
+    playingSlotId: string | null;
+    selectedBeatId: string | null;
     chordColors: any;
     measureWidth: number;
     isCompact: boolean;
@@ -120,7 +133,7 @@ const DEFAULT_THEME = {
     accent: 'bg-slate-500'
 };
 
-const SortableSection = ({ section, allSections, onSelect, isActive, chordColors, measureWidth, isCompact }: SortableSectionProps) => {
+const SortableSection = ({ section, allSections, onSelectBeat, onBeatTap, isActive, playingSlotId, selectedBeatId, chordColors, measureWidth, isCompact }: SortableSectionProps) => {
     const {
         attributes,
         listeners,
@@ -149,6 +162,7 @@ const SortableSection = ({ section, allSections, onSelect, isActive, chordColors
         return (
             <div
                 ref={setNodeRef}
+                data-section-id={section.id}
                 style={{ ...style, width: sectionWidth, height: sectionHeight }}
                 className={clsx(
                     "relative flex flex-col rounded-lg overflow-hidden shrink-0 transition-all border cursor-pointer",
@@ -157,7 +171,7 @@ const SortableSection = ({ section, allSections, onSelect, isActive, chordColors
                     isDragging ? "opacity-50 z-50 ring-2 ring-accent-primary" : "hover:border-opacity-70 hover:scale-[1.02]",
                     isActive ? "ring-2 ring-white/30" : ""
                 )}
-                onClick={onSelect}
+                onClick={() => onSelectBeat(section.id, section.measures[0]?.beats[0]?.id)}
                 {...attributes}
                 {...listeners}
             >
@@ -181,6 +195,7 @@ const SortableSection = ({ section, allSections, onSelect, isActive, chordColors
     return (
         <div
             ref={setNodeRef}
+            data-section-id={section.id}
             style={{ ...style, width: sectionWidth, height: sectionHeight }}
             className={clsx(
                 "relative flex flex-col pt-8 pb-2 rounded-xl overflow-hidden shrink-0 transition-all border group",
@@ -216,7 +231,6 @@ const SortableSection = ({ section, allSections, onSelect, isActive, chordColors
             {/* Content Area - Detailed Measures */}
             <div
                 className="flex-1 flex px-2 pt-2 gap-1 overflow-hidden"
-                onClick={onSelect}
             >
                 {measures.map((measure: any, mIdx: number) => (
                     <div
@@ -240,7 +254,7 @@ const SortableSection = ({ section, allSections, onSelect, isActive, chordColors
 
                             if (chordCount === 0) {
                                 return (
-                                    <div className="flex-1 rounded bg-white/5 border border-dashed border-white/10 flex items-center justify-center">
+                                    <div className="flex-1 rounded-sm bg-white/5 border border-dashed border-white/10 flex items-center justify-center">
                                         <span className="text-[10px] text-white/10">-</span>
                                     </div>
                                 );
@@ -253,20 +267,37 @@ const SortableSection = ({ section, allSections, onSelect, isActive, chordColors
                                         // Scale font size based on chord count for readability
                                         const fontSize = chordCount <= 2 ? '10px' : chordCount <= 4 ? '8px' : '7px';
                                         const padding = chordCount <= 2 ? '0 4px' : '0 2px';
+                                        const isSelected = selectedBeatId === beat.id;
+                                        const isPlayingBeat = playingSlotId === beat.id;
 
                                         return (
                                             <div
                                                 key={beat.id}
-                                                className="flex-1 min-w-0 rounded flex items-center justify-center font-bold shadow-sm truncate transition-all"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    onBeatTap(section.id, beat.id, beat.chord);
+                                                }}
+                                                className={clsx(
+                                                    "flex-1 min-w-0 rounded-sm flex items-center justify-center font-bold shadow-sm truncate transition-all cursor-pointer",
+                                                    isPlayingBeat
+                                                        ? "ring-2 ring-green-500 shadow-[0_0_12px_rgba(34,197,94,0.6)] scale-110 z-10"
+                                                        : isSelected
+                                                            ? "ring-2 ring-accent-primary shadow-[0_0_12px_rgba(99,102,241,0.5)] scale-105 z-10"
+                                                            : "hover:ring-1 hover:ring-white/30 hover:scale-105"
+                                                )}
                                                 style={{
-                                                    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-                                                    border: `2px solid ${chordColor}`,
-                                                    color: chordColor,
+                                                    backgroundColor: isPlayingBeat
+                                                        ? 'rgba(34, 197, 94, 0.15)'
+                                                        : isSelected
+                                                            ? 'rgba(99, 102, 241, 0.15)'
+                                                            : 'rgba(0, 0, 0, 0.3)',
+                                                    border: `2px solid ${isPlayingBeat ? '#22c55e' : isSelected ? '#6366f1' : chordColor}`,
+                                                    color: isPlayingBeat ? '#4ade80' : isSelected ? '#a5b4fc' : chordColor,
                                                     fontSize,
                                                     padding,
                                                     minHeight: '24px'
                                                 }}
-                                                title={beat.chord.symbol}
+                                                title={isSelected ? `Tap again to go to ${beat.chord.symbol}` : `Tap to select ${beat.chord.symbol}`}
                                             >
                                                 {formatChordForDisplay(beat.chord.symbol)}
                                             </div>
@@ -289,32 +320,383 @@ const SortableSection = ({ section, allSections, onSelect, isActive, chordColors
     );
 };
 
+// Chord Detail Panel - Responsive for mobile
+interface ChordDetailPanelProps {
+    displayChord: Chord | null;
+    chordColors: Record<string, string>;
+    isPlaying: boolean;
+    selectedMapBeatId: string | null;
+}
+
+const ChordDetailPanel: React.FC<ChordDetailPanelProps> = ({
+    displayChord,
+    chordColors,
+    isPlaying,
+    selectedMapBeatId
+}) => {
+    const { isMobile, isLandscape } = useMobileLayout();
+
+    if (!displayChord) return null;
+
+    const chordColor = chordColors[displayChord.root as keyof typeof chordColors] || '#6366f1';
+
+    // On mobile landscape, use a very compact inline layout
+    if (isMobile && isLandscape) {
+        return (
+            <div
+                className="absolute top-2 right-2 z-20"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg backdrop-blur-md cursor-pointer group"
+                    style={{
+                        background: 'rgba(17,17,22,0.95)',
+                        border: `1.5px solid ${chordColor}`,
+                        boxShadow: `0 2px 12px ${chordColor}40`
+                    }}
+                    onClick={() => {
+                        if (displayChord.notes) {
+                            playChord(displayChord.notes);
+                        }
+                    }}
+                >
+                    <span
+                        className="text-sm font-bold"
+                        style={{ color: chordColor }}
+                    >
+                        {formatChordForDisplay(displayChord.symbol || `${displayChord.root}${displayChord.quality === 'maj' ? '' : displayChord.quality}`)}
+                    </span>
+                    {displayChord.numeral && (
+                        <span className="text-[10px] font-serif italic text-white/40">
+                            {formatChordForDisplay(displayChord.numeral)}
+                        </span>
+                    )}
+                    {isPlaying && selectedMapBeatId && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-ping" />
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    // On mobile portrait, use a more compact layout with smaller elements
+    if (isMobile) {
+        return (
+            <div
+                className="shrink-0 px-3 py-2"
+                style={{
+                    background: 'linear-gradient(180deg, rgba(26,26,36,0.98) 0%, rgba(17,17,22,0.98) 100%)',
+                    borderTop: '1px solid rgba(255,255,255,0.08)',
+                    boxShadow: '0 -4px 20px rgba(0,0,0,0.3)'
+                }}
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="flex items-center justify-center gap-3 max-w-sm mx-auto">
+                    {/* Chord Name Badge - Compact */}
+                    <div
+                        className="flex flex-col items-center cursor-pointer group shrink-0"
+                        onClick={() => {
+                            if (displayChord.notes) {
+                                playChord(displayChord.notes);
+                            }
+                        }}
+                    >
+                        <div
+                            className="relative px-3 py-1.5 rounded-lg transition-all group-hover:scale-105 group-active:scale-95"
+                            style={{
+                                background: `linear-gradient(135deg, ${chordColor}15, ${chordColor}05)`,
+                                border: `1.5px solid ${chordColor}`,
+                                boxShadow: `0 0 12px ${chordColor}30`
+                            }}
+                        >
+                            <span
+                                className="text-base font-bold"
+                                style={{ color: chordColor }}
+                            >
+                                {formatChordForDisplay(displayChord.symbol || `${displayChord.root}${displayChord.quality === 'maj' ? '' : displayChord.quality}`)}
+                            </span>
+                        </div>
+                        {displayChord.numeral && (
+                            <span className="text-[10px] font-serif italic text-white/40 mt-1">
+                                {formatChordForDisplay(displayChord.numeral)}
+                            </span>
+                        )}
+                        {isPlaying && selectedMapBeatId && (
+                            <span className="text-[8px] text-green-400 mt-0.5 animate-pulse flex items-center gap-1">
+                                <span className="w-1 h-1 rounded-full bg-green-400 animate-ping" />
+                                Playing
+                            </span>
+                        )}
+                    </div>
+
+                    {/* Divider */}
+                    <div className="w-px h-10 bg-gradient-to-b from-transparent via-white/10 to-transparent" />
+
+                    {/* Piano Keyboard - Small */}
+                    <div className="flex-shrink-0 overflow-hidden" style={{ width: '140px', transform: 'scale(0.85)', transformOrigin: 'center' }}>
+                        <PianoKeyboard
+                            highlightedNotes={displayChord.notes || []}
+                            rootNote={displayChord.root}
+                            color={chordColor}
+                            octave={4}
+                        />
+                    </div>
+
+                    {/* Divider */}
+                    <div className="w-px h-10 bg-gradient-to-b from-transparent via-white/10 to-transparent" />
+
+                    {/* Guitar Chord - Small */}
+                    <div
+                        className="flex flex-col items-center cursor-pointer group shrink-0"
+                        onClick={() => {
+                            if (displayChord.notes) {
+                                playChord(displayChord.notes);
+                            }
+                        }}
+                    >
+                        <div className="transform scale-50 origin-top group-hover:scale-55 transition-transform" style={{ marginTop: '-8px', marginBottom: '-50px' }}>
+                            <GuitarChord
+                                root={displayChord.root}
+                                quality={displayChord.quality}
+                                color={chordColor}
+                            />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Desktop layout - full size
+    return (
+        <div
+            className="shrink-0 px-4 py-3"
+            style={{
+                background: 'linear-gradient(180deg, rgba(26,26,36,0.98) 0%, rgba(17,17,22,0.98) 100%)',
+                borderTop: '1px solid rgba(255,255,255,0.08)',
+                boxShadow: '0 -4px 20px rgba(0,0,0,0.3)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+        >
+            <div className="flex items-center justify-center gap-6 max-w-xl mx-auto">
+                {/* Chord Name Badge */}
+                <div
+                    className="flex flex-col items-center cursor-pointer group"
+                    onClick={() => {
+                        if (displayChord.notes) {
+                            playChord(displayChord.notes);
+                        }
+                    }}
+                >
+                    <div
+                        className="relative px-4 py-2 rounded-xl transition-all group-hover:scale-105 group-active:scale-95"
+                        style={{
+                            background: `linear-gradient(135deg, ${chordColor}15, ${chordColor}05)`,
+                            border: `2px solid ${chordColor}`,
+                            boxShadow: `0 0 20px ${chordColor}30`
+                        }}
+                    >
+                        <span
+                            className="text-xl font-bold"
+                            style={{ color: chordColor }}
+                        >
+                            {formatChordForDisplay(displayChord.symbol || `${displayChord.root}${displayChord.quality === 'maj' ? '' : displayChord.quality}`)}
+                        </span>
+                    </div>
+                    {displayChord.numeral && (
+                        <span className="text-xs font-serif italic text-white/40 mt-1.5">
+                            {formatChordForDisplay(displayChord.numeral)}
+                        </span>
+                    )}
+                    {isPlaying && selectedMapBeatId && (
+                        <span className="text-[9px] text-green-400 mt-1 animate-pulse flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-ping" />
+                            Now Playing
+                        </span>
+                    )}
+                </div>
+
+                {/* Divider */}
+                <div className="w-px h-16 bg-gradient-to-b from-transparent via-white/10 to-transparent" />
+
+                {/* Piano Keyboard - Compact */}
+                <div className="flex-shrink-0" style={{ width: '200px' }}>
+                    <PianoKeyboard
+                        highlightedNotes={displayChord.notes || []}
+                        rootNote={displayChord.root}
+                        color={chordColor}
+                        octave={4}
+                    />
+                </div>
+
+                {/* Divider */}
+                <div className="w-px h-16 bg-gradient-to-b from-transparent via-white/10 to-transparent" />
+
+                {/* Guitar Chord - Compact inline */}
+                <div
+                    className="flex flex-col items-center cursor-pointer group shrink-0"
+                    onClick={() => {
+                        if (displayChord.notes) {
+                            playChord(displayChord.notes);
+                        }
+                    }}
+                >
+                    <div className="transform scale-75 origin-top group-hover:scale-80 transition-transform" style={{ marginTop: '-8px', marginBottom: '-20px' }}>
+                        <GuitarChord
+                            root={displayChord.root}
+                            quality={displayChord.quality}
+                            color={chordColor}
+                        />
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 export const SongOverview: React.FC = () => {
     const {
         currentSong,
         songMapVisible,
         toggleSongMap,
+        toggleSongInfoModal,
         setSelectedSlot,
         reorderSections,
         isPlaying,
         tempo,
         setTempo,
-        instrument,
-        setInstrument,
-        isLooping,
-        toggleLoop,
         playingSectionId
     } = useSongStore();
 
-    const [isLoading, setIsLoading] = useState(false);
+    // BPM editing state
+    const [isEditingBpm, setIsEditingBpm] = useState(false);
+    const [bpmInputValue, setBpmInputValue] = useState(tempo.toString());
+    const bpmInputRef = useRef<HTMLInputElement>(null);
+
+    // Swipe gesture state for BPM adjustment
+    const [isSwiping, setIsSwiping] = useState(false);
+    const swipeStartX = useRef<number | null>(null);
+    const swipeStartTempo = useRef<number>(tempo);
+    const swipeTapTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // BPM editing handlers
+    const handleBpmTap = () => {
+        setBpmInputValue(tempo.toString());
+        setIsEditingBpm(true);
+        setTimeout(() => bpmInputRef.current?.focus(), 0);
+    };
+
+    const handleBpmSave = () => {
+        const newTempo = parseInt(bpmInputValue, 10);
+        if (!isNaN(newTempo) && newTempo >= 40 && newTempo <= 240) {
+            setTempo(newTempo);
+        } else {
+            setBpmInputValue(tempo.toString());
+        }
+        setIsEditingBpm(false);
+    };
+
+    const handleBpmKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            handleBpmSave();
+        } else if (e.key === 'Escape') {
+            setBpmInputValue(tempo.toString());
+            setIsEditingBpm(false);
+        }
+    };
+
+    // Swipe gesture handlers for BPM adjustment
+    const handleBpmTouchStart = (e: React.TouchEvent) => {
+        swipeStartX.current = e.touches[0].clientX;
+        swipeStartTempo.current = tempo;
+        setIsSwiping(false);
+        swipeTapTimeout.current = setTimeout(() => {
+            swipeTapTimeout.current = null;
+        }, 150);
+    };
+
+    const handleBpmTouchMove = (e: React.TouchEvent) => {
+        if (swipeStartX.current === null) return;
+        const currentX = e.touches[0].clientX;
+        const deltaX = currentX - swipeStartX.current;
+        if (Math.abs(deltaX) > 10) {
+            setIsSwiping(true);
+            if (swipeTapTimeout.current) {
+                clearTimeout(swipeTapTimeout.current);
+                swipeTapTimeout.current = null;
+            }
+            const bpmChange = Math.round(deltaX / 3);
+            const newTempo = Math.min(240, Math.max(40, swipeStartTempo.current + bpmChange));
+            setTempo(newTempo);
+        }
+    };
+
+    const handleBpmTouchEnd = () => {
+        if (!isSwiping && swipeTapTimeout.current) {
+            clearTimeout(swipeTapTimeout.current);
+            handleBpmTap();
+        }
+        swipeStartX.current = null;
+        setIsSwiping(false);
+        swipeTapTimeout.current = null;
+    };
+
     const [zoomLevel, setZoomLevel] = useState(1); // 0.5 to 2
-    const { isMobile, isLandscape } = useMobileLayout();
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+    // const { isLandscape } = useMobileLayout(); // Unused in new design
+
+    // State for selected chord within the Song Map (two-tap selection)
+    const [selectedMapChord, setSelectedMapChord] = useState<Chord | null>(null);
+    const [selectedMapBeatId, setSelectedMapBeatId] = useState<string | null>(null);
+    const [selectedMapSectionId, setSelectedMapSectionId] = useState<string | null>(null);
+
+    // Track the currently displayed chord (selected or playing)
+    const [displayChord, setDisplayChord] = useState<Chord | null>(null);
+
+    // Sync displayChord with the playing chord during playback
+    useEffect(() => {
+        if (!isPlaying) return;
+
+        const updatePlayingChord = () => {
+            const { playingSectionId: pSecId, playingSlotId: pSlotId } = useSongStore.getState();
+            if (pSecId && pSlotId) {
+                // Find the chord at the current playing position
+                const section = currentSong.sections.find((s: Section) => s.id === pSecId);
+                if (section) {
+                    for (const measure of section.measures) {
+                        const beat = measure.beats.find((b: any) => b.id === pSlotId);
+                        if (beat?.chord) {
+                            setDisplayChord(beat.chord);
+                            setSelectedMapChord(beat.chord);
+                            setSelectedMapBeatId(pSlotId);
+                            setSelectedMapSectionId(pSecId);
+                            return;
+                        }
+                    }
+                }
+            }
+        };
+
+        // Initial update
+        updatePlayingChord();
+
+        // Poll for updates during playback
+        const intervalId = setInterval(updatePlayingChord, 100);
+        return () => clearInterval(intervalId);
+    }, [isPlaying, currentSong.sections]);
+
+    // When not playing, displayChord should be the manually selected chord
+    useEffect(() => {
+        if (!isPlaying && selectedMapChord) {
+            setDisplayChord(selectedMapChord);
+        }
+    }, [isPlaying, selectedMapChord]);
 
     const chordColors = getWheelColors();
-    const totalMeasures = currentSong.sections.reduce((acc, s) => acc + s.measures.length, 0);
+    const totalMeasures = currentSong.sections.reduce((acc: number, s: Section) => acc + s.measures.length, 0);
 
     // Calculate song duration from total beats and tempo
-    const totalBeats = currentSong.sections.reduce((acc, section) => {
+    const totalBeats = currentSong.sections.reduce((acc: number, section: Section) => {
         const sectionTimeSignature = section.timeSignature || currentSong.timeSignature;
         const beatsPerMeasure = sectionTimeSignature[0];
         return acc + (section.measures.length * beatsPerMeasure);
@@ -329,41 +711,6 @@ export const SongOverview: React.FC = () => {
     const handleZoomChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setZoomLevel(Number(e.target.value));
     };
-
-    // Playback handlers
-    const handlePlayPause = async () => {
-        try {
-            await unlockAudioForIOS();
-            if (!isPlaying) {
-                setIsLoading(true);
-                await playSong();
-                useSongStore.getState().setIsPlaying(true);
-            } else {
-                pauseSong();
-                useSongStore.getState().setIsPlaying(false);
-            }
-        } catch (err) {
-            console.error("Playback error:", err);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleSkip = (direction: 'prev' | 'next') => {
-        skipToSection(direction);
-    };
-
-    const handleLoopToggle = () => {
-        toggleLoop();
-    };
-
-    const instrumentOptions: { value: InstrumentType, label: string }[] = [
-        { value: 'piano', label: 'Piano' },
-        { value: 'epiano', label: 'E.Piano' },
-        { value: 'organ', label: 'Organ' },
-        { value: 'pad', label: 'Pad' },
-        { value: 'guitar', label: 'Guitar' },
-    ];
 
     // Dnd Sensors
     const sensors = useSensors(
@@ -381,67 +728,13 @@ export const SongOverview: React.FC = () => {
         const { active, over } = event;
 
         if (over && active.id !== over.id) {
-            const oldIndex = currentSong.sections.findIndex((s) => s.id === active.id);
-            const newIndex = currentSong.sections.findIndex((s) => s.id === over.id);
+            const oldIndex = currentSong.sections.findIndex((s: Section) => s.id === active.id);
+            const newIndex = currentSong.sections.findIndex((s: Section) => s.id === over.id);
             reorderSections(arrayMove(currentSong.sections, oldIndex, newIndex));
         }
     };
 
-    // Playhead Logic
-    // Playhead Logic
-    const [playheadPos, setPlayheadPos] = useState(0);
-
-    useEffect(() => {
-        if (!songMapVisible || !isPlaying) return;
-
-        const animate = () => {
-            const position = Tone.Transport.position.toString().split(':');
-            const bars = parseFloat(position[0]);
-            const quarters = parseFloat(position[1]);
-            const sixteenths = parseFloat(position[2]);
-
-            // Calculate total beats played in the song
-            const currentBeats = (bars * 4) + quarters + (sixteenths / 4);
-
-            // Map beats to pixels
-            // Logic: Iterate through sections, for each section, width = measures * MEASURE_WIDTH
-            // Find which section/measure we are in.
-
-            let accumulatedPixels = 0;
-            let beatsTraversed = 0;
-            const SECTION_GAP = 16; // Gap in the flex container (gap-4)
-
-            for (const section of currentSong.sections) {
-
-                // Simplified: Assuming 4/4 for visualization consistency with MEASURE_WIDTH
-                // If we want exact rhythm mapping:
-                // Pixel per beat = MEASURE_WIDTH / 4 (for 4/4)
-
-                const sectionDurationBeats = section.measures.length * 4; // Assuming 4/4 for display spacing
-
-                if (currentBeats < beatsTraversed + sectionDurationBeats) {
-                    // In this section
-                    const beatsInSection = currentBeats - beatsTraversed;
-                    const progressInSection = beatsInSection / sectionDurationBeats;
-                    const sectionWidthPx = section.measures.length * measureWidth;
-
-                    accumulatedPixels += progressInSection * sectionWidthPx;
-                    break;
-                } else {
-                    // Passed this section
-                    const sectionWidthPx = section.measures.length * measureWidth;
-                    accumulatedPixels += sectionWidthPx + SECTION_GAP;
-                    beatsTraversed += sectionDurationBeats;
-                }
-            }
-
-            setPlayheadPos(accumulatedPixels);
-            requestAnimationFrame(animate);
-        };
-
-        const raf = requestAnimationFrame(animate);
-        return () => cancelAnimationFrame(raf);
-    }, [songMapVisible, isPlaying, currentSong, measureWidth]);
+    // Playhead removed - using the green slot indicator from the main view instead
 
     // Focus / Dismiss
     useEffect(() => {
@@ -452,143 +745,128 @@ export const SongOverview: React.FC = () => {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [songMapVisible, toggleSongMap]);
 
+    // Auto-scroll to playing section during playback
+    useEffect(() => {
+        if (!songMapVisible || !isPlaying || !playingSectionId || !scrollContainerRef.current) return;
+
+        // Find the section element and scroll to it
+        const sectionElement = scrollContainerRef.current.querySelector(`[data-section-id="${playingSectionId}"]`);
+        if (sectionElement) {
+            sectionElement.scrollIntoView({
+                behavior: 'smooth',
+                inline: 'center',
+                block: 'nearest'
+            });
+        }
+    }, [songMapVisible, isPlaying, playingSectionId]);
+
+    if (!songMapVisible) return null;
+
+    // Custom footer controls logic
+    const handlePlayPause = async () => {
+        const { unlockAudioForIOS, playSong, pauseSong } = await import('../../utils/audioEngine');
+
+        if (!isPlaying) {
+            await unlockAudioForIOS();
+            await playSong();
+            useSongStore.getState().setIsPlaying(true);
+        } else {
+            pauseSong();
+            useSongStore.getState().setIsPlaying(false);
+        }
+    };
+
+    const handleSkip = async (direction: 'prev' | 'next') => {
+        const { skipToSection } = await import('../../utils/audioEngine');
+        skipToSection(direction);
+    };
+
     if (!songMapVisible) return null;
 
     return (
         <div
-            className="fixed inset-0 z-[100] flex flex-col bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
-            style={{
-                paddingTop: 'max(20px, env(safe-area-inset-top))',
-                paddingLeft: 'max(16px, env(safe-area-inset-left))',
-                paddingRight: 'max(16px, env(safe-area-inset-right))',
-                paddingBottom: 'max(16px, env(safe-area-inset-bottom))'
-            }}
+            className="fixed inset-0 z-[100] flex flex-col bg-[#111116] animate-in fade-in duration-200"
             onClick={() => toggleSongMap(false)}
         >
-            {/* Header */}
+            {/* Header - Edge to Edge with gradient */}
             <div
-                className={clsx(
-                    "shrink-0 bg-transparent text-white transition-all",
-                    isLandscape ? "px-4 py-1.5" : "px-4 py-2"
-                )}
+                className="shrink-0 relative z-20"
+                style={{ paddingTop: 'max(16px, env(safe-area-inset-top))' }}
                 onClick={(e) => e.stopPropagation()}
             >
-                {/* Top Row - Title and Close */}
-                <div className="flex items-center justify-between mb-1.5">
-                    <div className="flex items-center gap-3">
-                        <h2 className={clsx("font-bold tracking-tight", isLandscape ? "text-base" : "text-lg")}>
-                            Song Map
-                        </h2>
-                        <span className="text-white/40">·</span>
-                        <span className={clsx("text-white/60 font-medium", isLandscape ? "text-xs" : "text-sm")}>
-                            {currentSong.title}
-                        </span>
+                <div className="absolute inset-0 bg-gradient-to-b from-black/60 to-transparent pointer-events-none" />
+                <div className="relative flex items-center justify-between px-4 py-3 mt-2">
+                    <div
+                        className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            toggleSongInfoModal(true);
+                        }}
+                    >
+                        <div>
+                            <h2 className="font-bold text-white text-base leading-tight">
+                                {currentSong.title}
+                            </h2>
+                            {currentSong.artist && currentSong.artist.trim() && (
+                                <p className="text-white/40 text-[11px] italic">
+                                    by {currentSong.artist}
+                                </p>
+                            )}
+                        </div>
                     </div>
+
                     <button
                         onClick={() => toggleSongMap(false)}
-                        className={clsx(
-                            "bg-white/10 hover:bg-white/20 active:bg-white/30 rounded-full transition-all flex items-center justify-center active:scale-95",
-                            isLandscape ? "w-7 h-7" : "w-8 h-8"
-                        )}
+                        className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 active:bg-white/20 flex items-center justify-center text-white/70 transition-colors"
                     >
-                        <X size={isLandscape ? 14 : 16} />
+                        <X size={16} />
                     </button>
                 </div>
 
-                {/* Middle Row - Song Stats */}
-                <div className="flex justify-center mb-2">
-                    <div className={clsx(
-                        "flex items-center gap-2 text-white/50 bg-white/5 rounded-full px-3 py-1",
-                        isLandscape ? "text-[9px]" : "text-[10px]"
-                    )}>
-                        <span className="font-mono">{formattedDuration}</span>
-                        <span className="w-1 h-1 rounded-full bg-white/30" />
-                        <span>{currentSong.sections.length} sections</span>
-                        <span className="w-1 h-1 rounded-full bg-white/30" />
-                        <span>{totalMeasures} bars</span>
-                        <span className="w-1 h-1 rounded-full bg-white/30" />
-                        <span>{currentSong.tempo} BPM</span>
+                {/* Song Stats Bar */}
+                <div className="flex items-center gap-4 px-4 pb-4 text-[10px] font-medium text-white/40 overflow-x-auto no-scrollbar">
+                    <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="text-accent-primary">{currentSong.sections.length}</span>
+                        <span>Sections</span>
                     </div>
-                </div>
-
-                {/* Bottom Row - Zoom Controls - compact and sleek */}
-                <div className="flex justify-center">
-                    <div className="flex items-center gap-2 bg-white/5 rounded-full px-2 py-1">
-                        <button
-                            onClick={() => setZoomLevel(Math.max(0.15, zoomLevel - 0.1))}
-                            className={clsx(
-                                "flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 active:bg-white/30 text-white/70 hover:text-white transition-all active:scale-95",
-                                isLandscape ? "w-5 h-5" : "w-6 h-6"
-                            )}
-                        >
-                            <Minus size={isLandscape ? 10 : 12} />
-                        </button>
-                        <div className={clsx("relative flex items-center", isLandscape ? "w-28 h-5" : "w-32 h-6")}>
-                            <input
-                                type="range"
-                                min="0.15"
-                                max="2"
-                                step="0.05"
-                                value={zoomLevel}
-                                onChange={handleZoomChange}
-                                className={clsx(
-                                    "w-full bg-white/20 rounded-full appearance-none cursor-pointer h-1.5",
-                                    `[&::-webkit-slider-thumb]:appearance-none
-                                    [&::-webkit-slider-thumb]:bg-white
-                                    [&::-webkit-slider-thumb]:rounded-full
-                                    [&::-webkit-slider-thumb]:shadow-md
-                                    [&::-webkit-slider-thumb]:shadow-black/30
-                                    [&::-webkit-slider-thumb]:cursor-grab
-                                    [&::-webkit-slider-thumb]:active:cursor-grabbing
-                                    [&::-webkit-slider-thumb]:active:scale-110
-                                    [&::-webkit-slider-thumb]:transition-transform
-                                    [&::-webkit-slider-thumb]:hover:scale-110
-                                    [&::-moz-range-thumb]:appearance-none
-                                    [&::-moz-range-thumb]:bg-white
-                                    [&::-moz-range-thumb]:rounded-full
-                                    [&::-moz-range-thumb]:border-none
-                                    [&::-moz-range-thumb]:shadow-md
-                                    [&::-moz-range-thumb]:cursor-grab
-                                    focus:outline-none`,
-                                    isLandscape
-                                        ? "[&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4"
-                                        : "[&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5"
-                                )}
-                                style={{ touchAction: 'manipulation' }}
-                            />
-                        </div>
-                        <button
-                            onClick={() => setZoomLevel(Math.min(2, zoomLevel + 0.1))}
-                            className={clsx(
-                                "flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 active:bg-white/30 text-white/70 hover:text-white transition-all active:scale-95",
-                                isLandscape ? "w-5 h-5" : "w-6 h-6"
-                            )}
-                        >
-                            <Plus size={isLandscape ? 10 : 12} />
-                        </button>
-                        <span className={clsx("text-white/50 font-mono ml-1", isLandscape ? "text-[9px]" : "text-[10px]")}>
-                            {Math.round(zoomLevel * 100)}%
-                        </span>
+                    <div className="w-px h-2 bg-white/10 shrink-0" />
+                    <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="text-accent-primary">{totalMeasures}</span>
+                        <span>Bars</span>
+                    </div>
+                    <div className="w-px h-2 bg-white/10 shrink-0" />
+                    <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="text-accent-primary">{formattedDuration}</span>
+                        <span>Duration</span>
                     </div>
                 </div>
             </div>
 
-            {/* Scrollable Map Area - Clicking in here should not close the modal */}
-            <div className="flex-1 overflow-x-auto overflow-y-hidden px-4 flex items-center relative scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent" onClick={(e) => e.stopPropagation()}>
-                <div className={clsx(
-                    "flex relative h-full items-center pt-2 pb-2 transition-all",
-                    zoomLevel < COMPACT_THRESHOLD ? "gap-2 min-h-[80px]" : "gap-4 min-h-[156px]"
-                )}>
+            {/* Scrollable Map Area - Edge to Edge */}
+            <div
+                ref={scrollContainerRef}
+                className="flex-1 overflow-x-auto overflow-y-hidden flex items-center relative scrollbar-hide bg-[#0b0b0f]"
+                onClick={(e) => e.stopPropagation()}
+            >
+                {/* Background Grid Pattern */}
+                <div className="absolute inset-0 opacity-[0.03]"
+                    style={{
+                        backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)',
+                        backgroundSize: '20px 20px'
+                    }}
+                />
 
-                    {/* Playhead Overlay */}
-                    {isPlaying && (
-                        <div
-                            className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-[60] shadow-[0_0_12px_#ef4444] transition-transform duration-75 will-change-transform pointer-events-none"
-                            style={{ transform: `translateX(${playheadPos}px)` }}
-                        >
-                            <div className="absolute -top-1.5 -left-1.5 w-3.5 h-3.5 bg-red-500 rounded-full shadow-sm" />
-                        </div>
+                <div
+                    className={clsx(
+                        "flex relative h-full items-center px-4 transition-all min-w-full",
+                        zoomLevel < COMPACT_THRESHOLD ? "gap-2" : "gap-4"
                     )}
+                    style={{
+                        paddingLeft: 'max(16px, env(safe-area-inset-left))',
+                        paddingRight: 'max(16px, env(safe-area-inset-right))'
+                    }}
+                >
+                    {/* Playhead removed - the green slot highlight in the main timeline shows current position */}
 
                     <DndContext
                         sensors={sensors}
@@ -596,21 +874,49 @@ export const SongOverview: React.FC = () => {
                         onDragEnd={handleDragEnd}
                     >
                         <SortableContext
-                            items={currentSong.sections.map(s => s.id)}
+                            items={currentSong.sections.map((s: Section) => s.id)}
                             strategy={horizontalListSortingStrategy}
                         >
-                            {currentSong.sections.map((section) => (
+                            {currentSong.sections.map((section: Section) => (
                                 <SortableSection
                                     key={section.id}
                                     section={section}
                                     allSections={currentSong.sections}
-                                    onSelect={() => {
-                                        if (section.measures[0]?.beats[0]) {
-                                            setSelectedSlot(section.id, section.measures[0].beats[0].id);
+                                    onSelectBeat={(sectionId, beatId) => {
+                                        if (beatId) {
+                                            setSelectedSlot(sectionId, beatId);
                                         }
+                                        setSelectedMapChord(null);
+                                        setSelectedMapBeatId(null);
+                                        setSelectedMapSectionId(null);
                                         toggleSongMap(false);
                                     }}
-                                    isActive={isPlaying && currentSong.sections.findIndex(s => s.id === section.id) === currentSong.sections.findIndex(s => s.id === playingSectionId)} // Highlight playing section
+                                    onBeatTap={(sectionId, beatId, chord) => {
+                                        // If this beat is already selected, perform the navigation
+                                        if (selectedMapBeatId === beatId && selectedMapSectionId === sectionId) {
+                                            // Second tap - close modal and navigate
+                                            if (beatId) {
+                                                setSelectedSlot(sectionId, beatId);
+                                            }
+                                            setSelectedMapChord(null);
+                                            setSelectedMapBeatId(null);
+                                            setSelectedMapSectionId(null);
+                                            toggleSongMap(false);
+                                        } else {
+                                            // First tap - select the chord
+                                            setSelectedMapChord(chord);
+                                            setSelectedMapBeatId(beatId);
+                                            setSelectedMapSectionId(sectionId);
+                                            setDisplayChord(chord);
+                                            // Play the chord preview
+                                            if (chord?.notes) {
+                                                playChord(chord.notes);
+                                            }
+                                        }
+                                    }}
+                                    isActive={isPlaying && currentSong.sections.findIndex((s: Section) => s.id === section.id) === currentSong.sections.findIndex((s: Section) => s.id === playingSectionId)}
+                                    playingSlotId={useSongStore.getState().isPlaying ? useSongStore.getState().playingSlotId : null}
+                                    selectedBeatId={selectedMapBeatId}
                                     chordColors={chordColors}
                                     measureWidth={measureWidth}
                                     isCompact={zoomLevel < COMPACT_THRESHOLD}
@@ -621,76 +927,103 @@ export const SongOverview: React.FC = () => {
                 </div>
             </div>
 
-            {/* Persistent Playback Footer */}
+            {/* Chord Detail Panel - appears when a chord is selected */}
+            <ChordDetailPanel
+                displayChord={displayChord}
+                chordColors={chordColors}
+                isPlaying={isPlaying}
+                selectedMapBeatId={selectedMapBeatId}
+            />
+
+            {/* Two-Row Footer Controls */}
             <div
-                className={clsx(
-                    "shrink-0 bg-bg-elevated border-t border-border-subtle z-[110] flex flex-col justify-center",
-                    isLandscape ? "pb-0" : (isMobile ? "px-4 py-3 pb-6 gap-3" : "px-6 py-3 pb-6")
-                )}
+                className="shrink-0 bg-[#1a1a24] border-t border-white/5 z-[110]"
+                style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
                 onClick={(e) => e.stopPropagation()}
             >
-                {isMobile && !isLandscape ? (
-                    // Portrait Mobile Layout - Condensed
-                    <>
-                        <div className="flex items-center justify-between">
-                            {/* Playback - Centered */}
-                            <div className="flex items-center gap-3 mx-auto">
-                                <button onClick={() => handleSkip('prev')} className="p-2 text-text-secondary hover:text-text-primary transition-colors">
-                                    <SkipBack size={22} />
-                                </button>
-                                <button
-                                    onClick={handlePlayPause}
-                                    disabled={isLoading}
-                                    className="w-12 h-12 rounded-full bg-accent-primary hover:bg-indigo-500 disabled:bg-accent-primary/50 flex items-center justify-center text-white shadow-md transition-all hover:scale-105 active:scale-95"
-                                >
-                                    {isLoading ? <Loader2 size={24} className="animate-spin" /> : isPlaying ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" className="ml-0.5" />}
-                                </button>
-                                <button onClick={() => handleSkip('next')} className="p-2 text-text-secondary hover:text-text-primary transition-colors">
-                                    <SkipForward size={22} />
-                                </button>
-                            </div>
-                        </div>
+                {/* Row 1: Zoom & Secondary Controls */}
+                <div className="flex items-center justify-between px-4 py-2 border-b border-white/5">
+                    {/* Zoom Control */}
+                    <div className="flex items-center gap-3 w-full">
+                        <ZoomOut size={14} className="text-text-secondary" />
+                        <input
+                            type="range"
+                            min="0.15"
+                            max="2"
+                            step="0.05"
+                            value={zoomLevel}
+                            onChange={handleZoomChange}
+                            className="flex-1 h-1 bg-white/10 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg"
+                        />
+                        <ZoomIn size={14} className="text-text-secondary" />
+                    </div>
+                </div>
 
-                        {/* Secondary Controls Row */}
-                        <div className="flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-3">
-                                <button
-                                    onClick={handleLoopToggle}
-                                    className={clsx("p-2 rounded-full transition-colors", isLooping ? "text-accent-primary bg-accent-primary/10" : "text-text-secondary hover:text-text-primary")}
-                                >
-                                    <Repeat size={18} />
-                                </button>
-
-                                <div className="flex items-center gap-1 bg-bg-tertiary rounded-lg border border-border-subtle p-1 pr-2">
-                                    <button onClick={() => setTempo(Math.max(40, tempo - 5))} className="p-1 px-2 text-text-secondary hover:text-text-primary"><Minus size={14} /></button>
-                                    <div className="flex flex-col items-center min-w-[32px]">
-                                        <span className="text-[9px] uppercase tracking-wider text-text-muted font-bold leading-none">BPM</span>
-                                        <span className="text-sm font-mono font-medium text-text-primary leading-none">{tempo}</span>
-                                    </div>
-                                    <button onClick={() => setTempo(Math.min(240, tempo + 5))} className="p-1 px-2 text-text-secondary hover:text-text-primary"><Plus size={14} /></button>
-                                </div>
+                {/* Row 2: Main Playback Controls */}
+                <div className="flex items-center justify-center gap-8 px-6 py-4">
+                    {/* Tempo - Interactive */}
+                    <div className="flex flex-col items-center gap-1">
+                        <span className="text-[10px] uppercase tracking-wider text-white/30 font-bold">BPM</span>
+                        {isEditingBpm ? (
+                            <input
+                                ref={bpmInputRef}
+                                type="number"
+                                inputMode="numeric"
+                                value={bpmInputValue}
+                                onChange={(e) => setBpmInputValue(e.target.value)}
+                                onBlur={handleBpmSave}
+                                onKeyDown={handleBpmKeyDown}
+                                className="w-16 text-lg bg-bg-tertiary border border-accent-primary rounded px-2 py-1 text-center text-white font-mono font-medium focus:outline-none"
+                                min={40}
+                                max={240}
+                            />
+                        ) : (
+                            <div
+                                onTouchStart={handleBpmTouchStart}
+                                onTouchMove={handleBpmTouchMove}
+                                onTouchEnd={handleBpmTouchEnd}
+                                onClick={handleBpmTap}
+                                className={clsx(
+                                    "text-lg font-mono font-medium cursor-ew-resize select-none px-3 py-1 rounded transition-colors",
+                                    isSwiping ? "text-accent-primary bg-accent-primary/10" : "text-accent-primary hover:bg-white/5"
+                                )}
+                            >
+                                {tempo}
                             </div>
+                        )}
+                    </div>
 
-                            <div className="flex items-center gap-2">
-                                <div className="w-7 h-7 rounded bg-bg-tertiary flex items-center justify-center text-text-muted shrink-0">
-                                    <Music size={14} />
-                                </div>
-                                <select
-                                    value={instrument}
-                                    onChange={(e) => setInstrument(e.target.value as InstrumentType)}
-                                    className="bg-bg-tertiary border border-border-subtle rounded-lg px-3 py-1.5 text-xs text-text-primary focus:outline-none focus:border-accent-primary cursor-pointer"
-                                >
-                                    {instrumentOptions.map((opt) => (
-                                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-                    </>
-                ) : (
-                    // Desktop / Landscape Layout - Use the shared PlaybackControls component
-                    <PlaybackControls />
-                )}
+                    {/* Transport */}
+                    <div className="flex items-center gap-6">
+                        <button
+                            onClick={() => handleSkip('prev')}
+                            className="text-accent-primary/80 hover:text-accent-primary transition-colors p-2 active:scale-95"
+                        >
+                            <SkipBack size={22} fill="currentColor" />
+                        </button>
+
+                        <button
+                            onClick={handlePlayPause}
+                            className={clsx(
+                                "w-14 h-14 rounded-full flex items-center justify-center shadow-xl transition-all active:scale-95",
+                                isPlaying ? "bg-accent-primary text-white shadow-accent-primary/30" : "bg-accent-primary/20 text-accent-primary border-2 border-accent-primary"
+                            )}
+                        >
+                            {isPlaying ? (
+                                <Pause size={24} fill="currentColor" />
+                            ) : (
+                                <Play size={24} fill="currentColor" className="ml-1" />
+                            )}
+                        </button>
+
+                        <button
+                            onClick={() => handleSkip('next')}
+                            className="text-accent-primary/80 hover:text-accent-primary transition-colors p-2 active:scale-95"
+                        >
+                            <SkipForward size={22} fill="currentColor" />
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     );

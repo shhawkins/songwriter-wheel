@@ -121,6 +121,7 @@ interface SongState {
     chordPanelVisible: boolean;   // Toggle chord panel visibility
     timelineVisible: boolean;     // Toggle timeline visibility
     songMapVisible: boolean;      // Toggle Song Map visibility
+    songInfoModalVisible: boolean; // Toggle Song Info Modal visibility
     collapsedSections: Record<string, boolean>; // Per-section collapsed UI state
 
     // Chord panel sections state (for portrait mode voicing picker logic)
@@ -153,6 +154,7 @@ interface SongState {
     toggleTimeline: () => void;
     openTimeline: () => void;  // Opens timeline if not already open (for double-tap from wheel/details)
     toggleSongMap: (force?: boolean) => void;
+    toggleSongInfoModal: (force?: boolean) => void;
     toggleSectionCollapsed: (sectionId: string) => void;
     setChordPanelGuitarExpanded: (expanded: boolean) => void;
     setChordPanelVoicingsExpanded: (expanded: boolean) => void;
@@ -432,6 +434,7 @@ export const useSongStore = create<SongState>()(
             chordPanelVisible: true,
             timelineVisible: true,
             songMapVisible: false,
+            songInfoModalVisible: false,
             collapsedSections: {},
             chordPanelGuitarExpanded: false,  // Collapsed by default on mobile
             chordPanelVoicingsExpanded: false, // Collapsed by default
@@ -518,6 +521,9 @@ export const useSongStore = create<SongState>()(
             }),
             toggleSongMap: (force?: boolean) => set((state) => ({
                 songMapVisible: force !== undefined ? force : !state.songMapVisible
+            })),
+            toggleSongInfoModal: (force?: boolean) => set((state) => ({
+                songInfoModalVisible: force !== undefined ? force : !state.songInfoModalVisible
             })),
             toggleSectionCollapsed: (sectionId) => set((state) => {
                 const next = { ...state.collapsedSections, [sectionId]: !state.collapsedSections?.[sectionId] };

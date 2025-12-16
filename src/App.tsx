@@ -181,7 +181,7 @@ const MobilePortraitDrawers: React.FC<MobilePortraitDrawersProps> = ({
 
 
 function App() {
-  const { currentSong, selectedKey, timelineVisible, toggleTimeline, selectedSectionId, selectedSlotId, clearSlot, clearTimeline, setTitle, setArtist, setTags, loadSong: loadSongToStore, newSong, instrument, volume, isMuted, undo, redo, canUndo, canRedo, chordPanelVisible } = useSongStore();
+  const { currentSong, selectedKey, timelineVisible, toggleTimeline, selectedSectionId, selectedSlotId, clearSlot, clearTimeline, setTitle, setArtist, setTags, loadSong: loadSongToStore, newSong, instrument, volume, isMuted, undo, redo, canUndo, canRedo, chordPanelVisible, isPlaying, songInfoModalVisible, toggleSongInfoModal } = useSongStore();
 
   // Audio Sync Logic
   useEffect(() => {
@@ -572,12 +572,9 @@ function App() {
     }
   }, [isInSpecialCenteringMode, isLandscape, isMobile]);
 
-  // State for Song Info Modal (replaces inline title editing)
-  const [showSongInfoModal, setShowSongInfoModal] = useState(false);
-
   // Handle title click (now opens modal instead of inline editing)
   const handleTitleClick = () => {
-    setShowSongInfoModal(true);
+    toggleSongInfoModal(true);
   };
 
   // Handle song info save from modal
@@ -1287,6 +1284,7 @@ function App() {
                   onPanChange={handlePanChange}
                   rotationOffset={wheelRotationOffset}
                   disableModeToggle={wheelRotationOffset !== 0}
+                  footerVisible={isPlaying || !(isMobile && !isLandscape && (mobileImmersive || (chordPanelVisible && !chordPanelScrolledToBottom)))}
                 />
               </div>
             </div>
@@ -1484,8 +1482,8 @@ function App() {
         />
       )}
 
-      {/* Footer: Playback - hidden in mobile immersive mode or when chord panel is open (unless scrolled to bottom) */}
-      {!(isMobile && !isLandscape && (mobileImmersive || (chordPanelVisible && !chordPanelScrolledToBottom))) && (
+      {/* Footer: Playback - hidden in mobile immersive mode or when chord panel is open (unless scrolled to bottom), BUT always show when playing */}
+      {(isPlaying || !(isMobile && !isLandscape && (mobileImmersive || (chordPanelVisible && !chordPanelScrolledToBottom)))) && (
         <div
           className="shrink-0 z-30 relative"
           style={{
@@ -1514,8 +1512,8 @@ function App() {
 
       {/* Song Info Modal */}
       <SongInfoModal
-        isOpen={showSongInfoModal}
-        onClose={() => setShowSongInfoModal(false)}
+        isOpen={songInfoModalVisible}
+        onClose={() => toggleSongInfoModal(false)}
         title={currentSong.title}
         artist={currentSong.artist || ''}
         tags={currentSong.tags || []}

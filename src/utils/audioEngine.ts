@@ -466,19 +466,22 @@ export const scheduleSong = (song: Song) => {
                 const durationSixteenths = durationBeats * 4;
                 const durationStr = `${Math.floor(durationSixteenths / 16)}:${Math.floor((durationSixteenths % 16) / 4)}:${durationSixteenths % 4}`;
 
-                const eventId = Tone.Transport.schedule((time) => {
-                    // Update UI
-                    // We wrap this in a draw call or just set state (Zustand is external to React render cycle so it's fine, 
-                    // but for visual sync Tone.Draw is sometimes better. Direct state set is fine for this complexity.)
-                    Tone.Draw.schedule(() => {
-                        useSongStore.getState().setPlayingSlot(section.id, beat.id);
-                    }, time);
+                const eventId = Tone.Transport.schedule((scheduledTime) => {
+                    // Calculate actual delay until the chord should play
+                    // scheduledTime is the audio context time when this event should happen
+                    // Tone.context.currentTime is the current audio context time
+                    // The difference tells us how far ahead we are
+                    const delaySeconds = Math.max(0, scheduledTime - Tone.context.currentTime);
+                    const delayMs = delaySeconds * 1000;
 
-                    // Play Sound
+                    // Update UI after the calculated delay - this syncs the visual with the audio
+                    setTimeout(() => {
+                        useSongStore.getState().setPlayingSlot(section.id, beat.id);
+                    }, delayMs);
+
+                    // Play Sound (Tone.js handles the timing internally with scheduledTime)
                     if (beat.chord) {
-                        // We need to pass the raw notes array from the chord object
-                        // Assuming chord object has 'notes' property which is string[]
-                        playChord(beat.chord.notes, durationStr, time);
+                        playChord(beat.chord.notes, durationStr, scheduledTime);
                     }
                 }, time);
 

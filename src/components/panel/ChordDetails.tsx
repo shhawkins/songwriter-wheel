@@ -25,7 +25,6 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
         selectedSlotId,
         addChordToSlot,
         setSelectedChord,
-        selectNextSlotAfter,
         setSelectedSlot,
         timelineVisible,
         openTimeline,
@@ -409,12 +408,10 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
         };
 
         addChordToSlot(newChord, selectedSectionId, selectedSlotId);
-        const advanced = selectNextSlotAfter(selectedSectionId, selectedSlotId);
 
-        if (!advanced) {
-            setSelectedSlot(selectedSectionId, selectedSlotId);
-            setSelectedChord(newChord);
-        }
+        // Keep the added chord selected (don't auto-advance; only double-tap on wheel advances)
+        setSelectedSlot(selectedSectionId, selectedSlotId);
+        setSelectedChord(newChord);
     };
 
     // Handler for clicking on guitar chord or music staff - plays the currently displayed chord
@@ -452,13 +449,11 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
         };
 
         addChordToSlot(newChord, selectedSectionId, selectedSlotId);
-        const advanced = selectNextSlotAfter(selectedSectionId, selectedSlotId);
 
-        if (!advanced) {
-            setSelectedSlot(selectedSectionId, selectedSlotId);
-            setSelectedChord(newChord);
-        }
-    }, [chord, previewVariant, chordInversion, selectedSectionId, selectedSlotId, addChordToSlot, selectNextSlotAfter, setSelectedSlot, setSelectedChord, timelineVisible, openTimeline]);
+        // Keep the added chord selected (don't auto-advance; only double-tap on wheel advances)
+        setSelectedSlot(selectedSectionId, selectedSlotId);
+        setSelectedChord(newChord);
+    }, [chord, previewVariant, chordInversion, selectedSectionId, selectedSlotId, addChordToSlot, setSelectedSlot, setSelectedChord, timelineVisible, openTimeline]);
 
     // Touch event handling for chord title (for proper double-tap and bounce effect)
     const titleLastTouchTime = useRef(0);

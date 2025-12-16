@@ -25,6 +25,7 @@ export const ChordSlot: React.FC<ChordSlotProps> = ({ slot, sectionId, size = 48
         setSelectedSlots,
         playingSectionId,
         playingSlotId,
+        isPlaying: isGloballyPlaying,
         selectedChord,
         addChordToSlot,
         clearSlot
@@ -50,7 +51,7 @@ export const ChordSlot: React.FC<ChordSlotProps> = ({ slot, sectionId, size = 48
         (selected) => selected.slotId === slot.id && selected.sectionId === sectionId
     );
 
-    const isPlaying = playingSectionId === sectionId && playingSlotId === slot.id;
+    const isPlayingThisSlot = isGloballyPlaying && playingSectionId === sectionId && playingSlotId === slot.id;
 
     const style = transform ? {
         transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
@@ -187,7 +188,7 @@ export const ChordSlot: React.FC<ChordSlotProps> = ({ slot, sectionId, size = 48
                 !isOver && !slot.chord && "border-2 border-dashed border-border-medium bg-bg-elevated hover:border-text-muted cursor-pointer",
                 !isOver && slot.chord && "border-0",
                 isSelected ? "ring-2 ring-accent-primary ring-offset-1 ring-offset-bg-primary" : "",
-                isPlaying ? "ring-2 ring-green-500 ring-offset-1 ring-offset-bg-primary shadow-[0_0_12px_rgba(34,197,94,0.5)] scale-105 z-10" : ""
+                isPlayingThisSlot ? "ring-2 ring-green-500 ring-offset-1 ring-offset-bg-primary shadow-[0_0_12px_rgba(34,197,94,0.5)] scale-105 z-10" : ""
             )}
         >
             {!slot.chord && (
