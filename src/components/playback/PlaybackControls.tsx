@@ -120,7 +120,6 @@ export const PlaybackControls: React.FC = () => {
         { value: 'epiano', label: 'Electric Piano' },
         { value: 'organ', label: 'Organ' },
         { value: 'pad', label: 'Pad' },
-        { value: 'guitar', label: 'Guitar' },
     ];
 
     // Clamp instrument to available options

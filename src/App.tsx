@@ -20,6 +20,7 @@ import { ConfirmDialog } from './components/ui/ConfirmDialog';
 import { HelpModal } from './components/HelpModal';
 import { OnboardingTooltip } from './components/OnboardingTooltip';
 import { SongInfoModal } from './components/SongInfoModal';
+import { KeySelectorModal } from './components/KeySelectorModal';
 
 // Mobile Portrait Drawers Component - handles combined toggle bar with drag gesture
 interface MobilePortraitDrawersProps {
@@ -197,6 +198,7 @@ function App() {
   }, [isMuted]);
 
   const [showHelp, setShowHelp] = useState(false);
+  const [showKeySelector, setShowKeySelector] = useState(false);
 
   // Wheel zoom state - use different defaults for mobile vs desktop
   // Mobile needs higher zoom to fill screen width, desktop uses 1.0
@@ -1194,10 +1196,13 @@ function App() {
             </div>
           )}
 
-          <div className={`flex items-center gap-2 p-[10px] ${isMobile ? 'text-xs' : 'text-[10px]'} text-text-muted`}>
+          <button
+            onClick={() => setShowKeySelector(true)}
+            className={`flex items-center gap-2 p-[10px] ${isMobile ? 'text-xs' : 'text-[10px]'} text-text-muted hover:bg-bg-tertiary rounded-lg transition-colors touch-feedback`}
+          >
             <span className="uppercase font-bold">Key</span>
             <span className={`font-bold text-accent-primary ${isMobile ? 'text-base' : 'text-sm'} min-w-[1.5rem] text-center inline-block`}>{formatChordForDisplay(selectedKey)}</span>
-          </div>
+          </button>
 
           {/* Save/Load Menu (Task 30) - fixed styling */}
           <div className="relative" ref={saveMenuRef}>
@@ -1591,6 +1596,12 @@ function App() {
 
       {/* Help Modal */}
       <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
+
+      {/* Key Selector Modal */}
+      <KeySelectorModal
+        isOpen={showKeySelector}
+        onClose={() => setShowKeySelector(false)}
+      />
 
       {/* Song Info Modal */}
       <SongInfoModal

@@ -454,7 +454,19 @@ export const useSongStore = create<SongState>()(
             instrument: 'piano' as InstrumentType,
             isMuted: false,
 
-            setKey: (key) => set({ selectedKey: key }),
+            setKey: (key) => set((state) => {
+                // In rotating mode, also update the wheel rotation to snap this key to the top
+                if (state.wheelMode === 'rotating') {
+                    const keyIndex = CIRCLE_OF_FIFTHS.indexOf(key);
+                    if (keyIndex !== -1) {
+                        return {
+                            selectedKey: key,
+                            wheelRotation: -(keyIndex * 30)
+                        };
+                    }
+                }
+                return { selectedKey: key };
+            }),
 
             // Cumulative rotation to avoid wrap-around animation issues
             rotateWheel: (direction) => set((state) => ({

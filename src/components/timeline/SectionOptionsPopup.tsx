@@ -187,9 +187,9 @@ export const SectionOptionsPopup: React.FC<SectionOptionsPopupProps> = ({
                         {onNameChange ? (
                             // Dropdown selector for section type
                             <select
-                                value={section.name}
+                                value={section.type}
                                 onChange={(e) => {
-                                    const selected = SECTION_NAME_OPTIONS.find(opt => opt.name === e.target.value);
+                                    const selected = SECTION_NAME_OPTIONS.find(opt => opt.type === e.target.value);
                                     if (selected) {
                                         onNameChange(selected.name, selected.type);
                                     }
@@ -204,7 +204,7 @@ export const SectionOptionsPopup: React.FC<SectionOptionsPopupProps> = ({
                                 }}
                             >
                                 {SECTION_NAME_OPTIONS.map((opt) => (
-                                    <option key={opt.type} value={opt.name} className="bg-bg-secondary">
+                                    <option key={opt.type} value={opt.type} className="bg-bg-secondary">
                                         {opt.name}
                                     </option>
                                 ))}
