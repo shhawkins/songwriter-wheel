@@ -40,9 +40,10 @@ const MobilePortraitDrawers: React.FC<MobilePortraitDrawersProps> = ({
   const [toggleBarDragOffset, setToggleBarDragOffset] = useState(0);
   const isDraggingToggleBar = useRef(false);
 
-  const arePanelsOpen = mobileTimelineOpen || chordPanelVisible;
-  // Only allow closing when BOTH panels are open
-  const areBothPanelsOpen = mobileTimelineOpen && chordPanelVisible;
+  // Chord details is considered "substantial" content - when open, allow closing by drag down
+  // Timeline alone is minimal - when only it's open, require drag up to expand
+  const canCloseByDragDown = chordPanelVisible; // Chord details is open (alone or with timeline)
+  const canOpenByDragUp = !chordPanelVisible; // Chord details is closed (need to drag up to open)
 
   // Maximum drawer preview height during drag
   const maxPreviewHeight = 450; // Enough to show both timeline and chord details content
@@ -56,8 +57,8 @@ const MobilePortraitDrawers: React.FC<MobilePortraitDrawersProps> = ({
   const handleToggleBarTouchMove = (e: React.TouchEvent) => {
     if (!isDraggingToggleBar.current) return;
     const deltaY = toggleBarTouchStartY.current - e.touches[0].clientY;
-    // deltaY > 0 means finger moved UP (opening gesture when closed)
-    // deltaY < 0 means finger moved DOWN (closing gesture when open)
+    // deltaY > 0 means finger moved UP (opening gesture)
+    // deltaY < 0 means finger moved DOWN (closing gesture)
     setToggleBarDragOffset(deltaY);
   };
 
@@ -67,14 +68,17 @@ const MobilePortraitDrawers: React.FC<MobilePortraitDrawersProps> = ({
 
     const threshold = 40;
 
-    if (areBothPanelsOpen) {
-      // BOTH panels are open - drag DOWN to close both (negative offset)
+    if (canCloseByDragDown) {
+      // Chord details is open - drag DOWN to close (negative offset)
       if (toggleBarDragOffset < -threshold) {
-        setMobileTimelineOpen(false);
-        useSongStore.getState().toggleChordPanel();
+        // Close chord details (and timeline if open)
+        if (chordPanelVisible) useSongStore.getState().toggleChordPanel();
+        if (mobileTimelineOpen) setMobileTimelineOpen(false);
       }
-    } else {
-      // At least one panel is closed - drag UP to open both (positive offset)
+    }
+
+    if (canOpenByDragUp) {
+      // Chord details is closed - drag UP to open both (positive offset)
       if (toggleBarDragOffset > threshold) {
         if (!mobileTimelineOpen) setMobileTimelineOpen(true);
         if (!chordPanelVisible) useSongStore.getState().toggleChordPanel();
@@ -87,12 +91,12 @@ const MobilePortraitDrawers: React.FC<MobilePortraitDrawersProps> = ({
   const handleToggleBarClick = () => {
     // Only toggle if we didn't drag significantly
     if (Math.abs(toggleBarDragOffset) < 15) {
-      if (areBothPanelsOpen) {
-        // Both open - close both
-        setMobileTimelineOpen(false);
-        useSongStore.getState().toggleChordPanel();
+      if (canCloseByDragDown) {
+        // Chord details is open - tap to close everything
+        if (chordPanelVisible) useSongStore.getState().toggleChordPanel();
+        if (mobileTimelineOpen) setMobileTimelineOpen(false);
       } else {
-        // At least one closed - open both
+        // Chord details is closed - tap to open both
         if (!mobileTimelineOpen) setMobileTimelineOpen(true);
         if (!chordPanelVisible) useSongStore.getState().toggleChordPanel();
       }
@@ -101,13 +105,13 @@ const MobilePortraitDrawers: React.FC<MobilePortraitDrawersProps> = ({
 
   const isDragging = toggleBarDragOffset !== 0;
 
-  // For closing: calculate how much height to reduce (only when BOTH panels open)
-  const closingHeightReduction = areBothPanelsOpen && toggleBarDragOffset < 0
+  // For closing: calculate how much height to reduce (only when chord details is open)
+  const closingHeightReduction = canCloseByDragDown && toggleBarDragOffset < 0
     ? Math.min(400, -toggleBarDragOffset * 1.5) // Reduce height based on drag
     : 0;
 
   // For opening: calculate how much drawer content to show
-  const openingPreviewHeight = !arePanelsOpen && toggleBarDragOffset > 0
+  const openingPreviewHeight = canOpenByDragUp && toggleBarDragOffset > 0
     ? Math.min(maxPreviewHeight, toggleBarDragOffset * 2) // 2x multiplier for responsive feel
     : 0;
 
@@ -137,7 +141,7 @@ const MobilePortraitDrawers: React.FC<MobilePortraitDrawersProps> = ({
       >
         <ChevronUp
           size={16}
-          className={`text-text-muted transition-transform duration-200 ${areBothPanelsOpen ? 'rotate-180' : ''}`}
+          className={`text-text-muted transition-transform duration-200 ${canCloseByDragDown ? 'rotate-180' : ''}`}
         />
       </div>
 
