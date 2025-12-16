@@ -60,6 +60,7 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
         openTimeline,
         chordPanelVisible,
         toggleChordPanel,
+        pulseChordPanel,
         chordPanelGuitarExpanded,
         chordPanelVoicingsExpanded
     } = useSongStore();
@@ -1140,6 +1141,9 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
                 onOpenDetails={() => {
                     if (!chordPanelVisible) {
                         toggleChordPanel();
+                    } else {
+                        // Panel already open - trigger attention animation
+                        pulseChordPanel();
                     }
                 }}
                 chordRoot={voicingPickerState.chord?.root || 'C'}

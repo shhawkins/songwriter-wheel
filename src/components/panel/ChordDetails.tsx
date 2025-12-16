@@ -30,7 +30,8 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
         timelineVisible,
         openTimeline,
         setChordPanelGuitarExpanded,
-        setChordPanelVoicingsExpanded
+        setChordPanelVoicingsExpanded,
+        chordPanelAttention
     } = useSongStore();
     const colors = getWheelColors();
     const [previewVariant, setPreviewVariant] = useState<string | null>(null);
@@ -600,20 +601,29 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
 
     return (
         <div
-            className={isLandscapeExpanded
+            className={`${isLandscapeExpanded
                 ? "h-full w-full flex flex-col bg-bg-secondary overflow-hidden"
                 : isLandscapePanel
                     ? "h-full w-full flex flex-col bg-bg-secondary overflow-hidden"
                     : isDrawer
                         ? `${isMobile ? 'relative w-full' : 'fixed inset-x-3 bottom-[88px]'} ${isMobile ? 'max-h-[60vh]' : 'max-h-[70vh]'} bg-bg-secondary ${isMobile ? 'border-t-2 border-border-subtle' : 'border-2 border-border-subtle rounded-2xl'} shadow-2xl overflow-hidden ${isMobile ? '' : 'z-40'} flex`
                         : "h-full flex bg-bg-secondary border-l border-border-subtle overflow-x-hidden"
-            }
-            style={!isDrawer && !isLandscapePanel && !isLandscapeExpanded ? { width: panelWidth, minWidth: 0, maxWidth: '100%' } : isDrawer ? {
-                transform: swipeOffset > 0 ? `translateY(${swipeOffset}px)` : undefined,
-                opacity: swipeOffset > 0 ? Math.max(0, 1 - (swipeOffset / 300)) : 1,
-                // Enable transitions for: initial open, snap-back, and slide-out animation (swipeOffset >= 150)
-                transition: swipeOffset === 0 || swipeOffset >= 150 ? 'all 0.2s ease-out' : 'none'
-            } : undefined}
+                }${chordPanelAttention ? ' chord-panel-attention' : ''}`}
+            style={{
+                ...(!isDrawer && !isLandscapePanel && !isLandscapeExpanded ? { width: panelWidth, minWidth: 0, maxWidth: '100%' } : {}),
+                ...(isDrawer ? {
+                    transform: swipeOffset > 0 ? `translateY(${swipeOffset}px)` : undefined,
+                    opacity: swipeOffset > 0 ? Math.max(0, 1 - (swipeOffset / 300)) : 1,
+                    // Enable transitions for: initial open, snap-back, and slide-out animation (swipeOffset >= 150)
+                    transition: swipeOffset === 0 || swipeOffset >= 150 ? 'all 0.2s ease-out' : 'none'
+                } : {}),
+                // Attention animation - subtle glow effect
+                ...(chordPanelAttention ? {
+                    boxShadow: '0 0 20px 4px rgba(99, 102, 241, 0.4), inset 0 0 10px rgba(99, 102, 241, 0.1)',
+                    borderColor: 'rgba(99, 102, 241, 0.6)',
+                    transition: 'box-shadow 0.3s ease-out, border-color 0.3s ease-out'
+                } : {})
+            }}
         >
             {/* Resize handle (sidebar only) - supports touch for mobile */}
             {!isDrawer && !isLandscapePanel && (

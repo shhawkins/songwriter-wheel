@@ -126,6 +126,7 @@ interface SongState {
     // Chord panel sections state (for portrait mode voicing picker logic)
     chordPanelGuitarExpanded: boolean;
     chordPanelVoicingsExpanded: boolean;
+    chordPanelAttention: boolean;  // Triggers attention animation on chord panel
 
     // Selection state
     selectedChord: Chord | null;
@@ -155,6 +156,7 @@ interface SongState {
     toggleSectionCollapsed: (sectionId: string) => void;
     setChordPanelGuitarExpanded: (expanded: boolean) => void;
     setChordPanelVoicingsExpanded: (expanded: boolean) => void;
+    pulseChordPanel: () => void;  // Trigger attention animation on chord panel
 
     setSelectedChord: (chord: Chord | null) => void;
     setSelectedSlot: (sectionId: string | null, slotId: string | null) => void;
@@ -433,6 +435,7 @@ export const useSongStore = create<SongState>()(
             collapsedSections: {},
             chordPanelGuitarExpanded: false,  // Collapsed by default on mobile
             chordPanelVoicingsExpanded: false, // Collapsed by default
+            chordPanelAttention: false,  // Attention animation trigger
             selectedChord: DEFAULT_C_CHORD as Chord | null,
             selectedSectionId: null as string | null,
             selectedSlotId: null as string | null,
@@ -528,6 +531,11 @@ export const useSongStore = create<SongState>()(
             }),
             setChordPanelGuitarExpanded: (expanded) => set({ chordPanelGuitarExpanded: expanded }),
             setChordPanelVoicingsExpanded: (expanded) => set({ chordPanelVoicingsExpanded: expanded }),
+            pulseChordPanel: () => {
+                set({ chordPanelAttention: true });
+                // Auto-reset after animation duration
+                setTimeout(() => set({ chordPanelAttention: false }), 600);
+            },
 
             setSelectedChord: (chord) => set({ selectedChord: chord }),
             setSelectedSlot: (sectionId, slotId) => set((state) => {

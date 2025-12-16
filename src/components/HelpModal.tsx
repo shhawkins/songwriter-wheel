@@ -15,6 +15,68 @@ interface HelpContentProps {
     onClose?: () => void;
 }
 
+/**
+ * Mini chord wheel logo component - renders a compact SVG version of the chord wheel
+ * Used in headers and as a visual brand identity element
+ */
+const MiniChordWheelLogo: React.FC<{ size?: number }> = ({ size = 32 }) => {
+    return (
+        <svg viewBox="0 0 100 100" className="w-full h-full" style={{ width: size, height: size }}>
+            {/* Generate 12 wedge segments */}
+            {[...Array(12)].map((_, i) => {
+                const angle = i * 30;
+                const startAngle = (angle - 15 - 90) * Math.PI / 180;
+                const endAngle = (angle + 15 - 90) * Math.PI / 180;
+                const innerR = 18;
+                const outerR = 46;
+
+                // Check if this is in the "highlighted" key area (top 7 segments: positions 10, 11, 0, 1, 2, 3, 4)
+                const isHighlighted = i <= 4 || i >= 10;
+
+                // Color scheme matching the real wheel
+                let fillColor;
+                if (!isHighlighted) {
+                    const mutedColors = [
+                        'rgba(100, 80, 120, 0.5)',
+                        'rgba(80, 70, 90, 0.5)',
+                        'rgba(60, 55, 70, 0.5)',
+                    ];
+                    fillColor = mutedColors[i % 3];
+                } else {
+                    if (i === 0) fillColor = 'rgba(234, 179, 8, 0.9)';
+                    else if (i === 1) fillColor = 'rgba(163, 190, 60, 0.85)';
+                    else if (i === 2) fillColor = 'rgba(132, 204, 22, 0.8)';
+                    else if (i === 3) fillColor = 'rgba(74, 222, 128, 0.7)';
+                    else if (i === 4) fillColor = 'rgba(45, 212, 191, 0.6)';
+                    else if (i === 11) fillColor = 'rgba(251, 146, 60, 0.85)';
+                    else if (i === 10) fillColor = 'rgba(168, 162, 158, 0.6)';
+                    else fillColor = 'rgba(200, 180, 100, 0.7)';
+                }
+
+                const x1 = 50 + innerR * Math.cos(startAngle);
+                const y1 = 50 + innerR * Math.sin(startAngle);
+                const x2 = 50 + outerR * Math.cos(startAngle);
+                const y2 = 50 + outerR * Math.sin(startAngle);
+                const x3 = 50 + outerR * Math.cos(endAngle);
+                const y3 = 50 + outerR * Math.sin(endAngle);
+                const x4 = 50 + innerR * Math.cos(endAngle);
+                const y4 = 50 + innerR * Math.sin(endAngle);
+
+                return (
+                    <path
+                        key={i}
+                        d={`M ${x1} ${y1} L ${x2} ${y2} A ${outerR} ${outerR} 0 0 1 ${x3} ${y3} L ${x4} ${y4} A ${innerR} ${innerR} 0 0 0 ${x1} ${y1}`}
+                        fill={fillColor}
+                        stroke="rgba(0, 0, 0, 0.3)"
+                        strokeWidth="0.5"
+                    />
+                );
+            })}
+            <circle cx="50" cy="50" r="16" fill="rgba(20, 20, 30, 0.95)" stroke="rgba(255, 255, 255, 0.1)" strokeWidth="1" />
+        </svg>
+    );
+};
+
 const HelpContent: React.FC<HelpContentProps> = ({ onClose }) => {
     const { selectedKey } = useSongStore();
 
@@ -395,8 +457,9 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose, isEmbedde
                 {/* Header */}
                 <div className="flex items-center justify-between px-4 py-3 border-b border-border-subtle bg-[#22222e] shrink-0">
                     <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded bg-gradient-to-br from-accent-primary to-purple-600 flex items-center justify-center">
-                            <Music size={12} className="text-white" />
+                        {/* Mini chord wheel logo */}
+                        <div className="w-6 h-6">
+                            <MiniChordWheelLogo size={24} />
                         </div>
                         <h2 className="text-sm font-bold text-white">Guide</h2>
                     </div>
@@ -440,8 +503,9 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose, isEmbedde
                 {/* Header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-border-subtle bg-[#22222e]">
                     <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-accent-primary to-purple-600 flex items-center justify-center">
-                            <Music size={16} className="text-white" />
+                        {/* Mini chord wheel logo */}
+                        <div className="w-8 h-8">
+                            <MiniChordWheelLogo size={32} />
                         </div>
                         <h2 className="text-lg font-bold text-white">Chord Wheel Guide</h2>
                     </div>

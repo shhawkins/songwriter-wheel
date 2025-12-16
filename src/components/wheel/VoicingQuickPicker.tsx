@@ -169,14 +169,17 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
                 // - Landscape mobile: bottom of left panel, over playback controls
                 // - Portrait mobile with panel (both sections collapsed): just above the section headers
                 // - Portrait mobile (no panel): use bottom positioning for consistency whether timeline is open/closed
-                // - Desktop: in the lower portion of the wheel area
-                bottom: isLandscapeMobile ? '56px' : (portraitWithPanel ? '6%' : (isMobile ? '13%' : 'auto')),
-                top: isLandscapeMobile || portraitWithPanel || isMobile ? 'auto' : '55%',
+                // - Desktop/full-width: lower-right area of wheel frame, above timeline
+                bottom: isLandscapeMobile ? '56px' : (portraitWithPanel ? '6%' : (isMobile ? '13%' : '220px')),
+                top: 'auto',
                 // Use left/right positioning for portrait/desktop to ensure modal stays within viewport
                 // Use centered positioning for landscape mobile (narrower content area)
+                // Desktop: position in lower-right of wheel area (right side, above timeline)
                 ...(isLandscapeMobile
                     ? { left: '24%', transform: 'translateX(-50%)', maxWidth: 'min(55vw, fit-content)' }
-                    : { left: '50%', transform: 'translateX(-50%)', maxWidth: 'calc(100vw - 32px)' }
+                    : isMobile
+                        ? { left: '50%', transform: 'translateX(-50%)', maxWidth: 'calc(100vw - 32px)' }
+                        : { right: '340px', left: 'auto', transform: 'none', maxWidth: 'calc(100vw - 400px)' }
                 ),
                 zIndex: 99999
             }}
@@ -226,6 +229,35 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
             )}
 
             {/* Action buttons - always visible */}
+            {/* Chord Details shortcut button */}
+            {onOpenDetails && (
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenDetails();
+                        onClose();
+                    }}
+                    onTouchEnd={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onOpenDetails();
+                        onClose();
+                    }}
+                    className={clsx(
+                        "flex items-center justify-center rounded-lg transition-all shrink-0",
+                        "text-text-tertiary hover:text-text-secondary hover:bg-bg-tertiary",
+                        voicings.length >= 6
+                            ? "w-7 h-9"
+                            : voicings.length > 4 || isLandscapeMobile
+                                ? "w-8 h-10"
+                                : "w-10 h-12"
+                    )}
+                    title="Open chord details"
+                >
+                    <Info size={voicings.length >= 6 ? 12 : (voicings.length > 4 || isLandscapeMobile ? 14 : 16)} />
+                </button>
+            )}
+
             {/* Add to timeline button */}
             {onAddToTimeline && (
                 <button
@@ -258,35 +290,6 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
                     title="Add to timeline"
                 >
                     <Plus size={voicings.length >= 6 ? 14 : (voicings.length > 4 || isLandscapeMobile ? 16 : 18)} />
-                </button>
-            )}
-
-            {/* Chord Details shortcut button */}
-            {onOpenDetails && (
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onOpenDetails();
-                        onClose();
-                    }}
-                    onTouchEnd={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        onOpenDetails();
-                        onClose();
-                    }}
-                    className={clsx(
-                        "flex items-center justify-center rounded-lg transition-all shrink-0",
-                        "text-text-tertiary hover:text-text-secondary hover:bg-bg-tertiary",
-                        voicings.length >= 6
-                            ? "w-7 h-9"
-                            : voicings.length > 4 || isLandscapeMobile
-                                ? "w-8 h-10"
-                                : "w-10 h-12"
-                    )}
-                    title="Open chord details"
-                >
-                    <Info size={voicings.length >= 6 ? 12 : (voicings.length > 4 || isLandscapeMobile ? 14 : 16)} />
                 </button>
             )}
         </div>,
