@@ -21,6 +21,159 @@ import { HelpModal } from './components/HelpModal';
 import { OnboardingTooltip } from './components/OnboardingTooltip';
 import { SongInfoModal } from './components/SongInfoModal';
 
+// Mobile Portrait Drawers Component - handles combined toggle bar with drag gesture
+interface MobilePortraitDrawersProps {
+  mobileTimelineOpen: boolean;
+  setMobileTimelineOpen: (open: boolean) => void;
+  chordPanelVisible: boolean;
+  setChordPanelScrolledToBottom: (scrolled: boolean) => void;
+}
+
+const MobilePortraitDrawers: React.FC<MobilePortraitDrawersProps> = ({
+  mobileTimelineOpen,
+  setMobileTimelineOpen,
+  chordPanelVisible,
+  setChordPanelScrolledToBottom,
+}) => {
+  // Drag gesture state for combined toggle bar
+  const toggleBarTouchStartY = useRef<number>(0);
+  const [toggleBarDragOffset, setToggleBarDragOffset] = useState(0);
+  const isDraggingToggleBar = useRef(false);
+
+  const arePanelsOpen = mobileTimelineOpen || chordPanelVisible;
+
+  // Maximum drawer preview height during drag
+  const maxPreviewHeight = 450; // Enough to show both timeline and chord details content
+
+  const handleToggleBarTouchStart = (e: React.TouchEvent) => {
+    toggleBarTouchStartY.current = e.touches[0].clientY;
+    isDraggingToggleBar.current = true;
+    setToggleBarDragOffset(0);
+  };
+
+  const handleToggleBarTouchMove = (e: React.TouchEvent) => {
+    if (!isDraggingToggleBar.current) return;
+    const deltaY = toggleBarTouchStartY.current - e.touches[0].clientY;
+    // deltaY > 0 means finger moved UP (opening gesture when closed)
+    // deltaY < 0 means finger moved DOWN (closing gesture when open)
+    setToggleBarDragOffset(deltaY);
+  };
+
+  const handleToggleBarTouchEnd = () => {
+    if (!isDraggingToggleBar.current) return;
+    isDraggingToggleBar.current = false;
+
+    const threshold = 40;
+
+    if (arePanelsOpen) {
+      // Panels are open - drag DOWN to close (negative offset)
+      if (toggleBarDragOffset < -threshold) {
+        setMobileTimelineOpen(false);
+        if (chordPanelVisible) {
+          useSongStore.getState().toggleChordPanel();
+        }
+      }
+    } else {
+      // Panels are closed - drag UP to open (positive offset)
+      if (toggleBarDragOffset > threshold) {
+        setMobileTimelineOpen(true);
+        if (!chordPanelVisible) {
+          useSongStore.getState().toggleChordPanel();
+        }
+      }
+    }
+
+    setToggleBarDragOffset(0);
+  };
+
+  const handleToggleBarClick = () => {
+    // Only toggle if we didn't drag significantly
+    if (Math.abs(toggleBarDragOffset) < 15) {
+      const shouldOpen = !mobileTimelineOpen && !chordPanelVisible;
+      setMobileTimelineOpen(shouldOpen);
+      if (shouldOpen !== chordPanelVisible) {
+        useSongStore.getState().toggleChordPanel();
+      }
+    }
+  };
+
+  const isDragging = toggleBarDragOffset !== 0;
+
+  // For closing: calculate how much height to reduce (shrinks the drawer)
+  const closingHeightReduction = arePanelsOpen && toggleBarDragOffset < 0
+    ? Math.min(400, -toggleBarDragOffset * 1.5) // Reduce height based on drag
+    : 0;
+
+  // For opening: calculate how much drawer content to show
+  const openingPreviewHeight = !arePanelsOpen && toggleBarDragOffset > 0
+    ? Math.min(maxPreviewHeight, toggleBarDragOffset * 2) // 2x multiplier for responsive feel
+    : 0;
+
+  // During preview, force drawers to render in "open" state
+  const isPreviewingOpen = openingPreviewHeight > 0;
+  const isPreviewingClose = closingHeightReduction > 0;
+
+  return (
+    <div
+      className="shrink-0 flex flex-col overflow-hidden"
+      style={{
+        // Normal state: 65vh, during close preview: reduce height
+        maxHeight: isPreviewingClose
+          ? `calc(65vh - ${closingHeightReduction}px)`
+          : '65vh',
+        opacity: isPreviewingClose ? Math.max(0.3, 1 - (closingHeightReduction / 500)) : 1,
+        transition: isDragging ? 'none' : 'all 0.25s ease-out',
+      }}
+    >
+      {/* Combined Toggle Bar - thin bar with chevron, supports drag and tap */}
+      <div
+        className="h-6 flex items-center justify-center bg-bg-secondary border-t border-border-subtle cursor-grab active:cursor-grabbing select-none"
+        onTouchStart={handleToggleBarTouchStart}
+        onTouchMove={handleToggleBarTouchMove}
+        onTouchEnd={handleToggleBarTouchEnd}
+        onClick={handleToggleBarClick}
+      >
+        <ChevronUp
+          size={16}
+          className={`text-text-muted transition-transform duration-200 ${arePanelsOpen ? 'rotate-180' : ''}`}
+        />
+      </div>
+
+      {/* Drawer Container */}
+      <div
+        className="flex-1 overflow-hidden"
+        style={{
+          // When opening: constrain visible height based on drag
+          maxHeight: isPreviewingOpen ? `${openingPreviewHeight}px` : undefined,
+          transition: isDragging ? 'none' : 'max-height 0.25s ease-out',
+        }}
+      >
+        {/* Mobile Timeline Drawer - force open during preview */}
+        <MobileTimeline
+          isOpen={mobileTimelineOpen || isPreviewingOpen}
+          onToggle={() => setMobileTimelineOpen(!mobileTimelineOpen)}
+        />
+
+        {/* Chord Details Drawer - force visible during opening preview */}
+        <div
+          data-chord-details
+          className="shrink-0 bg-bg-primary overflow-hidden"
+          style={{ maxHeight: mobileTimelineOpen || isPreviewingOpen ? '45vh' : '55vh' }}
+        >
+          <ChordDetails
+            variant="drawer"
+            onScrollChange={setChordPanelScrolledToBottom}
+            forceVisible={isPreviewingOpen}
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+
+
 function App() {
   const { currentSong, selectedKey, timelineVisible, toggleTimeline, selectedSectionId, selectedSlotId, clearSlot, clearTimeline, setTitle, setArtist, setTags, loadSong: loadSongToStore, newSong, instrument, volume, isMuted, undo, redo, canUndo, canRedo, chordPanelVisible } = useSongStore();
 
@@ -1317,22 +1470,12 @@ function App() {
 
       {/* Mobile Portrait: Bottom drawers - Timeline above Chord Details */}
       {isMobile && !isLandscape && (
-        <div className="shrink-0 flex flex-col overflow-hidden" style={{ maxHeight: '65vh' }}>
-          {/* Mobile Timeline Drawer - sits above Chord Details */}
-          <MobileTimeline
-            isOpen={mobileTimelineOpen}
-            onToggle={() => setMobileTimelineOpen(!mobileTimelineOpen)}
-          />
-
-          {/* Chord Details Drawer */}
-          <div
-            data-chord-details
-            className="shrink-0 bg-bg-primary overflow-hidden"
-            style={{ maxHeight: mobileTimelineOpen ? '45vh' : '55vh' }}
-          >
-            <ChordDetails variant="drawer" onScrollChange={setChordPanelScrolledToBottom} />
-          </div>
-        </div>
+        <MobilePortraitDrawers
+          mobileTimelineOpen={mobileTimelineOpen}
+          setMobileTimelineOpen={setMobileTimelineOpen}
+          chordPanelVisible={chordPanelVisible}
+          setChordPanelScrolledToBottom={setChordPanelScrolledToBottom}
+        />
       )}
 
       {/* Footer: Playback - hidden in mobile immersive mode or when chord panel is open (unless scrolled to bottom) */}

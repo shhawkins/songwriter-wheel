@@ -305,7 +305,7 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
         return (
             <div
                 data-mobile-timeline
-                className="w-full h-9 flex flex-col items-center justify-center bg-bg-secondary border-t border-border-subtle cursor-grab active:cursor-grabbing touch-feedback select-none"
+                className="w-full h-12 flex flex-col items-center justify-center bg-bg-secondary border-t border-border-subtle cursor-grab active:cursor-grabbing touch-feedback select-none"
                 onClick={() => {
                     // Only trigger click if not dragging
                     if (!isDraggingCollapsed.current && collapsedSwipeOffset === 0) {
@@ -322,8 +322,8 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                     transition: collapsedSwipeOffset === 0 ? 'all 0.2s ease-out' : 'none'
                 }}
             >
-                <div className="w-10 h-1 rounded-full bg-text-muted/40 mb-1.5" />
-                <span className="text-[9px] font-medium text-text-muted uppercase tracking-wider">
+                <div className="w-12 h-1.5 rounded-full bg-text-muted/40 mb-1.5" />
+                <span className="text-[10px] font-medium text-text-muted uppercase tracking-wider">
                     Timeline
                 </span>
             </div>
@@ -349,12 +349,12 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
             {/* Drag handle - title hidden when open to save vertical space */}
             {!hideCloseButton && (
                 <div
-                    className="flex flex-col items-center pt-1.5 pb-2 cursor-grab active:cursor-grabbing shrink-0"
+                    className="flex flex-col items-center pt-2 pb-2.5 cursor-grab active:cursor-grabbing shrink-0"
                     onTouchStart={handleTouchStart}
                     onTouchMove={handleTouchMove}
                     onTouchEnd={handleTouchEnd}
                 >
-                    <div className="w-10 h-1 rounded-full bg-text-muted/40" />
+                    <div className="w-12 h-1.5 rounded-full bg-text-muted/40" />
                 </div>
             )}
 

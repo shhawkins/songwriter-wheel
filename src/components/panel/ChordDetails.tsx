@@ -12,9 +12,10 @@ import { useMobileLayout } from '../../hooks/useIsMobile';
 interface ChordDetailsProps {
     variant?: 'sidebar' | 'drawer' | 'landscape-panel' | 'landscape-expanded';
     onScrollChange?: (scrolledToBottom: boolean) => void;
+    forceVisible?: boolean; // Force panel to render as visible (for drag preview)
 }
 
-export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar', onScrollChange }) => {
+export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar', onScrollChange, forceVisible = false }) => {
     const {
         selectedChord,
         selectedKey,
@@ -549,12 +550,13 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
     };
 
     // Collapsed state - show appropriate reopen control
-    if (!chordPanelVisible) {
+    // forceVisible overrides store state (used for drag preview)
+    if (!chordPanelVisible && !forceVisible) {
         if (isDrawer) {
             // Drawer handle styled as the top edge of a drawer - swipe up or tap to open
             return (
                 <div
-                    className={`w-full ${isMobile ? 'h-10' : 'h-9'} flex flex-col items-center justify-center bg-bg-secondary border-t border-border-subtle cursor-pointer touch-feedback active:bg-bg-tertiary`}
+                    className={`w-full h-12 flex flex-col items-center justify-center bg-bg-secondary border-t border-border-subtle cursor-pointer touch-feedback active:bg-bg-tertiary`}
                     onClick={toggleChordPanel}
                     onTouchStart={(e) => {
                         touchStartY.current = e.touches[0].clientY;
@@ -573,8 +575,8 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
                     title="Swipe up or tap to open"
                 >
                     {/* Pill-shaped drag handle */}
-                    <div className="w-10 h-1 rounded-full bg-text-muted/40 mb-1.5" />
-                    <span className={`${isMobile ? 'text-[10px]' : 'text-[9px]'} font-medium text-text-muted uppercase tracking-wider`}>
+                    <div className="w-12 h-1.5 rounded-full bg-text-muted/40 mb-1.5" />
+                    <span className="text-[10px] font-medium text-text-muted uppercase tracking-wider">
                         Chord Details
                     </span>
                 </div>
@@ -636,8 +638,8 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
                         onTouchEnd={handleTouchEnd}
                     >
                         {/* Drag handle indicator - title hidden when open */}
-                        <div className="pt-2 pb-0.5 flex flex-col items-center">
-                            <div className="w-10 h-1 rounded-full bg-text-muted/40" />
+                        <div className="pt-2.5 pb-1 flex flex-col items-center">
+                            <div className="w-12 h-1.5 rounded-full bg-text-muted/40" />
                         </div>
                     </div>
                 )}

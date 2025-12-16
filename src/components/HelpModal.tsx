@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Music, Circle, Hash, Layers, Volume2, Hand, RotateCw, ListMusic, Map, Download, MousePointer2, HelpCircle } from 'lucide-react';
+import { X, Music, Circle, Hash, Layers, Volume2, Hand, RotateCw, ListMusic, Map, Download, HelpCircle } from 'lucide-react';
 import { PlayableProgression } from './interactive/PlayableProgression';
 import { PlayableCadence } from './interactive/PlayableCadence';
 import { PROGRESSION_PRESETS, CADENCE_PRESETS } from '../utils/progressionPlayback';
@@ -96,18 +96,77 @@ const HelpContent: React.FC<HelpContentProps> = ({ onClose }) => {
                         </div>
                     </div>
 
-                    {/* Understanding the Wheel - styled callout */}
-                    <div className="mt-5 p-4 rounded-xl bg-white/5 border border-white/10">
-                        <div className="flex items-center gap-2 mb-2">
-                            <MousePointer2 size={14} className="text-accent-primary shrink-0" />
-                            <strong className="text-sm text-white">Understanding the Wheel</strong>
+                    {/* Understanding the Wheel - styled callout with mini wheel */}
+                    <div className="mt-5 p-3 rounded-xl bg-white/5 border border-white/10">
+                        <div className="flex items-center gap-3">
+                            {/* Decorative mini chord wheel - moved to left */}
+                            <div className="shrink-0 w-14 h-14 relative">
+                                <svg viewBox="0 0 100 100" className="w-full h-full">
+                                    {/* Generate 12 wedge segments */}
+                                    {[...Array(12)].map((_, i) => {
+                                        const angle = i * 30;
+                                        const startAngle = (angle - 15 - 90) * Math.PI / 180;
+                                        const endAngle = (angle + 15 - 90) * Math.PI / 180;
+                                        const innerR = 18;
+                                        const outerR = 46;
+
+                                        // Check if this is in the "highlighted" key area (top 7 segments: positions 10, 11, 0, 1, 2, 3, 4)
+                                        const isHighlighted = i <= 4 || i >= 10;
+
+                                        // Color scheme matching the real wheel
+                                        let fillColor;
+                                        if (!isHighlighted) {
+                                            const mutedColors = [
+                                                'rgba(100, 80, 120, 0.5)',
+                                                'rgba(80, 70, 90, 0.5)',
+                                                'rgba(60, 55, 70, 0.5)',
+                                            ];
+                                            fillColor = mutedColors[i % 3];
+                                        } else {
+                                            if (i === 0) fillColor = 'rgba(234, 179, 8, 0.9)';
+                                            else if (i === 1) fillColor = 'rgba(163, 190, 60, 0.85)';
+                                            else if (i === 2) fillColor = 'rgba(132, 204, 22, 0.8)';
+                                            else if (i === 3) fillColor = 'rgba(74, 222, 128, 0.7)';
+                                            else if (i === 4) fillColor = 'rgba(45, 212, 191, 0.6)';
+                                            else if (i === 11) fillColor = 'rgba(251, 146, 60, 0.85)';
+                                            else if (i === 10) fillColor = 'rgba(168, 162, 158, 0.6)';
+                                            else fillColor = 'rgba(200, 180, 100, 0.7)';
+                                        }
+
+                                        const x1 = 50 + innerR * Math.cos(startAngle);
+                                        const y1 = 50 + innerR * Math.sin(startAngle);
+                                        const x2 = 50 + outerR * Math.cos(startAngle);
+                                        const y2 = 50 + outerR * Math.sin(startAngle);
+                                        const x3 = 50 + outerR * Math.cos(endAngle);
+                                        const y3 = 50 + outerR * Math.sin(endAngle);
+                                        const x4 = 50 + innerR * Math.cos(endAngle);
+                                        const y4 = 50 + innerR * Math.sin(endAngle);
+
+                                        return (
+                                            <path
+                                                key={i}
+                                                d={`M ${x1} ${y1} L ${x2} ${y2} A ${outerR} ${outerR} 0 0 1 ${x3} ${y3} L ${x4} ${y4} A ${innerR} ${innerR} 0 0 0 ${x1} ${y1}`}
+                                                fill={fillColor}
+                                                stroke="rgba(0, 0, 0, 0.3)"
+                                                strokeWidth="0.5"
+                                            />
+                                        );
+                                    })}
+                                    <circle cx="50" cy="50" r="16" fill="rgba(20, 20, 30, 0.95)" stroke="rgba(255, 255, 255, 0.1)" strokeWidth="1" />
+                                </svg>
+                            </div>
+
+                            {/* Text content */}
+                            <div className="flex-1 min-w-0">
+                                <strong className="text-xs text-white block mb-1">Understanding the Wheel</strong>
+                                <div className="text-[11px] text-gray-400 leading-snug space-y-0.5">
+                                    <div><strong className="text-gray-300">Highlighted</strong> = in key</div>
+                                    <div><strong className="text-gray-300">Inner</strong> = Major (I, IV, V)</div>
+                                    <div><strong className="text-gray-300">Middle</strong> = Minor (ii, iii, vi)</div>
+                                    <div><strong className="text-gray-300">Outer</strong> = Dim (vii°)</div>
+                                </div>
+                            </div>
                         </div>
-                        <ul className="space-y-1.5 text-xs text-gray-400 ml-5">
-                            <li>• <strong className="text-gray-300">Highlighted chords</strong> = sound good together in your key</li>
-                            <li>• <strong className="text-gray-300">Inner ring</strong> = Major chords (I, IV, V)</li>
-                            <li>• <strong className="text-gray-300">Middle ring</strong> = Minor chords (ii, iii, vi)</li>
-                            <li>• <strong className="text-gray-300">Outer ring</strong> = Diminished (vii°)</li>
-                        </ul>
                     </div>
 
                     {/* Tip callout */}
@@ -167,10 +226,10 @@ const HelpContent: React.FC<HelpContentProps> = ({ onClose }) => {
                         </div>
                     </div>
                 </div>
-            </section>
+            </section >
 
             {/* 3. Songwriting Toolkit (Cadences & Emotions) */}
-            <section>
+            < section >
                 <h3 className="text-accent-primary font-bold text-sm uppercase tracking-wider mb-3 flex items-center gap-2">
                     <Layers size={12} />
                     Songwriting Toolkit
@@ -208,10 +267,10 @@ const HelpContent: React.FC<HelpContentProps> = ({ onClose }) => {
                         </div>
                     </div>
                 </div>
-            </section>
+            </section >
 
             {/* 4. Advanced/Spicy Concepts */}
-            <section>
+            < section >
                 <h3 className="text-accent-primary font-bold text-sm uppercase tracking-wider mb-3 flex items-center gap-2">
                     <Music size={12} />
                     Adding Spice (Advanced)
@@ -322,7 +381,7 @@ const HelpContent: React.FC<HelpContentProps> = ({ onClose }) => {
                         </div>
                     </div>
                 </div>
-            </section>
+            </section >
         </>
     );
 };
