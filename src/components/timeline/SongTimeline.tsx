@@ -1,0 +1,322 @@
+/**
+ * SongTimeline
+ * 
+ * A thin, colorful, reactive visual timeline of the entire song structure.
+ * Shows sections proportionally by their measure count with smooth animations
+ * when sections are reordered via drag-and-drop.
+ * 
+ * Inspired by the PDF timeline footer but designed for the app's dark theme.
+ */
+
+import React from 'react';
+import clsx from 'clsx';
+import { Plus } from 'lucide-react';
+import type { Section } from '../../types';
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    TouchSensor,
+    useSensor,
+    useSensors,
+    type DragEndEvent,
+    DragOverlay,
+} from '@dnd-kit/core';
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    horizontalListSortingStrategy,
+    useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
+interface SongTimelineProps {
+    /** All sections in the song */
+    sections: Section[];
+    /** ID of the currently active/highlighted section */
+    activeSectionId?: string;
+    /** Callback when a section segment is clicked */
+    onSectionClick?: (sectionId: string) => void;
+    /** Callback when sections are reordered via drag-and-drop */
+    onReorder?: (newSections: Section[]) => void;
+    /** Callback when the add section button is clicked */
+    onAddSection?: () => void;
+}
+
+// Section abbreviations for compact display (matching PDF export)
+const SECTION_ABBREVIATIONS: Record<string, string> = {
+    'intro': 'In',
+    'verse': 'V',
+    'pre-chorus': 'PC',
+    'chorus': 'C',
+    'bridge': 'Br',
+    'interlude': 'Int',
+    'solo': 'So',
+    'breakdown': 'Bd',
+    'tag': 'Tg',
+    'hook': 'Hk',
+    'outro': 'Out',
+};
+
+// Colorful section themes matching the chord wheel aesthetic (darkened for better contrast)
+const TIMELINE_COLORS: Record<string, { bg: string; border: string; text: string }> = {
+    intro: { bg: 'bg-purple-600', border: 'border-purple-500', text: 'text-purple-100' },
+    verse: { bg: 'bg-blue-600', border: 'border-blue-500', text: 'text-blue-100' },
+    'pre-chorus': { bg: 'bg-cyan-600', border: 'border-cyan-500', text: 'text-cyan-100' },
+    chorus: { bg: 'bg-amber-600', border: 'border-amber-500', text: 'text-amber-100' },
+    bridge: { bg: 'bg-emerald-600', border: 'border-emerald-500', text: 'text-emerald-100' },
+    interlude: { bg: 'bg-teal-600', border: 'border-teal-500', text: 'text-teal-100' },
+    solo: { bg: 'bg-orange-600', border: 'border-orange-500', text: 'text-orange-100' },
+    breakdown: { bg: 'bg-red-600', border: 'border-red-500', text: 'text-red-100' },
+    tag: { bg: 'bg-pink-600', border: 'border-pink-500', text: 'text-pink-100' },
+    hook: { bg: 'bg-yellow-600', border: 'border-yellow-500', text: 'text-yellow-100' },
+    outro: { bg: 'bg-rose-600', border: 'border-rose-500', text: 'text-rose-100' },
+};
+
+const DEFAULT_COLORS = { bg: 'bg-slate-600', border: 'border-slate-500', text: 'text-slate-100' };
+
+/**
+ * Get the abbreviated label for a section, with numbering if multiple of same type exist
+ */
+function getSectionLabel(section: Section, allSections: Section[]): string {
+    const abbrev = SECTION_ABBREVIATIONS[section.type] || section.type.charAt(0).toUpperCase();
+
+    // Count how many of this type exist
+    const sameTypeSections = allSections.filter(s => s.type === section.type);
+    if (sameTypeSections.length > 1) {
+        const index = sameTypeSections.findIndex(s => s.id === section.id) + 1;
+        return `${abbrev}${index}`;
+    }
+    return abbrev;
+}
+
+interface SortableSectionSegmentProps {
+    section: Section;
+    allSections: Section[];
+    totalMeasures: number;
+    isActive: boolean;
+    isLast: boolean;
+    onClick?: () => void;
+}
+
+/**
+ * Individual draggable section segment
+ */
+const SortableSectionSegment: React.FC<SortableSectionSegmentProps> = ({
+    section,
+    allSections,
+    totalMeasures,
+    isActive,
+    isLast,
+    onClick
+}) => {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging,
+    } = useSortable({ id: section.id });
+
+    const widthPercent = (section.measures.length / totalMeasures) * 100;
+    const colors = TIMELINE_COLORS[section.type] || DEFAULT_COLORS;
+    const label = getSectionLabel(section, allSections);
+    const showLabel = widthPercent > 5 || isActive;
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        width: `${widthPercent}%`,
+        minWidth: '16px',
+    };
+
+    return (
+        <div
+            ref={setNodeRef}
+            style={style}
+            {...attributes}
+            {...listeners}
+            onClick={(e) => {
+                e.stopPropagation();
+                onClick?.();
+            }}
+            className={clsx(
+                // Base styles
+                "relative h-full flex items-center justify-center overflow-hidden",
+                "transition-all duration-200 ease-out",
+                "touch-none select-none",
+                // Background and border
+                colors.bg,
+                // Active state
+                isActive && !isDragging && "ring-2 ring-white/50 ring-inset z-10",
+                !isActive && !isDragging && "opacity-70 hover:opacity-90",
+                // Dragging state - just highlight, no popup
+                isDragging && "opacity-100 scale-[1.08] z-50 ring-2 ring-white ring-inset shadow-lg",
+                // Cursor
+                "cursor-grab active:cursor-grabbing",
+                // Border between segments
+                !isLast && !isDragging && "border-r border-black/30"
+            )}
+            title={`${section.name || section.type} (${section.measures.length} bars) - Drag to reorder`}
+        >
+            {/* Label */}
+            {showLabel && (
+                <span
+                    className={clsx(
+                        "text-[9px] font-bold uppercase tracking-tight pointer-events-none",
+                        "transition-all duration-200",
+                        colors.text,
+                        isActive && !isDragging && "scale-105"
+                    )}
+                    style={{
+                        textShadow: '0 1px 2px rgba(0,0,0,0.3)'
+                    }}
+                >
+                    {label}
+                </span>
+            )}
+
+            {/* Active indicator - glowing bottom line */}
+            {isActive && !isDragging && (
+                <div
+                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-white/60"
+                    style={{
+                        boxShadow: '0 0 6px rgba(255,255,255,0.6)'
+                    }}
+                />
+            )}
+        </div>
+    );
+};
+
+export const SongTimeline: React.FC<SongTimelineProps> = ({
+    sections,
+    activeSectionId,
+    onSectionClick,
+    onReorder,
+    onAddSection
+}) => {
+    // Calculate total measures for proportional sizing
+    const totalMeasures = sections.reduce((acc, s) => acc + s.measures.length, 0);
+
+    // Configure sensors for both mouse and touch
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 5, // 5px movement required to start drag
+            },
+        }),
+        useSensor(TouchSensor, {
+            activationConstraint: {
+                delay: 150, // 150ms hold before drag starts
+                tolerance: 5,
+            },
+        }),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
+
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+
+        if (over && active.id !== over.id && onReorder) {
+            const oldIndex = sections.findIndex(s => s.id === active.id);
+            const newIndex = sections.findIndex(s => s.id === over.id);
+            const newSections = arrayMove(sections, oldIndex, newIndex);
+            onReorder(newSections);
+        }
+    };
+
+    // Show empty state with just add button if no sections
+    if (totalMeasures === 0 || sections.length === 0) {
+        return onAddSection ? (
+            <div className="w-full px-1">
+                <div className="relative w-full h-6 bg-black/20 rounded-lg border border-white/5 flex items-center justify-center">
+                    <button
+                        onClick={onAddSection}
+                        className="flex items-center gap-1 px-2 py-0.5 text-[9px] font-medium text-white/50 hover:text-white/80 transition-colors"
+                    >
+                        <Plus size={10} />
+                        Add Section
+                    </button>
+                </div>
+            </div>
+        ) : null;
+    }
+
+    return (
+        <div className="w-full px-1">
+            {/* Timeline container with add button */}
+            <div className="flex items-center gap-1">
+                {/* Timeline */}
+                <div className="relative flex-1 h-6 bg-black/20 rounded-lg overflow-hidden border border-white/5">
+                    <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragEnd={handleDragEnd}
+                    >
+                        <SortableContext
+                            items={sections.map(s => s.id)}
+                            strategy={horizontalListSortingStrategy}
+                        >
+                            {/* Section segments */}
+                            <div className="absolute inset-0 flex">
+                                {sections.map((section, index) => (
+                                    <SortableSectionSegment
+                                        key={section.id}
+                                        section={section}
+                                        allSections={sections}
+                                        totalMeasures={totalMeasures}
+                                        isActive={section.id === activeSectionId}
+                                        isLast={index === sections.length - 1}
+                                        onClick={() => onSectionClick?.(section.id)}
+                                    />
+                                ))}
+                            </div>
+                        </SortableContext>
+
+                        {/* Empty DragOverlay - keeps dnd-kit happy */}
+                        <DragOverlay dropAnimation={{
+                            duration: 200,
+                            easing: 'ease-out',
+                        }}>
+                            {null}
+                        </DragOverlay>
+                    </DndContext>
+
+                    {/* Subtle top highlight for depth */}
+                    <div className="absolute top-0 left-0 right-0 h-px bg-white/10 pointer-events-none" />
+                </div>
+
+                {/* Add Section Button */}
+                {onAddSection && (
+                    <button
+                        onClick={onAddSection}
+                        className={clsx(
+                            "shrink-0 w-6 h-6 rounded-lg",
+                            "flex items-center justify-center",
+                            "bg-accent-primary/20 border border-accent-primary/30",
+                            "text-accent-primary hover:bg-accent-primary/30",
+                            "transition-all hover:scale-105 active:scale-95"
+                        )}
+                        title="Add new section"
+                    >
+                        <Plus size={14} />
+                    </button>
+                )}
+            </div>
+
+            {/* Bracket markers at edges */}
+            <div className="relative w-full h-1.5 flex justify-between px-0.5 mt-0.5">
+                {/* Start bracket */}
+                <div className="w-px h-full bg-white/20" />
+                {/* End bracket */}
+                <div className="w-px h-full bg-white/20" />
+            </div>
+        </div>
+    );
+};

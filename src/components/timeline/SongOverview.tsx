@@ -39,6 +39,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { getSectionDisplayName, type Section, type InstrumentType } from '../../types';
+import { SongTimeline } from './SongTimeline';
 
 interface SongOverviewProps {
     onSave?: () => void;
@@ -604,7 +605,8 @@ export const SongOverview: React.FC<SongOverviewProps> = ({ onSave, onExport }) 
         playingSectionId,
         openTimeline,
         instrument,
-        setInstrument
+
+        addSuggestedSection
     } = useSongStore();
 
     // BPM editing state
@@ -913,6 +915,27 @@ export const SongOverview: React.FC<SongOverviewProps> = ({ onSave, onExport }) 
                         <span>Duration</span>
                     </div>
                 </div>
+
+
+                {/* Song Timeline Overview */}
+                <div className="px-4 pb-4">
+                    <SongTimeline
+                        sections={currentSong.sections}
+                        activeSectionId={(playingSectionId || selectedMapSectionId) || undefined}
+                        onReorder={reorderSections}
+                        onAddSection={addSuggestedSection}
+                        onSectionClick={(sectionId) => {
+                            const sectionElement = scrollContainerRef.current?.querySelector(`[data-section-id="${sectionId}"]`);
+                            if (sectionElement) {
+                                sectionElement.scrollIntoView({
+                                    behavior: 'smooth',
+                                    inline: 'center',
+                                    block: 'nearest'
+                                });
+                            }
+                        }}
+                    />
+                </div>
             </div>
 
             {/* Scrollable Map Area - Edge to Edge */}
@@ -1136,6 +1159,6 @@ export const SongOverview: React.FC<SongOverviewProps> = ({ onSave, onExport }) 
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 };

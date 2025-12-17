@@ -1055,7 +1055,33 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                             if (editingSectionId) clearSection(editingSectionId);
                         }}
                         onDelete={() => {
-                            if (editingSectionId) removeSection(editingSectionId);
+                            if (editingSectionId) {
+                                // Find a fallback section to switch to (prefer next, then previous)
+                                const currentIndex = currentSong.sections.findIndex(s => s.id === editingSectionId);
+                                let fallbackId: string | null = null;
+
+                                if (currentSong.sections.length > 1) {
+                                    if (currentIndex < currentSong.sections.length - 1) {
+                                        fallbackId = currentSong.sections[currentIndex + 1].id;
+                                    } else {
+                                        fallbackId = currentSong.sections[currentIndex - 1].id;
+                                    }
+                                }
+
+                                removeSection(editingSectionId);
+                                setEditingSectionId(fallbackId);
+
+                                // Update active tab index if we switched
+                                if (fallbackId) {
+                                    const newIndex = currentSong.sections.findIndex(s => s.id === fallbackId);
+                                    // Note: we can't search the *new* list yet as we're in the handler before render
+                                    // But we know the ID. When the component re-renders, it will use the ID correctly.
+                                    // For activeSectionIndex state (which is local), we can approximate or just rely on the fallback logic in effects.
+                                    // Actually, let's just update it based on the old list logic for smoother transition
+                                    const nextIndex = currentIndex < currentSong.sections.length - 1 ? currentIndex : Math.max(0, currentIndex - 1);
+                                    setActiveSectionIndex(nextIndex);
+                                }
+                            }
                         }}
                         songTimeSignature={songTimeSignature || [4, 4]}
                         // Navigation props

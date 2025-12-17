@@ -5,6 +5,8 @@ import clsx from 'clsx';
 import type { Section } from '../../types';
 import { NoteIcon, getNoteType, getStepOptions } from './NoteValueSelector';
 import { SectionPreview } from './SectionPreview';
+import { SongTimeline } from './SongTimeline';
+import { useSongStore } from '../../store/useSongStore';
 
 interface SectionOptionsPopupProps {
     section: Section;
@@ -78,6 +80,7 @@ export const SectionOptionsPopup: React.FC<SectionOptionsPopupProps> = ({
     onMoveDown,
 }) => {
     const popupRef = useRef<HTMLDivElement>(null);
+    const { currentSong, reorderSections, addSuggestedSection } = useSongStore();
     const sectionTimeSignature = section.timeSignature || songTimeSignature;
     const signatureValue = `${sectionTimeSignature[0]}/${sectionTimeSignature[1]}`;
     const measureCount = section.measures.length;
@@ -226,6 +229,34 @@ export const SectionOptionsPopup: React.FC<SectionOptionsPopupProps> = ({
                     >
                         <X size={14} />
                     </button>
+                </div>
+
+                {/* Song Timeline - visual overview of all sections */}
+                <div className="px-3 py-2 border-b border-border-subtle bg-black/10">
+                    <SongTimeline
+                        sections={currentSong.sections}
+                        activeSectionId={section.id}
+                        onReorder={(newSections) => {
+                            reorderSections(newSections);
+                        }}
+                        onAddSection={addSuggestedSection}
+                        onSectionClick={(sectionId) => {
+                            // Navigate to clicked section
+                            if (onNavigateNext && onNavigatePrev) {
+                                const targetIndex = currentSong.sections.findIndex((s: Section) => s.id === sectionId);
+                                const currentIndex = currentSong.sections.findIndex((s: Section) => s.id === section.id);
+                                if (targetIndex > currentIndex && onNavigateNext) {
+                                    for (let i = currentIndex; i < targetIndex; i++) {
+                                        onNavigateNext();
+                                    }
+                                } else if (targetIndex < currentIndex && onNavigatePrev) {
+                                    for (let i = currentIndex; i > targetIndex; i--) {
+                                        onNavigatePrev();
+                                    }
+                                }
+                            }
+                        }}
+                    />
                 </div>
 
                 {/* Content */}
@@ -385,7 +416,6 @@ export const SectionOptionsPopup: React.FC<SectionOptionsPopupProps> = ({
                             <button
                                 onClick={() => {
                                     onCopy();
-                                    onClose();
                                 }}
                                 className="flex items-center justify-center gap-1.5
                                            px-2 py-2.5 rounded-lg
@@ -399,7 +429,6 @@ export const SectionOptionsPopup: React.FC<SectionOptionsPopupProps> = ({
                             <button
                                 onClick={() => {
                                     onClear();
-                                    onClose();
                                 }}
                                 className="flex items-center justify-center gap-1.5
                                            px-2 py-2.5 rounded-lg
@@ -413,7 +442,6 @@ export const SectionOptionsPopup: React.FC<SectionOptionsPopupProps> = ({
                             <button
                                 onClick={() => {
                                     onDelete();
-                                    onClose();
                                 }}
                                 className="flex items-center justify-center gap-1.5
                                            px-2 py-2.5 rounded-lg
