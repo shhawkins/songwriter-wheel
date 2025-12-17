@@ -8,9 +8,9 @@ A fun, educational, and practical web app for musicians and songwriters to brain
 
 <p align="center">
   <img src="docs/screenshots/mobile-wheel.jpg" alt="Chord Wheel - Full View" width="220" />
-  <img src="docs/screenshots/mobile-keyboard.jpg" alt="Chord Wheel with Keyboard" width="220" />
   <img src="docs/screenshots/mobile-voicings.jpg" alt="Guitar Voicings and Staff" width="220" />
   <img src="docs/screenshots/welcome-guide.jpg" alt="Quick Start Guide" width="220" />
+  <img src="docs/screenshots/mobile-keyboard.jpg" alt="Chord Wheel with Keyboard" width="220" />
 </p>
 
 ---
