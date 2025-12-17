@@ -120,19 +120,26 @@ export const PlaybackControls: React.FC = () => {
     const instrumentOptions: { value: InstrumentType, label: string }[] = [
         { value: 'piano', label: 'Piano' },
         { value: 'epiano', label: 'Electric Piano' },
-        { value: 'guitar-jazzmaster', label: 'Fender Jazzmaster' },
-        { value: 'guitar-acoustic', label: 'Kay Archtop Acoustic' },
-        { value: 'guitar-nylon', label: 'Nylon String Guitar' },
+        { value: 'guitar-jazzmaster', label: 'Jazzmaster' },
+        { value: 'bass-electric', label: 'Electric Bass' },
+        { value: 'harmonica', label: 'Harmonica' },
         { value: 'organ', label: 'Organ' },
         { value: 'pad', label: 'Pad' },
         ...customInstruments.map(inst => ({ value: inst.id, label: inst.name })),
         { value: 'manage', label: '+ Manage Instruments...' }
     ];
 
-    // Clamp instrument to available options
-    if (!instrumentOptions.find((o) => o.value === instrument)) {
-        setInstrument('piano');
-    }
+    // Clamp instrument to available options - handle in effect to avoid render side-effects
+    useEffect(() => {
+        if (!isLoading && instrumentOptions.length > 0) {
+            if (!instrumentOptions.find((o) => o.value === instrument)) {
+                // Only reset if we have options but the current one isn't found
+                // This prevents resetting during initial load/hydration if options aren't ready
+                console.log(`Instrument ${instrument} not found in options, resetting to piano`);
+                setInstrument('piano');
+            }
+        }
+    }, [instrument, instrumentOptions, isLoading]);
 
     const cycleInstrument = (direction: 'prev' | 'next') => {
         const idx = instrumentOptions.findIndex(o => o.value === instrument);

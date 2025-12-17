@@ -9,8 +9,7 @@ let instruments: Record<string, Tone.Sampler | Tone.PolySynth | null> = {
     epiano: null,
     guitar: null,
     'guitar-jazzmaster': null,
-    'guitar-acoustic': null,
-    'guitar-nylon': null,
+
     organ: null,
     synth: null,
     strings: null,
@@ -20,6 +19,8 @@ let instruments: Record<string, Tone.Sampler | Tone.PolySynth | null> = {
     bell: null,
     lead: null,
     bass: null,
+    'bass-electric': null,
+    harmonica: null,
     choir: null,
 };
 
@@ -161,6 +162,7 @@ const createCustomSampler = (instrument: CustomInstrument) => {
         return new Tone.Sampler({
             urls: instrument.samples,
             release: 2,
+            attack: 0.005,
         }).connect(ensureMasterLimiter());
     } catch (e) {
         console.error(`Failed to create custom sampler for ${instrument.name}`, e);
@@ -170,7 +172,7 @@ const createCustomSampler = (instrument: CustomInstrument) => {
 
 export const reloadCustomInstruments = () => {
     const { customInstruments } = useSongStore.getState();
-    customInstruments.forEach(inst => {
+    customInstruments.forEach((inst: CustomInstrument) => {
         if (!instruments[inst.id]) {
             const sampler = createCustomSampler(inst);
             if (sampler) {
@@ -238,7 +240,7 @@ export const initAudio = async () => {
         // Sampled guitars - same simple pattern as piano, all through master limiter
         const guitarBaseUrl = "/samples/";
         const limiter = ensureMasterLimiter();
-        
+
         safeCreate('guitar', () => new Tone.Sampler({
             urls: {
                 "C3": "electric-guitar-c3.m4a",
@@ -259,25 +261,7 @@ export const initAudio = async () => {
             baseUrl: guitarBaseUrl,
         }).connect(limiter));
 
-        safeCreate('guitar-acoustic', () => new Tone.Sampler({
-            urls: {
-                "C3": "kay-acoustic-c3.mp3",
-                "C4": "kay-acoustic-c4.mp3",
-                "C5": "kay-acoustic-c5.mp3",
-            },
-            release: 2,
-            baseUrl: guitarBaseUrl,
-        }).connect(limiter));
 
-        safeCreate('guitar-nylon', () => new Tone.Sampler({
-            urls: {
-                "C3": "nylon-guitar-c3.mp3",
-                "C4": "nylon-string-c4.mp3",
-                "C5": "nylon-string-c5.mp3",
-            },
-            release: 2,
-            baseUrl: guitarBaseUrl,
-        }).connect(limiter));
 
         safeCreate('organ', () => new Tone.PolySynth(Tone.AMSynth, {
             harmonicity: 3,
@@ -380,6 +364,26 @@ export const initAudio = async () => {
             envelope: { attack: 0.01, decay: 0.2, sustain: 0.6, release: 0.4 },
             filterEnvelope: { attack: 0.001, decay: 0.15, sustain: 0.4, release: 0.2, baseFrequency: 80, octaves: 3 }
         }).toDestination());
+
+        safeCreate('bass-electric', () => new Tone.Sampler({
+            urls: {
+                "C3": "bass-c3.aif",
+                "C4": "bass-c4.aif",
+                "C5": "bass-c5.aif",
+            },
+            release: 2,
+            baseUrl: "/samples/",
+        }).connect(ensureMasterLimiter()));
+
+        safeCreate('harmonica', () => new Tone.Sampler({
+            urls: {
+                "C3": "harmonica-c3.mp3",
+                "C4": "harmonica-c4.mp3",
+                "C5": "harmonica-c5.mp3",
+            },
+            release: 2,
+            baseUrl: "/samples/",
+        }).connect(ensureMasterLimiter()));
 
         safeCreate('choir', () => new Tone.PolySynth(Tone.Synth, {
             oscillator: { type: "sine" },
@@ -635,7 +639,7 @@ export const setTempo = (bpm: number) => {
 
 export const skipToSection = (direction: 'prev' | 'next') => {
     const { currentSong, playingSectionId } = useSongStore.getState();
-    const sectionIds = currentSong.sections.map(s => s.id);
+    const sectionIds = currentSong.sections.map((s: { id: string }) => s.id);
     let currentIndex = playingSectionId ? sectionIds.indexOf(playingSectionId) : -1;
 
     // If not playing, or playhead not visible, maybe start from 0?
@@ -674,14 +678,14 @@ export const toggleLoopMode = () => {
     if (isLooping) {
         // Find section to loop: either currently playing or selected
         const targetSectionId = playingSectionId || selectedSectionId;
-        const section = currentSong.sections.find(s => s.id === targetSectionId);
+        const section = currentSong.sections.find((s: { id: string }) => s.id === targetSectionId);
 
         if (section) {
             const startBeats = sectionStartTimes[section.id] ?? 0;
 
             // Calculate duration of section
             let duration = 0;
-            section.measures.forEach(m => m.beats.forEach(b => duration += b.duration));
+            section.measures.forEach((m: { beats: any[] }) => m.beats.forEach((b: { duration: number }) => duration += b.duration));
 
             const endBeats = startBeats + duration;
 

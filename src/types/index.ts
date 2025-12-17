@@ -86,8 +86,6 @@ export type InstrumentType =
     | 'epiano'
     | 'guitar'
     | 'guitar-jazzmaster'
-    | 'guitar-acoustic'
-    | 'guitar-nylon'
     | 'organ'
     | 'synth'
     | 'strings'
@@ -97,6 +95,8 @@ export type InstrumentType =
     | 'bell'
     | 'lead'
     | 'bass'
+    | 'bass-electric'
+    | 'harmonica'
     | 'choir'
     | string; // Allow custom instrument IDs
 

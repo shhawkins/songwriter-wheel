@@ -16,11 +16,11 @@ const trimSilence = async (audioBlob: Blob): Promise<Blob> => {
     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     const arrayBuffer = await audioBlob.arrayBuffer();
     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-    
+
     const channelData = audioBuffer.getChannelData(0);
     const sampleRate = audioBuffer.sampleRate;
     const threshold = 0.01; // Amplitude threshold for "silence"
-    
+
     // Find start (first non-silent sample)
     let start = 0;
     for (let i = 0; i < channelData.length; i++) {
@@ -29,7 +29,7 @@ const trimSilence = async (audioBlob: Blob): Promise<Blob> => {
             break;
         }
     }
-    
+
     // Find end (last non-silent sample)
     let end = channelData.length;
     for (let i = channelData.length - 1; i >= 0; i--) {
@@ -38,7 +38,7 @@ const trimSilence = async (audioBlob: Blob): Promise<Blob> => {
             break;
         }
     }
-    
+
     // Create new buffer with trimmed audio
     const duration = (end - start) / sampleRate;
     const trimmedBuffer = audioContext.createBuffer(
@@ -46,7 +46,7 @@ const trimSilence = async (audioBlob: Blob): Promise<Blob> => {
         end - start,
         sampleRate
     );
-    
+
     for (let channel = 0; channel < audioBuffer.numberOfChannels; channel++) {
         const sourceData = audioBuffer.getChannelData(channel);
         const targetData = trimmedBuffer.getChannelData(channel);
@@ -54,7 +54,7 @@ const trimSilence = async (audioBlob: Blob): Promise<Blob> => {
             targetData[i] = sourceData[start + i];
         }
     }
-    
+
     // Convert back to blob
     const offlineContext = new OfflineAudioContext(
         trimmedBuffer.numberOfChannels,
@@ -65,9 +65,9 @@ const trimSilence = async (audioBlob: Blob): Promise<Blob> => {
     source.buffer = trimmedBuffer;
     source.connect(offlineContext.destination);
     source.start();
-    
+
     const renderedBuffer = await offlineContext.startRendering();
-    
+
     // Export as WAV (better browser compatibility than webm)
     const wavBlob = audioBufferToWav(renderedBuffer);
     return wavBlob;
@@ -82,14 +82,14 @@ const audioBufferToWav = (buffer: AudioBuffer): Blob => {
     const view = new DataView(arrayBuffer);
     const channels: Float32Array[] = [];
     let offset = 0;
-    
+
     // Write WAV header
     const writeString = (str: string) => {
         for (let i = 0; i < str.length; i++) {
             view.setUint8(offset++, str.charCodeAt(i));
         }
     };
-    
+
     writeString('RIFF');
     view.setUint32(offset, 36 + length, true); offset += 4;
     writeString('WAVE');
@@ -103,12 +103,12 @@ const audioBufferToWav = (buffer: AudioBuffer): Blob => {
     view.setUint16(offset, 16, true); offset += 2;
     writeString('data');
     view.setUint32(offset, length, true); offset += 4;
-    
+
     // Interleave channels
     for (let i = 0; i < buffer.numberOfChannels; i++) {
         channels.push(buffer.getChannelData(i));
     }
-    
+
     for (let i = 0; i < buffer.length; i++) {
         for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
             const sample = Math.max(-1, Math.min(1, channels[channel][i]));
@@ -116,12 +116,12 @@ const audioBufferToWav = (buffer: AudioBuffer): Blob => {
             offset += 2;
         }
     }
-    
+
     return new Blob([arrayBuffer], { type: 'audio/wav' });
 };
 
 export const InstrumentManagerModal: React.FC<InstrumentManagerModalProps> = ({ onClose }) => {
-    const { customInstruments, addCustomInstrument, removeCustomInstrument } = useSongStore();
+    const { customInstruments, addCustomInstrument, removeCustomInstrument, setInstrument } = useSongStore();
     const [view, setView] = useState<'list' | 'create'>('list');
 
     // Creation State
@@ -147,7 +147,7 @@ export const InstrumentManagerModal: React.FC<InstrumentManagerModalProps> = ({ 
 
             mediaRecorder.onstop = async () => {
                 const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-                
+
                 // Trim silence from the recording
                 try {
                     const trimmedBlob = await trimSilence(audioBlob);
@@ -167,7 +167,7 @@ export const InstrumentManagerModal: React.FC<InstrumentManagerModalProps> = ({ 
                         setSamples(prev => ({ ...prev, [note]: base64data }));
                     };
                 }
-                
+
                 stream.getTracks().forEach(track => track.stop());
             };
 
@@ -214,6 +214,7 @@ export const InstrumentManagerModal: React.FC<InstrumentManagerModalProps> = ({ 
         };
 
         addCustomInstrument(newInstrument);
+        setInstrument(newInstrument.id); // Auto-select the new instrument
         setView('list');
         setName('');
         setSamples({});
@@ -246,6 +247,11 @@ export const InstrumentManagerModal: React.FC<InstrumentManagerModalProps> = ({ 
                                 type="text"
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        handleSave();
+                                    }
+                                }}
                                 className="w-full bg-bg-tertiary border border-border-subtle rounded px-3 py-2 text-text-primary focus:border-accent-primary focus:outline-none"
                                 placeholder="e.g. My Acoustic Guitar"
                             />
@@ -262,13 +268,13 @@ export const InstrumentManagerModal: React.FC<InstrumentManagerModalProps> = ({ 
                                     </p>
                                 </div>
                             </div>
-                            
+
                             {recordingNote && (
                                 <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
                                     <div className="flex items-start gap-2">
                                         <Mic size={16} className="text-red-500 mt-0.5 shrink-0 animate-pulse" />
                                         <p className="text-xs text-text-secondary">
-                                            <strong>Recording {recordingNote}:</strong> Play the note cleanly, 
+                                            <strong>Recording {recordingNote}:</strong> Play the note cleanly,
                                             then click stop. Silence will be auto-trimmed!
                                         </p>
                                     </div>
@@ -299,23 +305,7 @@ export const InstrumentManagerModal: React.FC<InstrumentManagerModalProps> = ({ 
                                     </div>
 
                                     <div className="flex items-center gap-2">
-                                        {recordingNote === note ? (
-                                            <button
-                                                onClick={handleStopRecording}
-                                                className="p-2 rounded-full bg-red-500/20 text-red-500 animate-pulse hover:bg-red-500/30 transition-colors"
-                                            >
-                                                <Square size={16} fill="currentColor" />
-                                            </button>
-                                        ) : (
-                                            <button
-                                                onClick={() => handleStartRecording(note)}
-                                                disabled={isRecording}
-                                                className="p-2 rounded-full hover:bg-bg-elevated text-text-secondary hover:text-accent-primary transition-colors disabled:opacity-50"
-                                                title="Record Microphone"
-                                            >
-                                                <Mic size={16} />
-                                            </button>
-                                        )}
+                                        {/* Microphone recording temporarily disabled */}
 
                                         <label className="p-2 rounded-full hover:bg-bg-elevated text-text-secondary hover:text-accent-primary transition-colors cursor-pointer">
                                             <input
