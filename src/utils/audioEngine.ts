@@ -218,12 +218,15 @@ export const initAudio = async () => {
             baseUrl,
         }).toDestination());
 
-        safeCreate('guitar', () => new Tone.PolySynth(Tone.Synth, {
-            oscillator: { type: "triangle" },
-            envelope: { attack: 0.002, decay: 0.25, sustain: 0.3, release: 1.2 },
-            filter: { type: "lowpass", frequency: 2400, rolloff: -12, Q: 1.2 },
-            filterEnvelope: { attack: 0.002, decay: 0.25, sustain: 0.2, release: 0.8, baseFrequency: 800, octaves: 2.5 }
-        } as any).toDestination());
+        safeCreate('guitar', () => new Tone.Sampler({
+            urls: {
+                "C3": "electric-guitar-c3.m4a",
+                "C4": "electric-guitar-c4.m4a",
+                "C5": "electric-guitar-c5.m4a",
+            },
+            release: 1,
+            baseUrl: "/samples/",
+        }).toDestination());
 
         safeCreate('organ', () => new Tone.PolySynth(Tone.AMSynth, {
             harmonicity: 3,
