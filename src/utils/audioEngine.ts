@@ -138,17 +138,30 @@ export const unlockAudioForIOS = async (): Promise<void> => {
     console.log('[iOS Audio] Unlock sequence complete');
 };
 
+/**
+ * Create a limiter chain for sampled instruments to prevent clipping
+ * The limiter ensures the signal never exceeds -1dB, preventing distortion
+ */
+const createSamplerWithLimiter = (samplerOptions: ConstructorParameters<typeof Tone.Sampler>[0]): Tone.Sampler => {
+    const sampler = new Tone.Sampler(samplerOptions);
+    // Chain: Sampler -> Volume (-6dB headroom) -> Limiter (-1dB ceiling) -> Destination
+    const volume = new Tone.Volume(-6);
+    const limiter = new Tone.Limiter(-1);
+    sampler.chain(volume, limiter, Tone.Destination);
+    return sampler;
+};
+
 const createCustomSampler = (instrument: CustomInstrument) => {
     // If no samples, fallback or return null
     if (!instrument.samples || Object.keys(instrument.samples).length === 0) return null;
 
     try {
-        // Match the piano sampler pattern for best compatibility
-        return new Tone.Sampler({
+        // Use limiter chain to prevent clipping with user samples
+        return createSamplerWithLimiter({
             urls: instrument.samples,
             release: 2,
             // No baseUrl needed as we use full data URIs or absolute URLs
-        }).toDestination();
+        });
     } catch (e) {
         console.error(`Failed to create custom sampler for ${instrument.name}`, e);
         return null;
@@ -222,11 +235,11 @@ export const initAudio = async () => {
             baseUrl,
         }).toDestination());
 
-        // Sampled guitars - using same pattern as piano for best sound quality
+        // Sampled guitars - using limiter chain to prevent clipping
         // Note: Tone.Sampler automatically pitch-shifts samples to fill the range
         const guitarBaseUrl = "/samples/";
         
-        safeCreate('guitar', () => new Tone.Sampler({
+        safeCreate('guitar', () => createSamplerWithLimiter({
             urls: {
                 "C3": "electric-guitar-c3.m4a",
                 "C4": "electric-guitar-c4.m4a",
@@ -234,9 +247,9 @@ export const initAudio = async () => {
             },
             release: 2,
             baseUrl: guitarBaseUrl,
-        }).toDestination());
+        }));
 
-        safeCreate('guitar-jazzmaster', () => new Tone.Sampler({
+        safeCreate('guitar-jazzmaster', () => createSamplerWithLimiter({
             urls: {
                 "C3": "electric-guitar-c3.m4a",
                 "C4": "electric-guitar-c4.m4a",
@@ -244,9 +257,9 @@ export const initAudio = async () => {
             },
             release: 2,
             baseUrl: guitarBaseUrl,
-        }).toDestination());
+        }));
 
-        safeCreate('guitar-acoustic', () => new Tone.Sampler({
+        safeCreate('guitar-acoustic', () => createSamplerWithLimiter({
             urls: {
                 "C3": "kay-acoustic-c3.mp3",
                 "C4": "kay-acoustic-c4.mp3",
@@ -254,9 +267,9 @@ export const initAudio = async () => {
             },
             release: 2,
             baseUrl: guitarBaseUrl,
-        }).toDestination());
+        }));
 
-        safeCreate('guitar-nylon', () => new Tone.Sampler({
+        safeCreate('guitar-nylon', () => createSamplerWithLimiter({
             urls: {
                 "C3": "nylon-guitar-c3.mp3",
                 "C4": "nylon-string-c4.mp3",
@@ -264,7 +277,7 @@ export const initAudio = async () => {
             },
             release: 2,
             baseUrl: guitarBaseUrl,
-        }).toDestination());
+        }));
 
         safeCreate('organ', () => new Tone.PolySynth(Tone.AMSynth, {
             harmonicity: 3,
