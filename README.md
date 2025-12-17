@@ -2,7 +2,7 @@
 
 A fun, educational, and practical web app for musicians and songwriters to brainstorm ideas, explore music theory, create chord progressions, and arrange complete songs.
 
-**🎸 [Try it live →](https://chord-wheel-writer.vercel.app)**
+**🎸 [Try it live →](https://songwriter-wheel-writer.vercel.app)**
 
 ---
 
