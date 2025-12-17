@@ -33,6 +33,7 @@ Built around the classic **Chord Wheel** concept — a circle of fifths on the i
 
 ### 🎼 Song Creation
 - **Build chord progressions** — Easily create progressions by tapping chords on the wheel
+- **Loop, listen, & brainstorm** — Cycle a section with different instruments while ideas percolate
 - **Multi-section arrangements** — Organize your song with intro, verse, chorus, bridge, and custom sections
 - **Playback** — Listen to your progressions with adjustable BPM
 - **Section management** — Duplicate, reorder, and customize sections
