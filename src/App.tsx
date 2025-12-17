@@ -27,7 +27,9 @@ interface MobilePortraitDrawersProps {
   mobileTimelineOpen: boolean;
   setMobileTimelineOpen: (open: boolean) => void;
   chordPanelVisible: boolean;
+  chordPanelVisible: boolean;
   setChordPanelScrolledToBottom: (scrolled: boolean) => void;
+  footerVisible: boolean;
 }
 
 const MobilePortraitDrawers: React.FC<MobilePortraitDrawersProps> = ({
@@ -35,6 +37,7 @@ const MobilePortraitDrawers: React.FC<MobilePortraitDrawersProps> = ({
   setMobileTimelineOpen,
   chordPanelVisible,
   setChordPanelScrolledToBottom,
+  footerVisible,
 }) => {
   // Drag gesture state for combined toggle bar
   const toggleBarTouchStartY = useRef<number>(0);
@@ -164,8 +167,11 @@ const MobilePortraitDrawers: React.FC<MobilePortraitDrawersProps> = ({
         {/* Chord Details Drawer - force visible during opening preview */}
         <div
           data-chord-details
-          className="shrink-0 bg-bg-primary overflow-hidden"
-          style={{ maxHeight: mobileTimelineOpen || isPreviewingOpen ? '45vh' : '55vh' }}
+          className="shrink-0 bg-bg-secondary overflow-hidden"
+          style={{
+            maxHeight: mobileTimelineOpen || isPreviewingOpen ? '45vh' : '55vh',
+            paddingBottom: footerVisible ? 0 : 'env(safe-area-inset-bottom)'
+          }}
         >
           <ChordDetails
             variant="drawer"
@@ -1566,13 +1572,14 @@ function App() {
           setMobileTimelineOpen={setMobileTimelineOpen}
           chordPanelVisible={chordPanelVisible}
           setChordPanelScrolledToBottom={setChordPanelScrolledToBottom}
+          footerVisible={isPlaying || !(mobileImmersive || (chordPanelVisible && !chordPanelScrolledToBottom))}
         />
       )}
 
       {/* Footer: Playback - hidden in mobile immersive mode or when chord panel is open (unless scrolled to bottom), BUT always show when playing */}
       {(isPlaying || !(isMobile && !isLandscape && (mobileImmersive || (chordPanelVisible && !chordPanelScrolledToBottom)))) && (
         <div
-          className="shrink-0 z-30 relative"
+          className="shrink-0 z-30 relative bg-bg-elevated"
           style={{
             paddingBottom: isMobile ? 'env(safe-area-inset-bottom)' : undefined
           }}

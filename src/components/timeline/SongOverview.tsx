@@ -12,7 +12,8 @@ import {
     SkipForward,
     Save,
     Download,
-    Music
+    Music,
+    Trash
 } from 'lucide-react';
 import clsx from 'clsx';
 import { getWheelColors, formatChordForDisplay, type Chord } from '../../utils/musicTheory';
@@ -128,6 +129,7 @@ interface SortableSectionProps {
     chordColors: any;
     measureWidth: number;
     isCompact: boolean;
+    onRemoveSection: (sectionId: string) => void;
 }
 
 // Base measure width (narrower for more visibility)
@@ -144,7 +146,7 @@ const DEFAULT_THEME = {
     accent: 'bg-slate-500'
 };
 
-const SortableSection = ({ section, allSections, onSelectBeat, onBeatTap, onEmptySlotTap, isActive, playingSlotId, selectedBeatId, chordColors, measureWidth, isCompact }: SortableSectionProps) => {
+const SortableSection = ({ section, allSections, onSelectBeat, onBeatTap, onEmptySlotTap, isActive, playingSlotId, selectedBeatId, chordColors, measureWidth, isCompact, onRemoveSection }: SortableSectionProps) => {
     const {
         attributes,
         listeners,
@@ -245,11 +247,24 @@ const SortableSection = ({ section, allSections, onSelectBeat, onBeatTap, onEmpt
                     </span>
                 </div>
                 {measureWidth >= 70 && (
-                    <div className="flex items-center gap-2 text-[10px] font-mono opacity-80">
+                    <div className="flex items-center gap-2 text-[10px] font-mono opacity-80 mr-6">
                         <span>{measures.length} bars</span>
                     </div>
                 )}
             </div>
+
+            {/* Delete Button - Positioned outside drag handle */}
+            <button
+                className="absolute top-0 right-0 z-20 p-1.5 rounded-md hover:bg-white/10 text-white/40 hover:text-red-400 transition-colors"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onRemoveSection(section.id);
+                }}
+                onPointerDown={(e) => e.stopPropagation()}
+                title="Remove Section"
+            >
+                <Trash size={15} />
+            </button>
 
             {/* Content Area - Detailed Measures */}
             <div
@@ -590,7 +605,6 @@ const ChordDetailPanel: React.FC<ChordDetailPanelProps> = ({
 
 export const SongOverview: React.FC<SongOverviewProps> = ({ onSave, onExport }) => {
     const { isMobile, isLandscape } = useMobileLayout();
-    const isMobileLandscape = isMobile && isLandscape;
 
     const {
         currentSong,
@@ -605,6 +619,8 @@ export const SongOverview: React.FC<SongOverviewProps> = ({ onSave, onExport }) 
         playingSectionId,
         openTimeline,
         instrument,
+        setInstrument,
+        removeSection,
 
         addSuggestedSection
     } = useSongStore();
@@ -1022,6 +1038,7 @@ export const SongOverview: React.FC<SongOverviewProps> = ({ onSave, onExport }) 
                                     chordColors={chordColors}
                                     measureWidth={measureWidth}
                                     isCompact={zoomLevel < COMPACT_THRESHOLD}
+                                    onRemoveSection={removeSection}
                                 />
                             ))}
                         </SortableContext>

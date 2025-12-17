@@ -1181,12 +1181,21 @@ export const useSongStore = create<SongState>()(
                 const newSections = [...state.currentSong.sections];
                 newSections.splice(index + 1, 0, newSection);
 
+                // Auto-select the first slot of the new duplicated section
+                const firstSlotId = newSection.measures[0]?.beats[0]?.id;
+                const firstChord = newSection.measures[0]?.beats[0]?.chord ?? null;
+
                 return {
                     ...history,
                     currentSong: {
                         ...state.currentSong,
                         sections: newSections
-                    }
+                    },
+                    selectedSectionId: newSection.id,
+                    selectedSlotId: firstSlotId ?? null,
+                    selectedSlots: firstSlotId ? [{ sectionId: newSection.id, slotId: firstSlotId }] : [],
+                    selectionAnchor: firstSlotId ? { sectionId: newSection.id, slotId: firstSlotId } : null,
+                    selectedChord: firstChord
                 };
             }),
 

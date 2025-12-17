@@ -1049,7 +1049,10 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                             if (editingSectionId) updateSection(editingSectionId, { name, type });
                         }}
                         onCopy={() => {
-                            if (editingSectionId) duplicateSection(editingSectionId);
+                            if (editingSectionId) {
+                                duplicateSection(editingSectionId);
+                                setEditingSectionId(null);
+                            }
                         }}
                         onClear={() => {
                             if (editingSectionId) clearSection(editingSectionId);
