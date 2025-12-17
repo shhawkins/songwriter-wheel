@@ -1026,13 +1026,16 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
             </div>
             {/* Options Popup */}
             {editingSectionId && (() => {
+                const section = currentSong.sections.find(s => s.id === editingSectionId);
+                if (!section) return null;
+
                 const currentEditIndex = currentSong.sections.findIndex(s => s.id === editingSectionId);
                 const hasPrev = currentEditIndex > 0;
                 const hasNext = currentEditIndex < currentSong.sections.length - 1;
 
                 return (
                     <SectionOptionsPopup
-                        section={currentSong.sections.find(s => s.id === editingSectionId)!}
+                        section={section}
                         isOpen={true}
                         onClose={() => setEditingSectionId(null)}
                         onTimeSignatureChange={(val) => {
