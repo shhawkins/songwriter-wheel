@@ -6,8 +6,8 @@ const isVercel = process.env.VERCEL === '1'
 
 // https://vite.dev/config/
 export default defineConfig({
-  // Base path: '/' for Vercel and local dev, '/chord-wheel-writer/' for GitHub Pages
-  base: isVercel ? '/' : (process.env.CI ? '/chord-wheel-writer/' : '/'),
+  // Base path: '/' for Vercel and local dev, '/songwriter-wheel/' for GitHub Pages
+  base: isVercel ? '/' : (process.env.CI ? '/songwriter-wheel/' : '/'),
   plugins: [react()],
   server: {
     host: true, // Listen on all addresses including LAN

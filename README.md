@@ -2,7 +2,7 @@
 
 A fun, educational, and practical web app for musicians and songwriters to brainstorm ideas, explore music theory, create chord progressions, and arrange complete songs.
 
-**🎸 [Try it live →](https://songwriter-wheel-writer.vercel.app)**
+**🎸 [Try it live →](https://songwriter-wheel.vercel.app)**
 
 ---
 
@@ -76,8 +76,8 @@ Explore and learn from famous chord progressions used in popular songs, and use 
 
 ```bash
 # Clone the repository
-git clone https://github.com/shhawkins/chord-wheel-writer.git
-cd chord-wheel-writer
+git clone https://github.com/shhawkins/songwriter-wheel.git
+cd songwriter-wheel
 
 # Install dependencies
 npm install
@@ -117,7 +117,7 @@ npm run build
 
 ## 💬 Feedback
 
-Have ideas, suggestions, or found a bug? I'd love to hear from you! [Open an issue on GitHub](https://github.com/shhawkins/chord-wheel-writer/issues) and let me know.
+Have ideas, suggestions, or found a bug? I'd love to hear from you! [Open an issue on GitHub](https://github.com/shhawkins/songwriter-wheel/issues) and let me know.
 
 ---
 
