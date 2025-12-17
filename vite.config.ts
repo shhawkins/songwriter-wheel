@@ -3,8 +3,9 @@ import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
 export default defineConfig({
-  // Remove base path for local development, or make it conditional for production
-  base: process.env.NODE_ENV === 'production' ? '/chord-wheel-writer/' : '/',
+  // Base path: '/' for Vercel and local dev, '/chord-wheel-writer/' for GitHub Pages
+  // Vercel sets VERCEL=1 env variable, GitHub Actions doesn't
+  base: process.env.VERCEL ? '/' : (process.env.NODE_ENV === 'production' ? '/chord-wheel-writer/' : '/'),
   plugins: [react()],
   server: {
     host: true, // Listen on all addresses including LAN

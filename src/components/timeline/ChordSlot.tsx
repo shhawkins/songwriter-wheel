@@ -49,7 +49,7 @@ export const ChordSlot: React.FC<ChordSlotProps> = ({ slot, sectionId, size = 48
 
     const isSelected = selectedSlots.some(
         (selected) => selected.slotId === slot.id && selected.sectionId === sectionId
-    );
+    ) || (selectedSlotId === slot.id && selectedSectionId === sectionId);
 
     const isPlayingThisSlot = isGloballyPlaying && playingSectionId === sectionId && playingSlotId === slot.id;
 
@@ -234,7 +234,10 @@ export const ChordSlot: React.FC<ChordSlotProps> = ({ slot, sectionId, size = 48
                 <button
                     onClick={handleDeleteClick}
                     onMouseDown={(e) => e.stopPropagation()}
-                    className="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-black/70 backdrop-blur-sm hover:bg-white/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all z-30 border border-white/30 hover:border-white/50"
+                    className={clsx(
+                        "absolute -top-2 -right-2 w-4 h-4 rounded-full bg-black/70 backdrop-blur-sm hover:bg-white/20 flex items-center justify-center transition-all z-30 border border-white/30 hover:border-white/50",
+                        isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                    )}
                     title="Remove chord"
                 >
                     <span className="text-white/90 text-[10px] font-bold leading-none">×</span>
