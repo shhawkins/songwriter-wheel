@@ -772,21 +772,21 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
                             )}
                         </div>
                     )}
-                    {/* Right column: Add button + Close button */}
+                    {/* Right column: Add button + Close button (close button hidden on mobile drawer - can swipe to close) */}
                     <div className={`flex items-center gap-2 shrink-0 ${isVeryNarrowPanel ? 'justify-center w-full' : 'justify-end'}`}>
-                        {/* Add to Timeline button */}
+                        {/* Add to Timeline button - wider on mobile drawer since close button is hidden */}
                         {chord && (
                             <button
                                 onClick={handleDiagramDoubleClick}
-                                className={`${isVeryNarrowPanel ? 'flex-1 py-2' : isMobile ? 'px-3 py-1.5' : 'px-2.5 py-1'} bg-gradient-to-r from-accent-primary to-purple-600 hover:opacity-90 rounded-lg transition-all touch-feedback flex items-center justify-center gap-1.5 shadow-md shadow-accent-primary/20 active:scale-95`}
+                                className={`${isVeryNarrowPanel ? 'flex-1 py-2' : isMobile && isDrawer ? 'px-8 py-1.5 min-w-[100px]' : isMobile ? 'px-3 py-1.5' : 'px-2.5 py-1'} bg-gradient-to-r from-accent-primary to-purple-600 hover:opacity-90 rounded-lg transition-all touch-feedback flex items-center justify-center gap-1.5 shadow-md shadow-accent-primary/20 active:scale-95`}
                                 title="Add chord to timeline"
                             >
                                 <Plus size={isVeryNarrowPanel ? 16 : isMobile ? 14 : 12} className="text-white" />
                                 <span className={`${isVeryNarrowPanel ? 'text-sm' : isMobile ? 'text-xs' : 'text-[11px]'} font-semibold text-white`}>Add</span>
                             </button>
                         )}
-                        {/* Hide close button in landscape variants - use handle instead */}
-                        {!isLandscapeVariant && (
+                        {/* Hide close button in landscape variants and mobile drawer - use handle/swipe instead */}
+                        {!isLandscapeVariant && !(isMobile && isDrawer) && (
                             <button
                                 onClick={toggleChordPanel}
                                 className={`${isVeryNarrowPanel ? 'p-2 bg-bg-tertiary/60 rounded-lg' : isMobile ? 'p-2 min-w-[40px] min-h-[40px]' : 'p-1'} hover:bg-bg-tertiary rounded transition-colors touch-feedback flex items-center justify-center`}
@@ -794,7 +794,7 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
                             >
                                 <PanelRightClose
                                     size={isVeryNarrowPanel ? 18 : isMobile ? 18 : 16}
-                                    className={`text-text-muted ${isMobile && isDrawer ? 'rotate-90' : ''}`}
+                                    className="text-text-muted"
                                 />
                             </button>
                         )}

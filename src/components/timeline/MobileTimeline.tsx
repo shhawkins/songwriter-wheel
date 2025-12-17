@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { useSongStore } from '../../store/useSongStore';
 import { getWheelColors, normalizeNote, formatChordForDisplay } from '../../utils/musicTheory';
 import { playChord } from '../../utils/audioEngine';
-import { Plus, Play, ChevronLeft, ChevronRight, Map, Settings2, RotateCcw, RotateCw } from 'lucide-react';
+import { Plus, Play, ChevronLeft, ChevronRight, Map, Settings2, RotateCcw, RotateCw, X } from 'lucide-react';
 import { SectionOptionsPopup } from './SectionOptionsPopup';
 import { useMobileLayout } from '../../hooks/useIsMobile';
 import { NoteValueSelector } from './NoteValueSelector';
@@ -37,6 +37,7 @@ interface SortableSectionTabProps {
     isDesktop: boolean;
     onActivate: () => void;
     onEdit: () => void;
+    onDelete: () => void;
 }
 
 const SortableSectionTab: React.FC<SortableSectionTabProps> = ({
@@ -46,6 +47,7 @@ const SortableSectionTab: React.FC<SortableSectionTabProps> = ({
     isDesktop,
     onActivate,
     onEdit,
+    onDelete,
 }) => {
     const {
         attributes,
@@ -65,56 +67,91 @@ const SortableSectionTab: React.FC<SortableSectionTabProps> = ({
     const firstLetter = displayName.charAt(0).toUpperCase();
 
     return (
-        <button
+        <div
             ref={setNodeRef}
             data-section-id={section.id}
-            onClick={() => {
-                // Only handle click if not dragging
-                if (isDragging) return;
-                if (isActive) {
-                    onEdit();
-                } else {
-                    onActivate();
-                }
-            }}
             className={clsx(
-                "no-touch-enlarge relative font-semibold transition-all touch-feedback shrink-0 draggable-element",
-                "flex items-center justify-center touch-none select-none", // touch-none + select-none + draggable-element prevents text selection
-                isActive
-                    ? clsx(
-                        "rounded-full text-white shadow-lg whitespace-nowrap overflow-hidden",
-                        isDesktop ? "w-32 h-9 text-xs" : "w-24 h-8 text-[11px]"
-                    )
-                    : clsx(
-                        "rounded-full text-text-secondary hover:text-text-primary border border-border-medium hover:border-border-subtle hover:bg-bg-tertiary",
-                        isDesktop ? "w-9 h-9 text-sm" : "w-8 h-8 text-xs"
-                    ),
+                "relative shrink-0",
                 isDragging && "opacity-50 scale-95 z-50"
             )}
-            style={{
-                ...style,
-                // Prevent iOS text selection and callout menu
-                WebkitTouchCallout: 'none',
-                WebkitUserSelect: 'none',
-                ...(isActive ? {
-                    background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #6366f1 100%)',
-                    boxShadow: '0 0 16px rgba(99, 102, 241, 0.5), inset 0 1px 0 rgba(255,255,255,0.2)',
-                    border: '1px solid rgba(255,255,255,0.2)',
-                } : undefined)
-            }}
-            title={`${displayName} - Hold to drag`}
-            {...attributes}
-            {...listeners}
+            style={style}
         >
-            {isActive ? (
-                <span className="flex items-center gap-1 px-2 truncate pointer-events-none">
-                    <span className="truncate">{displayName}</span>
-                    <Settings2 size={isDesktop ? 14 : 12} className="opacity-70 shrink-0" />
-                </span>
-            ) : (
-                firstLetter
+            {/* TODO: X badge for deleting section - needs styling work
+            {isActive && (
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete();
+                    }}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    className="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-black/70 backdrop-blur-sm hover:bg-white/20 flex items-center justify-center transition-all z-30 border border-white/30 hover:border-white/50"
+                    title="Delete section"
+                >
+                    <span className="text-white/90 text-[10px] font-bold leading-none">×</span>
+                </button>
             )}
-        </button>
+            */}
+
+            {/* Outer button handles clicks/taps - NOT draggable, allows scroll gestures to pass through */}
+            <button
+                onClick={() => {
+                    if (isDragging) return;
+                    if (isActive) {
+                        onEdit();
+                    } else {
+                        onActivate();
+                    }
+                }}
+                className={clsx(
+                    "no-touch-enlarge relative font-semibold transition-all touch-feedback",
+                    "flex items-center justify-center select-none",
+                    isActive
+                        ? clsx(
+                            "rounded-full text-white shadow-lg whitespace-nowrap overflow-hidden",
+                            isDesktop ? "w-32 h-9 text-xs" : "w-24 h-8 text-[11px]"
+                        )
+                        : clsx(
+                            "rounded-full text-text-secondary hover:text-text-primary border border-border-medium hover:border-border-subtle hover:bg-bg-tertiary",
+                            isDesktop ? "w-9 h-9 text-sm" : "w-8 h-8 text-xs"
+                        )
+                )}
+                style={{
+                    WebkitTouchCallout: 'none',
+                    WebkitUserSelect: 'none',
+                    ...(isActive ? {
+                        background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #6366f1 100%)',
+                        boxShadow: '0 0 16px rgba(99, 102, 241, 0.5), inset 0 1px 0 rgba(255,255,255,0.2)',
+                        border: '1px solid rgba(255,255,255,0.2)',
+                    } : undefined)
+                }}
+                title={`${displayName} - Hold center to drag`}
+            >
+                {isActive ? (
+                    <span className="flex items-center gap-1 px-2 truncate pointer-events-none">
+                        <span className="truncate">{displayName}</span>
+                        <Settings2 size={isDesktop ? 14 : 12} className="opacity-70 shrink-0" />
+                    </span>
+                ) : (
+                    firstLetter
+                )}
+            </button>
+
+            {/* Invisible drag handle - positioned in center, smaller than the pill */}
+            {/* This is the only area that responds to drag gestures */}
+            <div
+                {...attributes}
+                {...listeners}
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 touch-none draggable-element cursor-grab active:cursor-grabbing"
+                style={{
+                    // Small centered hit area for drag - about 60% of pill size
+                    width: isActive ? (isDesktop ? '60px' : '50px') : (isDesktop ? '24px' : '20px'),
+                    height: isDesktop ? '24px' : '20px',
+                    WebkitTouchCallout: 'none',
+                    WebkitUserSelect: 'none',
+                }}
+                title="Hold to drag"
+            />
+        </div>
     );
 };
 
@@ -200,17 +237,18 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
     // Drag-and-drop state for section tabs
     const [activeDragId, setActiveDragId] = useState<string | null>(null);
 
-    // DnD sensors - Touch sensor needs delay to allow tapping vs dragging
+    // DnD sensors - Configured to coexist with horizontal scrolling
+    // Touch sensor uses delay + high tolerance so horizontal scroll gestures pass through
     const sensors = useSensors(
         useSensor(PointerSensor, {
             activationConstraint: {
-                distance: 8, // Require 8px movement before drag starts
+                distance: 10, // Require 10px movement before drag starts (allows scroll)
             },
         }),
         useSensor(TouchSensor, {
             activationConstraint: {
-                delay: 250, // 250ms hold before drag starts on touch
-                tolerance: 8, // Allow 8px movement during the delay
+                delay: 200, // 200ms hold before drag starts on touch
+                tolerance: 20, // Allow 20px movement during the delay (lets scrolling happen)
             },
         }),
         useSensor(KeyboardSensor, {
@@ -237,16 +275,18 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                 reorderSections(newSections);
 
                 // Update the active section index to follow the moved section
-                if (oldIndex === activeSectionIndex) {
-                    setActiveSectionIndex(newIndex);
-                } else if (oldIndex < activeSectionIndex && newIndex >= activeSectionIndex) {
-                    setActiveSectionIndex(activeSectionIndex - 1);
-                } else if (oldIndex > activeSectionIndex && newIndex <= activeSectionIndex) {
-                    setActiveSectionIndex(activeSectionIndex + 1);
+                setActiveSectionIndex(newIndex);
+
+                // Also update the store's selection to the dragged section so it stays selected
+                // This prevents the useEffect from resetting to the previously-selected section
+                const draggedSection = currentSong.sections[oldIndex];
+                if (draggedSection && draggedSection.measures[0]?.beats[0]) {
+                    setSelectedSlot(draggedSection.id, draggedSection.measures[0].beats[0].id);
                 }
             }
         }
     };
+
 
     // Auto-scroll to selected section when it changes (only when not playing)
     useEffect(() => {
@@ -459,6 +499,30 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
         }
     };
 
+    // Horizontal scroll function for the section tabs container
+    const scrollSectionTabs = (direction: 'left' | 'right') => {
+        if (!sectionTabsRef.current) return;
+        const container = sectionTabsRef.current;
+        const scrollAmount = 120; // Scroll by roughly one section tab width
+
+        // Calculate the maximum scrollable distance
+        const maxScroll = container.scrollWidth - container.clientWidth;
+        const currentScroll = container.scrollLeft;
+
+        // Clamp the scroll to not go past boundaries
+        let targetScroll: number;
+        if (direction === 'left') {
+            targetScroll = Math.max(0, currentScroll - scrollAmount);
+        } else {
+            targetScroll = Math.min(maxScroll, currentScroll + scrollAmount);
+        }
+
+        container.scrollTo({
+            left: targetScroll,
+            behavior: 'smooth'
+        });
+    };
+
     const activeSection = currentSong.sections[activeSectionIndex];
 
     // Collapsed state - just a handle bar with swipe/drag-to-open
@@ -544,22 +608,39 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                         </button>
 
                         {/* Current section button - abbreviated to first letter with section number in compact mode */}
-                        <button
-                            onClick={() => activeSection && setEditingSectionId(activeSection.id)}
-                            className="flex items-center justify-center gap-0.5 px-2 py-1 rounded-full text-white font-semibold text-[10px]"
-                            style={{
-                                background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #6366f1 100%)',
-                                boxShadow: '0 0 8px rgba(99, 102, 241, 0.4)',
-                                border: '1px solid rgba(255,255,255,0.2)',
-                            }}
-                            title={activeSection ? getSectionDisplayName(activeSection, currentSong.sections) : 'Section'}
-                        >
-                            <span className="flex items-baseline">
-                                <span>{activeSection ? getSectionDisplayName(activeSection, currentSong.sections).charAt(0).toUpperCase() : 'S'}</span>
-                                <span className="text-[7px] opacity-60 ml-0.5">{activeSectionIndex + 1}</span>
-                            </span>
-                            <Settings2 size={10} className="opacity-70 shrink-0" />
-                        </button>
+                        <div className="relative">
+                            <button
+                                onClick={() => activeSection && setEditingSectionId(activeSection.id)}
+                                className="flex items-center justify-center gap-0.5 px-2 py-1 rounded-full text-white font-semibold text-[10px]"
+                                style={{
+                                    background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #6366f1 100%)',
+                                    boxShadow: '0 0 8px rgba(99, 102, 241, 0.4)',
+                                    border: '1px solid rgba(255,255,255,0.2)',
+                                }}
+                                title={activeSection ? getSectionDisplayName(activeSection, currentSong.sections) : 'Section'}
+                            >
+                                <span className="flex items-baseline">
+                                    <span>{activeSection ? getSectionDisplayName(activeSection, currentSong.sections).charAt(0).toUpperCase() : 'S'}</span>
+                                    <span className="text-[7px] opacity-60 ml-0.5">{activeSectionIndex + 1}</span>
+                                </span>
+                                <Settings2 size={10} className="opacity-70 shrink-0" />
+                            </button>
+                            {/* TODO: X badge for deleting section - needs styling work
+                            {activeSection && (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        removeSection(activeSection.id);
+                                    }}
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    className="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-black/70 backdrop-blur-sm hover:bg-white/20 flex items-center justify-center transition-all z-30 border border-white/30 hover:border-white/50"
+                                    title="Delete section"
+                                >
+                                    <span className="text-white/90 text-[10px] font-bold leading-none">×</span>
+                                </button>
+                            )}
+                            */}
+                        </div>
 
                         <button
                             onClick={() => navigateSection('next')}
@@ -635,12 +716,12 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                         </div>
                     </div>
                     <button
-                        onClick={() => navigateSection('prev')}
-                        disabled={activeSectionIndex === 0}
+                        onClick={() => scrollSectionTabs('left')}
                         className={clsx(
-                            "no-touch-enlarge rounded text-text-muted hover:text-text-primary disabled:opacity-30 disabled:cursor-not-allowed touch-feedback",
+                            "no-touch-enlarge rounded text-text-muted hover:text-text-primary touch-feedback",
                             isDesktop ? "p-2" : "p-1.5"
                         )}
+                        title="Scroll sections left"
                     >
                         <ChevronLeft size={isDesktop ? 18 : 16} />
                     </button>
@@ -677,6 +758,7 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                                             }
                                         }}
                                         onEdit={() => setEditingSectionId(section.id)}
+                                        onDelete={() => removeSection(section.id)}
                                     />
                                 ))}
                             </SortableContext>
@@ -717,12 +799,12 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                     </DndContext>
 
                     <button
-                        onClick={() => navigateSection('next')}
-                        disabled={activeSectionIndex === currentSong.sections.length - 1}
+                        onClick={() => scrollSectionTabs('right')}
                         className={clsx(
-                            "no-touch-enlarge rounded text-text-muted hover:text-text-primary disabled:opacity-30 disabled:cursor-not-allowed touch-feedback",
+                            "no-touch-enlarge rounded text-text-muted hover:text-text-primary touch-feedback",
                             isDesktop ? "p-2" : "p-1.5"
                         )}
+                        title="Scroll sections right"
                     >
                         <ChevronRight size={isDesktop ? 18 : 16} />
                     </button>

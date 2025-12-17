@@ -307,14 +307,6 @@ const HelpContent: React.FC<HelpContentProps> = ({ onClose }) => {
                                 </span>
                             </div>
                         </div>
-                        <div className="p-3 rounded-xl bg-accent-primary/5 border border-accent-primary/20">
-                            <div className="flex items-center gap-2 text-xs text-gray-400">
-                                <HelpCircle size={14} className="text-accent-primary shrink-0" />
-                                <span>
-                                    <strong className="text-accent-primary">Tip:</strong> Header and footer hiding? Tap the black background behind the chord wheel to bring them back.
-                                </span>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </section>
