@@ -143,10 +143,10 @@ const createCustomSampler = (instrument: CustomInstrument) => {
     if (!instrument.samples || Object.keys(instrument.samples).length === 0) return null;
 
     try {
+        // Match the piano sampler pattern for best compatibility
         return new Tone.Sampler({
             urls: instrument.samples,
-            attack: 0.005, // 5ms attack to prevent clicking
-            release: 1, // Standard release for user samples
+            release: 2,
             // No baseUrl needed as we use full data URIs or absolute URLs
         }).toDestination();
     } catch (e) {
@@ -222,76 +222,49 @@ export const initAudio = async () => {
             baseUrl,
         }).toDestination());
 
-        safeCreate('guitar', () => {
-            const sampler = new Tone.Sampler({
-                urls: {
-                    "C3": "electric-guitar-c3.m4a",
-                    "C4": "electric-guitar-c4.m4a",
-                    "C5": "electric-guitar-c5.m4a",
-                },
-                attack: 0.005, // 5ms attack to prevent clicking
-                release: 3, // 3 second release for natural sustain
-                curve: "exponential", // Natural decay curve
-                baseUrl: "/samples/",
-            });
-            
-            // Add volume control to prevent clipping (-9dB for headroom)
-            const volume = new Tone.Volume(-9).toDestination();
-            sampler.connect(volume);
-            
-            return sampler;
-        });
+        // Sampled guitars - using same pattern as piano for best sound quality
+        // Note: Tone.Sampler automatically pitch-shifts samples to fill the range
+        const guitarBaseUrl = "/samples/";
+        
+        safeCreate('guitar', () => new Tone.Sampler({
+            urls: {
+                "C3": "electric-guitar-c3.m4a",
+                "C4": "electric-guitar-c4.m4a",
+                "C5": "electric-guitar-c5.m4a",
+            },
+            release: 2,
+            baseUrl: guitarBaseUrl,
+        }).toDestination());
 
-        safeCreate('guitar-jazzmaster', () => {
-            const sampler = new Tone.Sampler({
-                urls: {
-                    "C3": "electric-guitar-c3.m4a",
-                    "C4": "electric-guitar-c4.m4a",
-                    "C5": "electric-guitar-c5.m4a",
-                },
-                attack: 0.005,
-                release: 3,
-                curve: "exponential",
-                baseUrl: "/samples/",
-            });
-            const volume = new Tone.Volume(-9).toDestination();
-            sampler.connect(volume);
-            return sampler;
-        });
+        safeCreate('guitar-jazzmaster', () => new Tone.Sampler({
+            urls: {
+                "C3": "electric-guitar-c3.m4a",
+                "C4": "electric-guitar-c4.m4a",
+                "C5": "electric-guitar-c5.m4a",
+            },
+            release: 2,
+            baseUrl: guitarBaseUrl,
+        }).toDestination());
 
-        safeCreate('guitar-acoustic', () => {
-            const sampler = new Tone.Sampler({
-                urls: {
-                    "C3": "kay-acoustic-c3.mp3",
-                    "C4": "kay-acoustic-c4.mp3",
-                    "C5": "kay-acoustic-c5.mp3",
-                },
-                attack: 0.005,
-                release: 3,
-                curve: "exponential",
-                baseUrl: "/samples/",
-            });
-            const volume = new Tone.Volume(-9).toDestination();
-            sampler.connect(volume);
-            return sampler;
-        });
+        safeCreate('guitar-acoustic', () => new Tone.Sampler({
+            urls: {
+                "C3": "kay-acoustic-c3.mp3",
+                "C4": "kay-acoustic-c4.mp3",
+                "C5": "kay-acoustic-c5.mp3",
+            },
+            release: 2,
+            baseUrl: guitarBaseUrl,
+        }).toDestination());
 
-        safeCreate('guitar-nylon', () => {
-            const sampler = new Tone.Sampler({
-                urls: {
-                    "C3": "nylon-guitar-c3.mp3",
-                    "C4": "nylon-string-c4.mp3",
-                    "C5": "nylon-string-c5.mp3",
-                },
-                attack: 0.005,
-                release: 3,
-                curve: "exponential",
-                baseUrl: "/samples/",
-            });
-            const volume = new Tone.Volume(-9).toDestination();
-            sampler.connect(volume);
-            return sampler;
-        });
+        safeCreate('guitar-nylon', () => new Tone.Sampler({
+            urls: {
+                "C3": "nylon-guitar-c3.mp3",
+                "C4": "nylon-string-c4.mp3",
+                "C5": "nylon-string-c5.mp3",
+            },
+            release: 2,
+            baseUrl: guitarBaseUrl,
+        }).toDestination());
 
         safeCreate('organ', () => new Tone.PolySynth(Tone.AMSynth, {
             harmonicity: 3,
