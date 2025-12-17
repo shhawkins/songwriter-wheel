@@ -106,6 +106,7 @@ npm run build
 ## 🗺️ Roadmap
 
 - [ ] Improved timeline interaction
+- [ ] Add more custom voices from live sampled instruments using tone.js
 - [ ] MIDI export — Load your song into a DAW and keep developing your ideas
 - [ ] More interactive music theory modules
 - [ ] Additional songwriting prompts and exercises
