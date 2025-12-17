@@ -210,6 +210,7 @@ export const ChordSlot: React.FC<ChordSlotProps> = ({ slot, sectionId, size = 48
                         ...style,
                         backgroundColor: 'rgba(0, 0, 0, 0.3)',
                         border: `2px solid ${chordColor}`,
+                        touchAction: 'none', // Required for touch device dragging
                     }}
                     className={clsx(
                         "w-full h-full rounded-md flex items-center justify-center font-bold cursor-grab active:cursor-grabbing select-none overflow-hidden",

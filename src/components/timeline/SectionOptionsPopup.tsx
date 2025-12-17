@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Copy, Eraser, Trash2, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Copy, Eraser, Trash2, X, ChevronLeft, ChevronRight, ArrowUp, ArrowDown } from 'lucide-react';
 import clsx from 'clsx';
 import type { Section } from '../../types';
 import { NoteIcon, getNoteType, getStepOptions } from './NoteValueSelector';
@@ -28,6 +28,9 @@ interface SectionOptionsPopupProps {
     totalSections?: number;
     /** Callback when a chord slot is clicked in the preview */
     onSlotClick?: (beatId: string) => void;
+    // Move section callbacks for reordering
+    onMoveUp?: () => void;
+    onMoveDown?: () => void;
 }
 
 const TIME_SIGNATURE_OPTIONS: [number, number][] = [
@@ -71,6 +74,8 @@ export const SectionOptionsPopup: React.FC<SectionOptionsPopupProps> = ({
     sectionIndex,
     totalSections,
     onSlotClick,
+    onMoveUp,
+    onMoveDown,
 }) => {
     const popupRef = useRef<HTMLDivElement>(null);
     const sectionTimeSignature = section.timeSignature || songTimeSignature;
@@ -332,49 +337,94 @@ export const SectionOptionsPopup: React.FC<SectionOptionsPopupProps> = ({
                     />
 
                     {/* Action Buttons */}
-                    <div className="grid grid-cols-3 gap-2 pt-2">
-                        <button
-                            onClick={() => {
-                                onCopy();
-                                onClose();
-                            }}
-                            className="flex items-center justify-center gap-1.5
-                                       px-2 py-2.5 rounded-lg
-                                       bg-accent-primary/10 border border-accent-primary/30
-                                       text-accent-primary hover:bg-accent-primary/20
-                                       transition-all text-xs font-bold active:scale-95"
-                        >
-                            <Copy size={14} />
-                            Duplicate
-                        </button>
-                        <button
-                            onClick={() => {
-                                onClear();
-                                onClose();
-                            }}
-                            className="flex items-center justify-center gap-1.5
-                                       px-2 py-2.5 rounded-lg
-                                       bg-yellow-500/10 border border-yellow-500/30
-                                       text-yellow-400 hover:bg-yellow-500/20
-                                       transition-all text-xs font-bold active:scale-95"
-                        >
-                            <Eraser size={14} />
-                            Clear
-                        </button>
-                        <button
-                            onClick={() => {
-                                onDelete();
-                                onClose();
-                            }}
-                            className="flex items-center justify-center gap-1.5
-                                       px-2 py-2.5 rounded-lg
-                                       bg-red-500/10 border border-red-500/30
-                                       text-red-400 hover:bg-red-500/20
-                                       transition-all text-xs font-bold active:scale-95"
-                        >
-                            <Trash2 size={14} />
-                            Remove
-                        </button>
+                    <div className="space-y-2 pt-2">
+                        {/* Move Section Row */}
+                        {onMoveUp && onMoveDown && (
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => {
+                                        onMoveUp();
+                                    }}
+                                    disabled={!hasPrev}
+                                    className={clsx(
+                                        "flex-1 flex items-center justify-center gap-1.5",
+                                        "px-2 py-2 rounded-lg",
+                                        "transition-all text-xs font-bold active:scale-95",
+                                        hasPrev
+                                            ? "bg-blue-500/10 border border-blue-500/30 text-blue-400 hover:bg-blue-500/20"
+                                            : "bg-bg-tertiary border border-border-subtle text-text-muted opacity-40 cursor-not-allowed"
+                                    )}
+                                    title="Move section earlier in song"
+                                >
+                                    <ArrowUp size={14} />
+                                    Move Up
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        onMoveDown();
+                                    }}
+                                    disabled={!hasNext}
+                                    className={clsx(
+                                        "flex-1 flex items-center justify-center gap-1.5",
+                                        "px-2 py-2 rounded-lg",
+                                        "transition-all text-xs font-bold active:scale-95",
+                                        hasNext
+                                            ? "bg-blue-500/10 border border-blue-500/30 text-blue-400 hover:bg-blue-500/20"
+                                            : "bg-bg-tertiary border border-border-subtle text-text-muted opacity-40 cursor-not-allowed"
+                                    )}
+                                    title="Move section later in song"
+                                >
+                                    <ArrowDown size={14} />
+                                    Move Down
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Other Actions Row */}
+                        <div className="grid grid-cols-3 gap-2">
+                            <button
+                                onClick={() => {
+                                    onCopy();
+                                    onClose();
+                                }}
+                                className="flex items-center justify-center gap-1.5
+                                           px-2 py-2.5 rounded-lg
+                                           bg-accent-primary/10 border border-accent-primary/30
+                                           text-accent-primary hover:bg-accent-primary/20
+                                           transition-all text-xs font-bold active:scale-95"
+                            >
+                                <Copy size={14} />
+                                Duplicate
+                            </button>
+                            <button
+                                onClick={() => {
+                                    onClear();
+                                    onClose();
+                                }}
+                                className="flex items-center justify-center gap-1.5
+                                           px-2 py-2.5 rounded-lg
+                                           bg-yellow-500/10 border border-yellow-500/30
+                                           text-yellow-400 hover:bg-yellow-500/20
+                                           transition-all text-xs font-bold active:scale-95"
+                            >
+                                <Eraser size={14} />
+                                Clear
+                            </button>
+                            <button
+                                onClick={() => {
+                                    onDelete();
+                                    onClose();
+                                }}
+                                className="flex items-center justify-center gap-1.5
+                                           px-2 py-2.5 rounded-lg
+                                           bg-red-500/10 border border-red-500/30
+                                           text-red-400 hover:bg-red-500/20
+                                           transition-all text-xs font-bold active:scale-95"
+                            >
+                                <Trash2 size={14} />
+                                Remove
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

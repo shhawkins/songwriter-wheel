@@ -55,7 +55,8 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
         redo,
         canUndo,
         canRedo,
-        clearSlot
+        clearSlot,
+        reorderSections
     } = useSongStore();
 
     const songTimeSignature = currentSong.timeSignature;
@@ -830,6 +831,28 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                             setActiveSectionIndex(currentEditIndex);
                             // Select the clicked slot (this triggers auto-scroll via useEffect)
                             selectSlotOnly(editingSectionId, beatId);
+                        }}
+                        onMoveUp={() => {
+                            if (hasPrev && editingSectionId) {
+                                const newSections = [...currentSong.sections];
+                                const temp = newSections[currentEditIndex];
+                                newSections[currentEditIndex] = newSections[currentEditIndex - 1];
+                                newSections[currentEditIndex - 1] = temp;
+                                reorderSections(newSections);
+                                // Update the active section index to follow the moved section
+                                setActiveSectionIndex(currentEditIndex - 1);
+                            }
+                        }}
+                        onMoveDown={() => {
+                            if (hasNext && editingSectionId) {
+                                const newSections = [...currentSong.sections];
+                                const temp = newSections[currentEditIndex];
+                                newSections[currentEditIndex] = newSections[currentEditIndex + 1];
+                                newSections[currentEditIndex + 1] = temp;
+                                reorderSections(newSections);
+                                // Update the active section index to follow the moved section
+                                setActiveSectionIndex(currentEditIndex + 1);
+                            }
                         }}
                     />
                 );

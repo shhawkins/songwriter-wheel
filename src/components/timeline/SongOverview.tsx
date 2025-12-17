@@ -22,6 +22,7 @@ import {
     closestCenter,
     KeyboardSensor,
     PointerSensor,
+    TouchSensor,
     useSensor,
     useSensors,
     type DragEndEvent
@@ -164,7 +165,7 @@ const SortableSection = ({ section, allSections, onSelectBeat, onBeatTap, onEmpt
             <div
                 ref={setNodeRef}
                 data-section-id={section.id}
-                style={{ ...style, width: sectionWidth, height: sectionHeight }}
+                style={{ ...style, width: sectionWidth, height: sectionHeight, touchAction: 'none' }}
                 className={clsx(
                     "relative flex flex-col rounded-lg overflow-hidden shrink-0 transition-all border cursor-pointer",
                     theme.bg,
@@ -213,6 +214,7 @@ const SortableSection = ({ section, allSections, onSelectBeat, onBeatTap, onEmpt
                     theme.headers,
                     "cursor-grab active:cursor-grabbing"
                 )}
+                style={{ touchAction: 'none' }}
                 {...attributes}
                 {...listeners}
             >
@@ -730,6 +732,12 @@ export const SongOverview: React.FC = () => {
         useSensor(PointerSensor, {
             activationConstraint: {
                 distance: 8,
+            },
+        }),
+        useSensor(TouchSensor, {
+            activationConstraint: {
+                delay: 250, // 250ms hold before drag starts on touch
+                tolerance: 8,
             },
         }),
         useSensor(KeyboardSensor, {

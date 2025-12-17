@@ -119,20 +119,25 @@ export const Section: React.FC<SectionProps> = ({ section, chordSize = 48, scale
                     compactHeader ? "px-1.5 py-1 gap-1.5" : "flex-wrap gap-3 px-2 py-1.5"
                 )}
             >
-                <div className={clsx("flex items-center min-w-0", compactHeader ? "gap-0.5" : "gap-1.5")}>
-                    <div
-                        {...attributes}
-                        {...listeners}
-                        className="cursor-grab active:cursor-grabbing text-text-muted hover:text-text-primary shrink-0"
-                        title="Drag section"
-                    >
+                {/* Drag Handle - entire left section is draggable */}
+                <div
+                    {...attributes}
+                    {...listeners}
+                    className={clsx(
+                        "flex items-center min-w-0 cursor-grab active:cursor-grabbing select-none",
+                        compactHeader ? "gap-0.5" : "gap-1.5"
+                    )}
+                    style={{ touchAction: 'none' }}
+                    title="Drag to reorder section"
+                >
+                    <div className="text-text-muted hover:text-text-primary shrink-0 transition-colors">
                         <GripVertical size={compactHeader ? 10 : 12} />
                     </div>
 
                     {/* Section name - displayed as pill (no longer editable) */}
                     <span
                         className={clsx(
-                            "font-semibold text-white truncate text-center rounded-full",
+                            "font-semibold text-white truncate text-center rounded-full transition-transform hover:scale-[1.02]",
                             compactHeader ? "text-[9px] px-3 py-0.5 min-w-[50px] max-w-[80px]" : "text-[11px] px-4 py-1 min-w-[70px] max-w-[120px]"
                         )}
                         style={{

@@ -1,73 +1,114 @@
-# React + TypeScript + Vite
+# 🎵 Chord Wheel Writer
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A fun, educational, and practical web app for musicians and songwriters to brainstorm ideas, explore music theory, create chord progressions, and arrange complete songs.
 
-Currently, two official plugins are available:
+**🎸 [Try it live →](https://shhawkins.github.io/chord-wheel-writer/)**
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+---
 
-## React Compiler
+<p align="center">
+  <img src="docs/screenshots/mobile-wheel.jpg" alt="Chord Wheel - Full View" width="220" />
+  <img src="docs/screenshots/mobile-keyboard.jpg" alt="Chord Wheel with Keyboard" width="220" />
+  <img src="docs/screenshots/mobile-voicings.jpg" alt="Guitar Voicings and Staff" width="220" />
+  <img src="docs/screenshots/welcome-guide.jpg" alt="Quick Start Guide" width="220" />
+</p>
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## ✨ Features
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### 🎡 Interactive Chord Wheel
+Built around the classic **Chord Wheel** concept — a circle of fifths on the inner ring, relative minor chords on a middle ring, and diminished chords on the outer ring. This makes it easy to see which chords in any key work well together and experiment with different sounds.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+<p align="center">
+  <img src="docs/screenshots/desktop-view.png" alt="Desktop View with PDF Export" width="700" />
+</p>
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### 🎹 Chord Exploration
+- **Hear different voicings** — Select a chord and explore various voicings suggested for your key
+- **See guitar fingerings** — View chord diagrams for any chord and voicing
+- **Keyboard visualization** — See chords displayed on a piano keyboard
+- **Staff notation** — View chords in standard musical notation
+- **Inversions** — Hear and explore different chord inversions
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### 🎼 Song Creation
+- **Build chord progressions** — Easily create progressions by tapping chords on the wheel
+- **Multi-section arrangements** — Organize your song with intro, verse, chorus, bridge, and custom sections
+- **Playback** — Listen to your progressions with adjustable BPM
+- **Section management** — Duplicate, reorder, and customize sections
+
+### 📄 PDF Export
+With one click, export a beautifully formatted, printable **chord sheet** of your song complete with:
+- Guitar chord diagrams for all chords in your song
+- Song info (title, artist, key, BPM)
+- Visual song timeline/structure at the bottom of the page
+
+<p align="center">
+  <img src="docs/screenshots/chord-sheet.png" alt="Chord Sheet PDF Export" width="400" />
+  <br />
+  <em><a href="https://terribleisalright.bandcamp.com/track/ground-2"><ins>"Ground" by Terrible</ins></a></em>
+</p>
+
+### 📚 Music Theory Education
+Tap the **"?"** icon to access interactive music theory lessons and songwriting tips, helping you understand *why* certain chords work well together.
+
+### 🎸 Famous Progressions
+Explore and learn from famous chord progressions used in popular songs, and use them as starting points for your own creations.
+
+---
+
+
+## 🚀 Getting Started
+
+### Prerequisites
+- Node.js 18+
+- npm or yarn
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/shhawkins/chord-wheel-writer.git
+cd chord-wheel-writer
+
+# Install dependencies
+npm install
+
+# Start the development server
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+The app will be available at `http://localhost:5173`
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### Build for Production
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run build
 ```
+
+## 🛠️ Tech Stack
+
+- **React** — UI framework
+- **TypeScript** — Type-safe JavaScript
+- **Vite** — Fast build tool and dev server
+- **Tone.js** — Audio synthesis and playback
+- **Tailwind CSS** — Utility-first styling
+- **jsPDF** — PDF generation
+
+## 🗺️ Roadmap
+
+- [ ] More interactive music theory modules
+- [ ] Additional songwriting prompts and exercises
+- [ ] MIDI export — Load your song into a DAW and keep developing your ideas
+- [ ] Alternate tuning support (Drop D, DADGAD, Open G, etc.)
+- [ ] Chord chart generation for custom voicings
+- [ ] Additional instrument voicings
+- [ ] Song saving/loading to cloud
+
+## 💬 Feedback
+
+Have ideas, suggestions, or found a bug? I'd love to hear from you! [Open an issue on GitHub](https://github.com/shhawkins/chord-wheel-writer/issues) and let me know.
+
+---
+
+*Built with ❤️ for musicians and songwriters everywhere.*

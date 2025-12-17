@@ -5,6 +5,7 @@ import {
     closestCenter,
     KeyboardSensor,
     PointerSensor,
+    TouchSensor,
     useSensor,
     useSensors,
     useDndMonitor,
@@ -87,6 +88,12 @@ export const Timeline: React.FC<TimelineProps> = ({ height = 180, scale = 1 }) =
         useSensor(PointerSensor, {
             activationConstraint: {
                 distance: 8, // Require movement before drag starts to prevent accidental drags
+            },
+        }),
+        useSensor(TouchSensor, {
+            activationConstraint: {
+                delay: 250, // 250ms hold before drag starts on touch
+                tolerance: 8, // Allow 8px movement during the delay
             },
         }),
         useSensor(KeyboardSensor, {
