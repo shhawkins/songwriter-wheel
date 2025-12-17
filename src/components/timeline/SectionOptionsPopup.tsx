@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Copy, Eraser, Trash2, X, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowLeft } from 'lucide-react';
+import { Copy, Eraser, Trash2, X, ChevronLeft, ChevronRight, ArrowUp, ArrowDown } from 'lucide-react';
 import clsx from 'clsx';
 import type { Section } from '../../types';
 import { NoteIcon, getNoteType, getStepOptions } from './NoteValueSelector';
@@ -387,8 +387,8 @@ export const SectionOptionsPopup: React.FC<SectionOptionsPopupProps> = ({
                                     )}
                                     title="Move section earlier in song"
                                 >
-                                    <ArrowLeft size={14} />
-                                    Move Left
+                                    <ArrowUp size={14} />
+                                    Move Up
                                 </button>
                                 <button
                                     onClick={() => {
@@ -405,8 +405,8 @@ export const SectionOptionsPopup: React.FC<SectionOptionsPopupProps> = ({
                                     )}
                                     title="Move section later in song"
                                 >
-                                    <ArrowRight size={14} />
-                                    Move Right
+                                    <ArrowDown size={14} />
+                                    Move Down
                                 </button>
                             </div>
                         )}
