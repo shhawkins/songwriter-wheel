@@ -143,19 +143,12 @@ const createCustomSampler = (instrument: CustomInstrument) => {
     if (!instrument.samples || Object.keys(instrument.samples).length === 0) return null;
 
     try {
-        const sampler = new Tone.Sampler({
+        return new Tone.Sampler({
             urls: instrument.samples,
             attack: 0.005, // 5ms attack to prevent clicking
-            release: 3, // 3 second release for natural sustain
-            curve: "exponential", // Natural decay curve
+            release: 1, // Standard release for user samples
             // No baseUrl needed as we use full data URIs or absolute URLs
-        });
-        
-        // Add volume control to prevent clipping (-9dB for headroom)
-        const volume = new Tone.Volume(-9).toDestination();
-        sampler.connect(volume);
-        
-        return sampler;
+        }).toDestination();
     } catch (e) {
         console.error(`Failed to create custom sampler for ${instrument.name}`, e);
         return null;
