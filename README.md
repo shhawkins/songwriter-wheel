@@ -1,6 +1,6 @@
 # 🎵 Songwriter Wheel
 
-A fun, educational, and practical web app for musicians and songwriters to brainstorm ideas, explore music theory, reference guitar and keyboard diagrams, create chord progressions, arrange complete songs, and one-tap export PDF chord sheets.
+A fun, educational, and practical web app for musicians and songwriters to brainstorm ideas, explore music theory, reference guitar and keyboard diagrams, create chord progressions, hear any chord/voicing combo with real sampled instruments, create & arrange complete songs, and one-tap export PDF chord sheets.
 
 **🎸 [Try it live →](https://songwriterwheel.com)**
 
