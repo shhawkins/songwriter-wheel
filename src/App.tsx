@@ -210,11 +210,20 @@ function App() {
 
   const [showHelp, setShowHelp] = useState(false);
   const [showKeySelector, setShowKeySelector] = useState(false);
+  const [songTitleInput, setSongTitleInput] = useState<{ isOpen: boolean; value: string; onSubmit: (title: string) => void }>({
+    isOpen: false,
+    value: '',
+    onSubmit: () => { }
+  });
 
-  const { user, initialize: initAuth } = useAuthStore();
+  const { user, initialize: initAuth, isPasswordRecovery } = useAuthStore();
 
 
-  const [notification, setNotification] = useState<{ message: string; action?: { label: string; onClick: () => void } } | null>(null);
+  const [notification, setNotification] = useState<{
+    message: string;
+    action?: { label: string; onClick: () => void };
+    secondaryAction?: { label: string; onClick: () => void };
+  } | null>(null);
 
   useEffect(() => {
     initAuth();
@@ -231,16 +240,16 @@ function App() {
 
   // Auto-close auth modal when user logs in, BUT NOT during password recovery
   useEffect(() => {
-    if (user && !useAuthStore.getState().isPasswordRecovery) {
+    // Only close if user exists and we are strictly NOT in recovery mode
+    if (user && !isPasswordRecovery) {
       useAuthStore.getState().setAuthModalOpen(false);
     }
     if (user) {
       loadCloudSongs();
     }
-  }, [user, loadCloudSongs]);
+  }, [user, isPasswordRecovery, loadCloudSongs]);
 
   // Force open auth modal if in password recovery mode
-  const isPasswordRecovery = useAuthStore(state => state.isPasswordRecovery);
   useEffect(() => {
     if (isPasswordRecovery) {
       useAuthStore.getState().setAuthModalOpen(true);
@@ -251,14 +260,27 @@ function App() {
   useEffect(() => {
     const handleAuthToast = (e: any) => {
       setNotification({
-        message: e.detail.message || 'Sign in required',
+        message: e.detail.message || 'Sign in or create a free account to save songs & create custom instruments!',
         action: {
           label: 'Sign In',
           onClick: () => useAuthStore.getState().setAuthModalOpen(true)
+        },
+        secondaryAction: {
+          label: 'Sign Up',
+          onClick: () => {
+            // We need to switch the view to sign_up. 
+            // Ideally we pass a prop or state to AuthModal, but for now just opening it is the first step.
+            // Supabase Auth UI handles its own view state internally usually, unless we force it.
+            // Let's just open the modal. The user can switch to Sign Up easily.
+            // BETTER: We can maybe set a hash or state?
+            // Since we can't easily control the internal state of the pre-built Auth component from here without prop drilling 'view',
+            // let's just open the modal. User requested a specific link "Sign Up".
+            useAuthStore.getState().setAuthModalOpen(true);
+          }
         }
       });
-      // Auto-dismiss after 4 seconds
-      const timer = setTimeout(() => setNotification(null), 4000);
+      // Auto-dismiss after 6 seconds (longer for more text)
+      const timer = setTimeout(() => setNotification(null), 6000);
       return () => clearTimeout(timer);
     };
     window.addEventListener('show-auth-toast', handleAuthToast);
@@ -777,31 +799,36 @@ function App() {
         action: {
           label: 'Sign In',
           onClick: () => useAuthStore.getState().setAuthModalOpen(true)
+        },
+        secondaryAction: {
+          label: 'Sign Up',
+          onClick: () => useAuthStore.getState().setAuthModalOpen(true)
         }
       });
       return;
     }
 
     if (currentSong.title === 'Untitled Song' || !currentSong.title.trim()) {
-      // If title is default or empty, prompt for a new one
-      const newTitle = prompt('Please name your song:', currentSong.title);
-      if (newTitle === null) return; // Cancelled
-
-      const finalTitle = newTitle.trim() || 'Untitled Song';
-      setTitle(finalTitle);
-      // We need to wait for the state to update, but setSongTitle is synchronous in Zustand usually, 
-      // but strictly speaking we are using currentSong from closure. 
-      // Actually, let's just save with the new title directly to avoid race conditions with state update
-      const songToSave = { ...currentSong, title: finalTitle };
-
-      // Cloud Only Save
-      await saveToCloud(songToSave);
-
-    } else {
-      // Cloud Only Save
-      await saveToCloud(currentSong);
+      // If title is default or empty, show in-app title input modal
+      setSongTitleInput({
+        isOpen: true,
+        value: currentSong.title,
+        onSubmit: async (newTitle: string) => {
+          const finalTitle = newTitle.trim() || 'Untitled Song';
+          setTitle(finalTitle);
+          const songToSave = { ...currentSong, title: finalTitle };
+          await saveToCloud(songToSave);
+          setSavedSongs(getSavedSongs());
+          setShowSaveMenu(false);
+          setSongTitleInput({ isOpen: false, value: '', onSubmit: () => { } });
+        }
+      });
+      return; // Exit early; the actual save happens in the onSubmit callback
     }
-    setSavedSongs(getSavedSongs()); // Still update local list if we want to keep hybrid mode, but for now we focus on cloud
+
+    // Song already has a title, save directly
+    await saveToCloud(currentSong);
+    setSavedSongs(getSavedSongs());
     setShowSaveMenu(false);
   };
 
@@ -1371,35 +1398,16 @@ function App() {
                     </div>
                   )}
 
-                  {/* Local Songs Section */}
-                  {savedSongs.length === 0 ? (
-                    <p className="px-3 py-4 text-[10px] text-gray-500 text-center">No saved songs</p>
-                  ) : (
-                    <div className="p-1.5">
-                      <p className="px-2 py-1 text-[9px] text-gray-500 uppercase tracking-wider">Current Song</p>
-                      {savedSongs.map((song) => (
-                        <div
-                          key={'local-' + song.id}
-                          onClick={() => handleLoad(song)}
-                          className={`flex items-center justify-between px-3 py-2 text-xs rounded cursor-pointer transition-colors ${song.id === currentSong.id
-                            ? 'bg-accent-primary/20 text-accent-primary'
-                            : 'text-gray-300 hover:bg-[#2a2a3a]'
-                            }`}
-                        >
-                          <div className="flex items-center gap-2 min-w-0">
-                            <FolderOpen size={12} className="shrink-0" />
-                            <span className="truncate">{song.title}</span>
-                          </div>
-                          <button
-                            onClick={(e) => handleDelete(song.id, song.title, false, e)}
-                            className="p-1 hover:bg-red-500/20 rounded text-gray-500 hover:text-red-400 shrink-0"
-                          >
-                            <Trash2 size={10} />
-                          </button>
-                        </div>
-                      ))}
+                  {/* Current Song Section (Always Visible) */}
+                  <div className="p-1.5 border-t border-border-subtle bg-[#22222e]/50">
+                    <p className="px-2 py-1 text-[9px] text-gray-500 uppercase tracking-wider">Current Song</p>
+                    <div className="px-3 py-2 text-xs rounded bg-accent-primary/10 text-accent-primary border border-accent-primary/20 flex items-center justify-between">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="truncate font-medium">{currentSong.title}</span>
+                      </div>
+                      {/* Optional: Add clear/reset button? User can use 'New Song' */}
                     </div>
-                  )}
+                  </div>
                 </div>
               </div>
             )}
@@ -1722,6 +1730,48 @@ function App() {
         isDestructive={confirmDialog.isDestructive}
       />
 
+      {/* Song Title Input Modal */}
+      {songTitleInput.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-sm bg-stone-900 border border-stone-700 rounded-xl shadow-2xl p-6">
+            <h3 className="text-lg font-semibold text-stone-200 mb-4">Name Your Song</h3>
+            <input
+              type="text"
+              autoFocus
+              defaultValue={songTitleInput.value}
+              className="w-full px-3 py-2 bg-stone-800 border border-stone-600 rounded-lg text-stone-200 focus:outline-none focus:border-amber-500"
+              placeholder="Song title..."
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  songTitleInput.onSubmit((e.target as HTMLInputElement).value);
+                }
+                if (e.key === 'Escape') {
+                  setSongTitleInput({ isOpen: false, value: '', onSubmit: () => { } });
+                }
+              }}
+            />
+            <div className="flex justify-end gap-3 mt-4">
+              <button
+                onClick={() => setSongTitleInput({ isOpen: false, value: '', onSubmit: () => { } })}
+                className="px-4 py-2 text-sm text-stone-400 hover:text-stone-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const input = document.querySelector<HTMLInputElement>('.song-title-input-modal input');
+                  const val = input?.value || songTitleInput.value;
+                  songTitleInput.onSubmit(val);
+                }}
+                className="px-4 py-2 text-sm bg-amber-600 text-white rounded-lg hover:bg-amber-500 transition-colors"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Song Overview Modal (Map) */}
       <SongOverview onSave={handleSave} onExport={handleExport} />
 
@@ -1767,6 +1817,20 @@ function App() {
             >
               {notification.action.label}
             </button>
+          )}
+          {notification.secondaryAction && (
+            <>
+              <span className="text-stone-500 text-xs px-1">or</span>
+              <button
+                onClick={() => {
+                  notification.secondaryAction?.onClick();
+                  setNotification(null);
+                }}
+                className="text-accent-primary hover:text-white font-bold text-xs uppercase tracking-wide"
+              >
+                {notification.secondaryAction.label}
+              </button>
+            </>
           )}
         </div>
       )}

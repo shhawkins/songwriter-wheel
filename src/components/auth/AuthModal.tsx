@@ -5,7 +5,8 @@ import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../stores/authStore';
 import { useSongStore } from '../../store/useSongStore';
-import { X } from 'lucide-react';
+import { X, Music, Mic2 } from 'lucide-react';
+import { playChord, setInstrument } from '../../utils/audioEngine';
 
 
 interface AuthModalProps {
@@ -18,10 +19,34 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     const isPasswordRecovery = useAuthStore(state => state.isPasswordRecovery);
     const user = useAuthStore(state => state.user);
 
+    // Reactive subscription to songs and instruments
+    const cloudSongs = useSongStore(state => state.cloudSongs);
+    const customInstruments = useSongStore(state => state.customInstruments);
+    const loadSong = useSongStore(state => state.loadSong);
+    const setCurrentInstrument = useSongStore(state => state.setInstrument);
+    const selectedChord = useSongStore(state => state.selectedChord);
+
     useEffect(() => {
         setMounted(true);
         return () => setMounted(false);
     }, []);
+
+    const handleSongClick = (song: typeof cloudSongs[0]) => {
+        loadSong(song);
+        onClose();
+    };
+
+    const handleInstrumentClick = (instrument: typeof customInstruments[0]) => {
+        // Set as current instrument
+        setCurrentInstrument(instrument.id);
+        setInstrument(instrument.id);
+
+        // Play the currently selected chord (or C major by default)
+        const chordToPlay = selectedChord || { root: 'C', quality: 'major' as const, notes: ['C', 'E', 'G'] };
+        playChord(chordToPlay.notes);
+
+        onClose();
+    };
 
     if (!isOpen || !mounted) return null;
 
@@ -41,64 +66,118 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                     </button>
                 </div>
 
+                {/* Coming Soon Banner */}
+                <div className="bg-amber-600/90 text-white text-center py-2 px-4 text-sm font-medium">
+                    🚀 Account support coming soon! Stay tuned.
+                </div>
+
                 {/* Content */}
                 <div className="p-6 max-h-[80vh] overflow-y-auto">
                     {(!user && !isPasswordRecovery) || isPasswordRecovery ? (
-                        <Auth
-                            supabaseClient={supabase}
-                            appearance={{
-                                theme: ThemeSupa,
-                                variables: {
-                                    default: {
-                                        colors: {
-                                            brand: '#d97706', // amber-600
-                                            brandAccent: '#b45309', // amber-700
-                                            inputText: '#e7e5e4', // stone-200
-                                            inputBackground: '#292524', // stone-800
-                                            inputBorder: '#44403c', // stone-700
-                                            inputLabelText: '#a8a29e', // stone-400
+                        <>
+                            <Auth
+                                supabaseClient={supabase}
+                                appearance={{
+                                    theme: ThemeSupa,
+                                    variables: {
+                                        default: {
+                                            colors: {
+                                                brand: '#d97706',
+                                                brandAccent: '#b45309',
+                                                inputText: '#e7e5e4',
+                                                inputBackground: '#292524',
+                                                inputBorder: '#44403c',
+                                                inputLabelText: '#a8a29e',
+                                            },
                                         },
                                     },
-                                },
-                                className: {
-                                    container: 'font-sans',
-                                    button: 'font-medium',
-                                    input: 'font-sans',
-                                }
-                            }}
-                            providers={['google']}
-                            queryParams={{
-                                access_type: 'offline',
-                                prompt: 'consent select_account',
-                            }}
-                            theme="dark"
-                            redirectTo={window.location.origin}
-                            view={isPasswordRecovery ? 'update_password' : undefined}
-                        />
+                                    className: {
+                                        container: 'font-sans',
+                                        button: 'font-medium',
+                                        input: 'font-sans',
+                                        anchor: '!text-[13px]',
+                                    }
+                                }}
+                                providers={['google']}
+                                queryParams={{
+                                    access_type: 'offline',
+                                    prompt: 'consent select_account',
+                                }}
+                                theme="dark"
+                                redirectTo={window.location.origin}
+                                view={isPasswordRecovery ? 'update_password' : undefined}
+                            />
+                            {/* Policy Links */}
+                            <div className="mt-4 pt-3 border-t border-stone-800 text-center">
+                                <p className="text-[10px] text-stone-500">
+                                    By signing in, you agree to our{' '}
+                                    <a href="/terms.html" target="_blank" rel="noopener noreferrer" className="text-stone-400 hover:text-stone-300 underline">Terms</a>
+                                    {' '}and{' '}
+                                    <a href="/privacy.html" target="_blank" rel="noopener noreferrer" className="text-stone-400 hover:text-stone-300 underline">Privacy Policy</a>
+                                </p>
+                            </div>
+                        </>
                     ) : (
-                        <div className="flex flex-col items-center gap-6 py-4">
-                            <div className="text-center">
-                                <p className="text-stone-400 mb-2">Signed in as</p>
-                                <p className="text-white font-medium text-lg">{user?.email}</p>
+                        <div className="flex flex-col gap-5">
+                            {/* User Info */}
+                            <div className="text-center pb-4 border-b border-stone-800">
+                                <p className="text-stone-400 text-sm mb-1">Signed in as</p>
+                                <p className="text-white font-medium">{user?.email}</p>
                             </div>
 
-                            <div className="w-full grid grid-cols-2 gap-4">
-                                <div className="bg-stone-800/50 p-3 rounded-lg text-center border border-stone-800">
-                                    <p className="text-2xl font-bold text-amber-500">{useSongStore.getState().cloudSongs.length}</p>
-                                    <p className="text-xs text-stone-400 uppercase tracking-wider">Saved Songs</p>
+                            {/* Saved Songs */}
+                            <div>
+                                <div className="flex items-center gap-2 mb-2">
+                                    <Music size={14} className="text-amber-500" />
+                                    <h3 className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Saved Songs ({cloudSongs.length})</h3>
                                 </div>
-                                <div className="bg-stone-800/50 p-3 rounded-lg text-center border border-stone-800">
-                                    <p className="text-2xl font-bold text-indigo-500">{useSongStore.getState().customInstruments.length}</p>
-                                    <p className="text-xs text-stone-400 uppercase tracking-wider">Saved Inst.</p>
-                                </div>
+                                {cloudSongs.length > 0 ? (
+                                    <div className="space-y-1 max-h-32 overflow-y-auto">
+                                        {cloudSongs.map(song => (
+                                            <button
+                                                key={song.id}
+                                                onClick={() => handleSongClick(song)}
+                                                className="w-full text-left px-3 py-2 text-sm text-stone-200 hover:bg-stone-800 rounded-lg transition-colors truncate"
+                                            >
+                                                {song.title}
+                                            </button>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-xs text-stone-500 italic px-3">No saved songs yet</p>
+                                )}
                             </div>
 
+                            {/* Custom Instruments */}
+                            <div>
+                                <div className="flex items-center gap-2 mb-2">
+                                    <Mic2 size={14} className="text-indigo-500" />
+                                    <h3 className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Custom Instruments ({customInstruments.length})</h3>
+                                </div>
+                                {customInstruments.length > 0 ? (
+                                    <div className="space-y-1 max-h-32 overflow-y-auto">
+                                        {customInstruments.map(inst => (
+                                            <button
+                                                key={inst.id}
+                                                onClick={() => handleInstrumentClick(inst)}
+                                                className="w-full text-left px-3 py-2 text-sm text-stone-200 hover:bg-stone-800 rounded-lg transition-colors truncate"
+                                            >
+                                                {inst.name}
+                                            </button>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-xs text-stone-500 italic px-3">No custom instruments yet</p>
+                                )}
+                            </div>
+
+                            {/* Sign Out */}
                             <button
                                 onClick={() => {
                                     useAuthStore.getState().signOut();
                                     onClose();
                                 }}
-                                className="w-full py-2 px-4 bg-stone-800 hover:bg-stone-700 text-stone-200 rounded-lg transition-colors font-medium border border-stone-700"
+                                className="w-full py-2 px-4 bg-stone-800 hover:bg-stone-700 text-stone-200 rounded-lg transition-colors font-medium border border-stone-700 mt-2"
                             >
                                 Sign Out
                             </button>
@@ -110,4 +189,3 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
         document.body
     );
 }
-

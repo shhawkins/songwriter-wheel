@@ -227,6 +227,7 @@ interface SongState {
     saveInstrumentToCloud: (instrument: CustomInstrument) => Promise<void>;
     fetchUserInstruments: () => Promise<CustomInstrument[]>;
     uploadSample: (file: Blob, folder: string, filename: string) => Promise<string | null>;
+    resetState: () => void;
 }
 
 
@@ -475,7 +476,19 @@ export const useSongStore = create<SongState>()(
             isMuted: false,
             customInstruments: [] as CustomInstrument[],
             cloudSongs: [] as Song[],
+            customInstruments: [] as CustomInstrument[],
+            cloudSongs: [] as Song[],
             isLoadingCloud: false,
+
+            resetState: () => set({
+                cloudSongs: [],
+                customInstruments: [],
+                currentSong: DEFAULT_SONG,
+                historyPast: [],
+                historyFuture: [],
+                canUndo: false,
+                canRedo: false
+            }),
 
             loadCloudSongs: async () => {
                 const { data: { user } } = await supabase.auth.getUser();
@@ -586,7 +599,11 @@ export const useSongStore = create<SongState>()(
                     }
                 } else if (data) {
                     // Update local currentSong to match the saved ID if it changed
+                    // AND update the data to match what was saved (e.g. if we want to ensure consistency)
                     if (get().currentSong.id !== finalId) {
+                        set({ currentSong: songData });
+                    } else {
+                        // Even if ID is same, update the store's currentSong with the saved data to ensure they are in sync
                         set({ currentSong: songData });
                     }
                     // Reload list
@@ -1808,6 +1825,20 @@ export const useSongStore = create<SongState>()(
                 instrument: state.instrument,
                 isMuted: state.isMuted
             }),
+            merge: (persistedState: any, currentState) => {
+                // simple deep merge or just shallow consistency check
+                // Recovery from bad state (e.g. currentSong being a Chord object instead of Song)
+                if (
+                    persistedState &&
+                    persistedState.currentSong &&
+                    !Array.isArray(persistedState.currentSong.sections)
+                ) {
+                    // console.warn('Corrupted song state detected, resetting to default');
+                    return currentState;
+                }
+
+                return { ...currentState, ...persistedState };
+            },
         }
     )
 );

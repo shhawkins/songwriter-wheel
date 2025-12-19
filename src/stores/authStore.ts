@@ -24,30 +24,52 @@ export const useAuthStore = create<AuthState>((set) => ({
     initialize: async () => {
 
         try {
+            // Check for recovery mode in URL hash explicitly BEFORE other async calls might clear it
+            const isRecovery = typeof window !== 'undefined' && window.location.hash && window.location.hash.includes('type=recovery');
+
+            // If recovery mode detected via hash, immediately set flags before any async operations
+            if (isRecovery) {
+                set({ isPasswordRecovery: true, isAuthModalOpen: true });
+            }
+
             // 1. Set up listener FIRST to capture any immediate events from URL parsing
             const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-                const isPasswordRecovery = event === 'PASSWORD_RECOVERY';
-                set({
-                    session,
-                    user: session?.user ?? null,
-                    loading: false,
-                    isPasswordRecovery,
-                    isAuthModalOpen: isPasswordRecovery // Auto-open if recovery
+                const isPasswordRecoveryEvent = event === 'PASSWORD_RECOVERY';
+
+                set(state => {
+                    // Combine event signal AND hash signal AND previous state
+                    const shouldRemainInRecovery = isPasswordRecoveryEvent || isRecovery || (event === 'SIGNED_IN' && state.isPasswordRecovery);
+
+                    // If the user updated their profile (e.g. password set) or signed out, we exit recovery mode
+                    if (event === 'USER_UPDATED' || event === 'SIGNED_OUT') {
+                        return {
+                            session,
+                            user: session?.user ?? null,
+                            loading: false,
+                            isPasswordRecovery: false,
+                            isAuthModalOpen: false
+                        };
+                    }
+
+                    return {
+                        session,
+                        user: session?.user ?? null,
+                        loading: false,
+                        isPasswordRecovery: shouldRemainInRecovery,
+                        isAuthModalOpen: shouldRemainInRecovery || (isPasswordRecoveryEvent ? true : state.isAuthModalOpen)
+                    };
                 });
             });
 
             // 2. Then check session (which might trigger URL parsing and events)
             const { data: { session } } = await supabase.auth.getSession();
 
-            // Check for recovery mode in URL hash explicitly
-            const isRecovery = window.location.hash && window.location.hash.includes('type=recovery');
-
             // Only update if we haven't already received an event update (to avoid overwrite/flicker)
-            // But usually safe to update
             set(state => ({
                 session,
                 user: session?.user ?? null,
                 loading: false,
+                // Persist recovery if it was detected via hash OR event
                 isPasswordRecovery: !!isRecovery || state.isPasswordRecovery,
                 isAuthModalOpen: (!!isRecovery || state.isPasswordRecovery) || state.isAuthModalOpen
             }));
@@ -63,8 +85,10 @@ export const useAuthStore = create<AuthState>((set) => ({
         }
     },
     signOut: async () => {
+        const { useSongStore } = await import('../store/useSongStore'); // Dynamic import to avoid circular dependency
         await supabase.auth.signOut();
         set({ session: null, user: null, isPasswordRecovery: false });
+        useSongStore.getState().resetState(); // You need to implement this in useSongStore
     },
     resetPasswordRecovery: () => set({ isPasswordRecovery: false }),
     setAuthModalOpen: (open) => set({ isAuthModalOpen: open }),
