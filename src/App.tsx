@@ -243,29 +243,36 @@ function App() {
   // Track if we just showed the password update toast (to avoid then showing sign-in toast)
   const justShowedPasswordUpdateRef = useRef(false);
 
-  // Show notification when user logs in or updates password
+  // 1. Separate triggers for notifications (clears flags immediately)
   useEffect(() => {
     if (wasPasswordJustUpdated) {
-      // Password was just updated - show specific message and clear the flag
-      setNotification({ message: '✓ Password updated successfully!' });
-      justShowedPasswordUpdateRef.current = true;
       clearPasswordUpdatedFlag();
-      const timer = setTimeout(() => setNotification(null), 3500);
-      return () => clearTimeout(timer);
+      setNotification({ message: '✓ Password reset!' });
+      justShowedPasswordUpdateRef.current = true;
     } else if (isNewUser && user?.email) {
-      // New account confirmation/signup
+      clearIsNewUserFlag();
       setNotification({ message: `🎉 Welcome to Songwriter Wheel!\nSigned up as ${user.email}` });
       justShowedPasswordUpdateRef.current = true;
-      clearIsNewUserFlag();
-      const timer = setTimeout(() => setNotification(null), 5000);
-      return () => clearTimeout(timer);
     } else if (user?.email && !prevUserRef.current?.email && !justShowedPasswordUpdateRef.current) {
-      // Regular sign-in (transitioned from no user to user)
       setNotification({ message: `Successfully signed in as ${user.email}` });
-      const timer = setTimeout(() => setNotification(null), 3000);
-      return () => clearTimeout(timer);
     }
   }, [user, wasPasswordJustUpdated, isNewUser, clearPasswordUpdatedFlag, clearIsNewUserFlag]);
+
+  // 2. Centralized auto-dismiss for all notifications
+  useEffect(() => {
+    if (notification) {
+      // Use a consistent 4s for all auto-dismiss toasts, unless they have actions
+      const duration = notification.action ? 8000 : 4000;
+      const timer = setTimeout(() => {
+        setNotification(null);
+        // Reset the "just showed" ref after toast is gone
+        if (justShowedPasswordUpdateRef.current) {
+          justShowedPasswordUpdateRef.current = false;
+        }
+      }, duration);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
 
   // Auto-close auth modal ONLY on a fresh sign-in, and NEVER during recovery
   useEffect(() => {
@@ -306,15 +313,12 @@ function App() {
           }
         }
       });
-      // Auto-dismiss after 6 seconds (longer for more text)
-      setTimeout(() => setNotification(null), 6000);
     };
 
     const handleAuthError = (e: any) => {
       setNotification({
         message: `⚠️ ${e.detail.message || 'Something went wrong. Please try again.'}`
       });
-      setTimeout(() => setNotification(null), 5000);
     };
 
     window.addEventListener('show-auth-toast', handleAuthToast);
