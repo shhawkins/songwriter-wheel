@@ -216,27 +216,46 @@ function App() {
     onSubmit: () => { }
   });
 
-  const { user, initialize: initAuth, isPasswordRecovery } = useAuthStore();
+  const { user, initialize: initAuth, isPasswordRecovery, wasPasswordJustUpdated, clearPasswordUpdatedFlag, loading: authLoading, isAuthModalOpen } = useAuthStore();
 
 
   const [notification, setNotification] = useState<{
     message: string;
     action?: { label: string; onClick: () => void };
     secondaryAction?: { label: string; onClick: () => void };
+    dismissAction?: { label: string }; // Third option that just dismisses the toast
   } | null>(null);
 
   useEffect(() => {
     initAuth();
   }, [initAuth]);
 
-  // Show notification when user logs in
+  // Track if we just showed the password update toast (to avoid then showing sign-in toast)
+  const justShowedPasswordUpdateRef = useRef(false);
+
+  // Show notification when user logs in or updates password
   useEffect(() => {
-    if (user?.email) {
+    if (wasPasswordJustUpdated) {
+      // Password was just updated - show specific message and clear the flag
+      setNotification({ message: '✓ Password updated successfully!' });
+      justShowedPasswordUpdateRef.current = true;
+      clearPasswordUpdatedFlag();
+      const timer = setTimeout(() => setNotification(null), 3000);
+      return () => clearTimeout(timer);
+    } else if (user?.email && !justShowedPasswordUpdateRef.current) {
+      // Regular sign-in (but skip if we just showed password updated message)
       setNotification({ message: `Successfully signed in as ${user.email}` });
-      const timer = setTimeout(() => setNotification(null), 2500); // Shorter duration
+      const timer = setTimeout(() => setNotification(null), 2500);
       return () => clearTimeout(timer);
     }
-  }, [user]);
+    // Reset the flag after a short delay to allow future sign-in toasts
+    if (justShowedPasswordUpdateRef.current) {
+      const resetTimer = setTimeout(() => {
+        justShowedPasswordUpdateRef.current = false;
+      }, 100);
+      return () => clearTimeout(resetTimer);
+    }
+  }, [user, wasPasswordJustUpdated, clearPasswordUpdatedFlag]);
 
   // Auto-close auth modal when user logs in, BUT NOT during password recovery
   useEffect(() => {
@@ -684,11 +703,47 @@ function App() {
   };
 
   // Handle song info save from modal
-  const handleSongInfoSave = (newTitle: string, newArtist: string, newTags: string[], newTimeSignature: [number, number]) => {
+  const handleSongInfoSave = async (newTitle: string, newArtist: string, newTags: string[], newTimeSignature: [number, number]) => {
+    // Always update local state first
     setTitle(newTitle);
     setArtist(newArtist);
     setTags(newTags);
     setSongTimeSignature(newTimeSignature);
+
+    // Check if user is signed in for cloud save
+    if (user) {
+      // User is signed in - save to cloud and show auto-dismissing notification
+      const songToSave = {
+        ...currentSong,
+        title: newTitle,
+        artist: newArtist,
+        tags: newTags,
+        timeSignature: newTimeSignature
+      };
+      await saveToCloud(songToSave);
+      setNotification({ message: `"${newTitle}" has been saved!` });
+      // Auto-dismiss after 3 seconds
+      setTimeout(() => setNotification(null), 3000);
+    } else {
+      // User is not signed in - show toast prompting sign in with "No" option
+      setNotification({
+        message: 'Save to cloud?',
+        action: {
+          label: 'Sign In',
+          onClick: () => useAuthStore.getState().setAuthModalOpen(true)
+        },
+        secondaryAction: {
+          label: 'Sign Up',
+          onClick: () => {
+            useAuthStore.getState().setAuthDefaultView('sign_up');
+            useAuthStore.getState().setAuthModalOpen(true);
+          }
+        },
+        dismissAction: { label: 'No Thanks' }
+      });
+      // Auto-dismiss after 8 seconds (longer since user has 3 options to consider)
+      setTimeout(() => setNotification(null), 8000);
+    }
   };
 
   // Calculate song duration (Task 33)
@@ -809,7 +864,7 @@ function App() {
     // Auth Check
     if (!user) {
       setNotification({
-        message: 'Sign in to save your songs!',
+        message: 'Sign in or sign up for free to save your songs to the cloud!',
         action: {
           label: 'Sign In',
           onClick: () => useAuthStore.getState().setAuthModalOpen(true)
@@ -845,7 +900,7 @@ function App() {
 
     // Song already has a title, save directly
     await saveToCloud(currentSong);
-    setNotification({ message: `"${currentSong.title}" saved to cloud!` });
+    setNotification({ message: `"${currentSong.title}" has been saved!` });
     setShowSaveMenu(false);
   };
 
@@ -1287,7 +1342,14 @@ function App() {
     });
   };
 
-  return (
+  // Note: We render conditionally inside the return statement instead of early return
+  // to maintain consistent hook ordering across renders
+
+  return authLoading ? (
+    <div className="h-full w-full flex items-center justify-center bg-bg-secondary">
+      <div className="w-8 h-8 border-2 border-accent-primary border-t-transparent rounded-full animate-spin" />
+    </div>
+  ) : (
     <div className="h-full w-full flex flex-col bg-bg-secondary text-text-primary overflow-hidden">
       {/* Header - slides up when in mobile immersive mode, when chord panel is open, or in landscape by default */}
       <header
@@ -1849,11 +1911,19 @@ function App() {
               </button>
             </>
           )}
+          {notification.dismissAction && (
+            <button
+              onClick={() => setNotification(null)}
+              className="text-stone-400 hover:text-white font-bold text-xs uppercase tracking-wide border-l border-white/20 pl-3 ml-1"
+            >
+              {notification.dismissAction.label}
+            </button>
+          )}
         </div>
       )}
 
       {/* Auth Modal */}
-      <AuthModal isOpen={useAuthStore(s => s.isAuthModalOpen)} onClose={() => useAuthStore.getState().setAuthModalOpen(false)} />
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => useAuthStore.getState().setAuthModalOpen(false)} />
 
 
 

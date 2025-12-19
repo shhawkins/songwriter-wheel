@@ -145,7 +145,7 @@ export const InstrumentManagerModal: React.FC<InstrumentManagerModalProps> = ({ 
                 // The user said: "show the toast message to prompt for sign-in/sign-up".
                 // Since `setNotification` is local to App.tsx, we can dispatch an event.
                 window.dispatchEvent(new CustomEvent('show-auth-toast', {
-                    detail: { message: 'Sign in to save custom instruments!' }
+                    detail: { message: 'Sign in or sign up for free to save custom instruments!' }
                 }));
             }, 800);
             return () => clearTimeout(timer);

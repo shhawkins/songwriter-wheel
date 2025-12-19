@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
@@ -16,6 +16,10 @@ interface AuthModalProps {
 
 export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     const [mounted, setMounted] = useState(false);
+    const [authKey, setAuthKey] = useState(0); // Key to force Auth component remount
+    const wasOpenRef = useRef(false); // Track previous open state
+
+    // Use separate selectors to avoid object creation causing infinite re-renders
     const isPasswordRecovery = useAuthStore(state => state.isPasswordRecovery);
     const authDefaultView = useAuthStore(state => state.authDefaultView);
     const user = useAuthStore(state => state.user);
@@ -31,6 +35,16 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
         setMounted(true);
         return () => setMounted(false);
     }, []);
+
+    // Only increment authKey when modal transitions from closed -> open
+    // This prevents re-mounts when modal is already open and state updates happen
+    useEffect(() => {
+        if (isOpen && !wasOpenRef.current) {
+            // Modal is opening (was closed, now open)
+            setAuthKey(prev => prev + 1);
+        }
+        wasOpenRef.current = isOpen;
+    }, [isOpen]);
 
     const handleSongClick = (song: typeof cloudSongs[0]) => {
         loadSong(song);
@@ -52,8 +66,8 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     if (!isOpen || !mounted) return null;
 
     return createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-            <div className="relative w-full max-w-md bg-stone-900 border border-stone-800 rounded-xl shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+            <div className="relative w-full max-w-md bg-stone-900 border border-stone-800 rounded-xl shadow-2xl overflow-hidden animate-scale-in">
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b border-stone-800 bg-stone-900/50">
                     <h2 className="text-lg font-semibold text-stone-200">
@@ -72,6 +86,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                     {(!user && !isPasswordRecovery) || isPasswordRecovery ? (
                         <>
                             <Auth
+                                key={authKey}
                                 supabaseClient={supabase}
                                 appearance={{
                                     theme: ThemeSupa,
