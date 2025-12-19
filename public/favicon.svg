@@ -1,29 +1,31 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <g transform="translate(50, 50) scale(0.8) translate(-50, -50)">
   <!-- 12 wedge segments matching the Logo component -->
   <!-- Segment 0 - I - bright yellow (top) -->
-  <path d="M 50 30 L 50 2 A 48 48 0 0 1 74.0 8.1 L 59.3 32.5 A 20 20 0 0 0 50 30" fill="rgba(234, 179, 8, 0.95)" stroke="rgba(0, 0, 0, 0.3)" stroke-width="0.5"/>
+  <path d="M 50 30 L 50 2 A 48 48 0 0 1 74.0 8.1 L 59.3 32.5 A 20 20 0 0 0 50 30" fill="rgb(202, 138, 4)" stroke="rgba(0, 0, 0, 0.4)" stroke-width="0.5"/>
   <!-- Segment 1 - V - yellow-green -->
-  <path d="M 59.3 32.5 L 74.0 8.1 A 48 48 0 0 1 91.9 26.0 L 67.5 40.7 A 20 20 0 0 0 59.3 32.5" fill="rgba(163, 190, 60, 0.9)" stroke="rgba(0, 0, 0, 0.3)" stroke-width="0.5"/>
+  <path d="M 59.3 32.5 L 74.0 8.1 A 48 48 0 0 1 91.9 26.0 L 67.5 40.7 A 20 20 0 0 0 59.3 32.5" fill="rgb(133, 160, 40)" stroke="rgba(0, 0, 0, 0.4)" stroke-width="0.5"/>
   <!-- Segment 2 - ii - lime -->
-  <path d="M 67.5 40.7 L 91.9 26.0 A 48 48 0 0 1 98 50 L 70 50 A 20 20 0 0 0 67.5 40.7" fill="rgba(132, 204, 22, 0.85)" stroke="rgba(0, 0, 0, 0.3)" stroke-width="0.5"/>
+  <path d="M 67.5 40.7 L 91.9 26.0 A 48 48 0 0 1 98 50 L 70 50 A 20 20 0 0 0 67.5 40.7" fill="rgb(101, 163, 13)" stroke="rgba(0, 0, 0, 0.4)" stroke-width="0.5"/>
   <!-- Segment 3 - vi - green -->
-  <path d="M 70 50 L 98 50 A 48 48 0 0 1 91.9 74.0 L 67.5 59.3 A 20 20 0 0 0 70 50" fill="rgba(74, 222, 128, 0.75)" stroke="rgba(0, 0, 0, 0.3)" stroke-width="0.5"/>
+  <path d="M 70 50 L 98 50 A 48 48 0 0 1 91.9 74.0 L 67.5 59.3 A 20 20 0 0 0 70 50" fill="rgb(34, 197, 94)" stroke="rgba(0, 0, 0, 0.4)" stroke-width="0.5"/>
   <!-- Segment 4 - iii - teal -->
-  <path d="M 67.5 59.3 L 91.9 74.0 A 48 48 0 0 1 74.0 91.9 L 59.3 67.5 A 20 20 0 0 0 67.5 59.3" fill="rgba(45, 212, 191, 0.65)" stroke="rgba(0, 0, 0, 0.3)" stroke-width="0.5"/>
+  <path d="M 67.5 59.3 L 91.9 74.0 A 48 48 0 0 1 74.0 91.9 L 59.3 67.5 A 20 20 0 0 0 67.5 59.3" fill="rgb(20, 184, 166)" stroke="rgba(0, 0, 0, 0.4)" stroke-width="0.5"/>
   <!-- Segment 5 - muted -->
-  <path d="M 59.3 67.5 L 74.0 91.9 A 48 48 0 0 1 50 98 L 50 70 A 20 20 0 0 0 59.3 67.5" fill="rgba(100, 80, 120, 0.5)" stroke="rgba(0, 0, 0, 0.3)" stroke-width="0.5"/>
+  <path d="M 59.3 67.5 L 74.0 91.9 A 48 48 0 0 1 50 98 L 50 70 A 20 20 0 0 0 59.3 67.5" fill="rgb(82, 65, 100)" stroke="rgba(0, 0, 0, 0.4)" stroke-width="0.5"/>
   <!-- Segment 6 - muted -->
-  <path d="M 50 70 L 50 98 A 48 48 0 0 1 26.0 91.9 L 40.7 67.5 A 20 20 0 0 0 50 70" fill="rgba(80, 70, 90, 0.5)" stroke="rgba(0, 0, 0, 0.3)" stroke-width="0.5"/>
+  <path d="M 50 70 L 50 98 A 48 48 0 0 1 26.0 91.9 L 40.7 67.5 A 20 20 0 0 0 50 70" fill="rgb(65, 55, 75)" stroke="rgba(0, 0, 0, 0.4)" stroke-width="0.5"/>
   <!-- Segment 7 - muted -->
-  <path d="M 40.7 67.5 L 26.0 91.9 A 48 48 0 0 1 8.1 74.0 L 32.5 59.3 A 20 20 0 0 0 40.7 67.5" fill="rgba(60, 55, 70, 0.5)" stroke="rgba(0, 0, 0, 0.3)" stroke-width="0.5"/>
+  <path d="M 40.7 67.5 L 26.0 91.9 A 48 48 0 0 1 8.1 74.0 L 32.5 59.3 A 20 20 0 0 0 40.7 67.5" fill="rgb(50, 45, 60)" stroke="rgba(0, 0, 0, 0.4)" stroke-width="0.5"/>
   <!-- Segment 8 - muted -->
-  <path d="M 32.5 59.3 L 8.1 74.0 A 48 48 0 0 1 2 50 L 30 50 A 20 20 0 0 0 32.5 59.3" fill="rgba(100, 80, 120, 0.5)" stroke="rgba(0, 0, 0, 0.3)" stroke-width="0.5"/>
+  <path d="M 32.5 59.3 L 8.1 74.0 A 48 48 0 0 1 2 50 L 30 50 A 20 20 0 0 0 32.5 59.3" fill="rgb(82, 65, 100)" stroke="rgba(0, 0, 0, 0.4)" stroke-width="0.5"/>
   <!-- Segment 9 - muted -->
-  <path d="M 30 50 L 2 50 A 48 48 0 0 1 8.1 26.0 L 32.5 40.7 A 20 20 0 0 0 30 50" fill="rgba(80, 70, 90, 0.5)" stroke="rgba(0, 0, 0, 0.3)" stroke-width="0.5"/>
+  <path d="M 30 50 L 2 50 A 48 48 0 0 1 8.1 26.0 L 32.5 40.7 A 20 20 0 0 0 30 50" fill="rgb(65, 55, 75)" stroke="rgba(0, 0, 0, 0.4)" stroke-width="0.5"/>
   <!-- Segment 10 - vii° - gray/brown -->
-  <path d="M 32.5 40.7 L 8.1 26.0 A 48 48 0 0 1 26.0 8.1 L 40.7 32.5 A 20 20 0 0 0 32.5 40.7" fill="rgba(168, 162, 158, 0.65)" stroke="rgba(0, 0, 0, 0.3)" stroke-width="0.5"/>
+  <path d="M 32.5 40.7 L 8.1 26.0 A 48 48 0 0 1 26.0 8.1 L 40.7 32.5 A 20 20 0 0 0 32.5 40.7" fill="rgb(140, 133, 128)" stroke="rgba(0, 0, 0, 0.4)" stroke-width="0.5"/>
   <!-- Segment 11 - IV - orange -->
-  <path d="M 40.7 32.5 L 26.0 8.1 A 48 48 0 0 1 50 2 L 50 30 A 20 20 0 0 0 40.7 32.5" fill="rgba(251, 146, 60, 0.9)" stroke="rgba(0, 0, 0, 0.3)" stroke-width="0.5"/>
-  <!-- Dark center circle -->
-  <circle cx="50" cy="50" r="18" fill="rgba(20, 20, 30, 0.95)" stroke="rgba(255, 255, 255, 0.15)" stroke-width="1"/>
+  <path d="M 40.7 32.5 L 26.0 8.1 A 48 48 0 0 1 50 2 L 50 30 A 20 20 0 0 0 40.7 32.5" fill="rgb(234, 88, 12)" stroke="rgba(0, 0, 0, 0.4)" stroke-width="0.5"/>
+  <!-- Transparent center circle (cutout) -->
+  <circle cx="50" cy="50" r="18" fill="none"/>
+  </g>
 </svg>

@@ -132,6 +132,8 @@ export const InstrumentManagerModal: React.FC<InstrumentManagerModalProps> = ({ 
     const { customInstruments, addCustomInstrument, removeCustomInstrument, setInstrument, uploadSample, saveInstrumentToCloud } = useSongStore();
     const [view, setView] = useState<'list' | 'create'>('list');
     const [isSaving, setIsSaving] = useState(false);
+    const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     // Auth Check Effect for Create View
     React.useEffect(() => {
@@ -472,11 +474,7 @@ export const InstrumentManagerModal: React.FC<InstrumentManagerModalProps> = ({ 
                                         <p className="text-xs text-text-muted">{Object.keys(inst.samples).length} samples</p>
                                     </div>
                                     <button
-                                        onClick={() => {
-                                            if (confirm(`Delete "${inst.name}"?`)) {
-                                                removeCustomInstrument(inst.id);
-                                            }
-                                        }}
+                                        onClick={() => setDeleteConfirm({ id: inst.id, name: inst.name })}
                                         className="p-2 text-text-secondary hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
                                     >
                                         <Trash2 size={16} />
@@ -498,6 +496,46 @@ export const InstrumentManagerModal: React.FC<InstrumentManagerModalProps> = ({ 
                     </div>
                 )}
             </div>
+
+            {/* Delete Confirmation Dialog */}
+            {deleteConfirm && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-xl">
+                    <div className="bg-bg-elevated border border-border-subtle rounded-lg p-5 max-w-xs mx-4 shadow-xl">
+                        <h3 className="text-base font-semibold text-text-primary mb-2">Delete Instrument?</h3>
+                        <p className="text-sm text-text-secondary mb-4">
+                            Are you sure you want to delete "<span className="font-medium text-text-primary">{deleteConfirm.name}</span>"? This cannot be undone.
+                        </p>
+                        <div className="flex gap-2 justify-end">
+                            <button
+                                onClick={() => setDeleteConfirm(null)}
+                                disabled={isDeleting}
+                                className="px-4 py-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    setIsDeleting(true);
+                                    await removeCustomInstrument(deleteConfirm.id);
+                                    setIsDeleting(false);
+                                    setDeleteConfirm(null);
+                                }}
+                                disabled={isDeleting}
+                                className="px-4 py-2 text-sm font-medium bg-red-600 text-white rounded hover:bg-red-500 transition-colors disabled:opacity-50 flex items-center gap-2"
+                            >
+                                {isDeleting ? (
+                                    <>
+                                        <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        Deleting...
+                                    </>
+                                ) : (
+                                    'Delete'
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

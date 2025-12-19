@@ -186,7 +186,8 @@ interface SongState {
     toggleLoop: () => void;
     toggleMute: () => void;
     addCustomInstrument: (instrument: CustomInstrument) => void;
-    removeCustomInstrument: (id: string) => void;
+    removeCustomInstrument: (id: string) => Promise<void>;
+    deleteInstrumentFromCloud: (id: string) => Promise<void>;
 
     // Song Actions
     setTitle: (title: string) => void;
@@ -476,8 +477,6 @@ export const useSongStore = create<SongState>()(
             isMuted: false,
             customInstruments: [] as CustomInstrument[],
             cloudSongs: [] as Song[],
-            customInstruments: [] as CustomInstrument[],
-            cloudSongs: [] as Song[],
             isLoadingCloud: false,
 
             resetState: () => set({
@@ -706,11 +705,27 @@ export const useSongStore = create<SongState>()(
                 customInstruments: [...state.customInstruments, instrument]
             })),
 
-            removeCustomInstrument: (id) => set((state) => ({
-                customInstruments: state.customInstruments.filter(i => i.id !== id),
-                // If the removed instrument was selected, revert to piano
-                instrument: state.instrument === id ? 'piano' : state.instrument
-            })),
+            deleteInstrumentFromCloud: async (id: string) => {
+                const { error } = await supabase
+                    .from('instruments')
+                    .delete()
+                    .eq('id', id);
+
+                if (error) {
+                    console.error('Error deleting instrument from cloud:', error);
+                }
+            },
+
+            removeCustomInstrument: async (id) => {
+                // Delete from cloud first
+                await get().deleteInstrumentFromCloud(id);
+                // Then update local state
+                set((state) => ({
+                    customInstruments: state.customInstruments.filter(i => i.id !== id),
+                    // If the removed instrument was selected, revert to piano
+                    instrument: state.instrument === id ? 'piano' : state.instrument
+                }));
+            },
 
             setKey: (key, options) => set((state) => {
                 // In rotating mode, also update the wheel rotation to snap this key to the top

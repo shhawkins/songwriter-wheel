@@ -268,23 +268,37 @@ function App() {
         secondaryAction: {
           label: 'Sign Up',
           onClick: () => {
-            // We need to switch the view to sign_up. 
-            // Ideally we pass a prop or state to AuthModal, but for now just opening it is the first step.
-            // Supabase Auth UI handles its own view state internally usually, unless we force it.
-            // Let's just open the modal. The user can switch to Sign Up easily.
-            // BETTER: We can maybe set a hash or state?
-            // Since we can't easily control the internal state of the pre-built Auth component from here without prop drilling 'view',
-            // let's just open the modal. User requested a specific link "Sign Up".
+            useAuthStore.getState().setAuthDefaultView('sign_up');
             useAuthStore.getState().setAuthModalOpen(true);
           }
         }
       });
       // Auto-dismiss after 6 seconds (longer for more text)
-      const timer = setTimeout(() => setNotification(null), 6000);
-      return () => clearTimeout(timer);
+      setTimeout(() => setNotification(null), 6000);
     };
+
+    const handleAuthError = (e: any) => {
+      setNotification({
+        message: `⚠️ ${e.detail.message || 'Something went wrong. Please try again.'}`
+      });
+      setTimeout(() => setNotification(null), 5000);
+    };
+
+    const handleWelcomeToast = (e: any) => {
+      setNotification({
+        message: `🎉 Welcome to Songwriter Wheel! Signed in as ${e.detail.email}`
+      });
+      setTimeout(() => setNotification(null), 5000);
+    };
+
     window.addEventListener('show-auth-toast', handleAuthToast);
-    return () => window.removeEventListener('show-auth-toast', handleAuthToast);
+    window.addEventListener('show-auth-error', handleAuthError);
+    window.addEventListener('show-welcome-toast', handleWelcomeToast);
+    return () => {
+      window.removeEventListener('show-auth-toast', handleAuthToast);
+      window.removeEventListener('show-auth-error', handleAuthError);
+      window.removeEventListener('show-welcome-toast', handleWelcomeToast);
+    };
   }, []);
 
 
@@ -802,7 +816,10 @@ function App() {
         },
         secondaryAction: {
           label: 'Sign Up',
-          onClick: () => useAuthStore.getState().setAuthModalOpen(true)
+          onClick: () => {
+            useAuthStore.getState().setAuthDefaultView('sign_up');
+            useAuthStore.getState().setAuthModalOpen(true);
+          }
         }
       });
       return;
@@ -818,7 +835,7 @@ function App() {
           setTitle(finalTitle);
           const songToSave = { ...currentSong, title: finalTitle };
           await saveToCloud(songToSave);
-          setSavedSongs(getSavedSongs());
+          setNotification({ message: `"${finalTitle}" saved to cloud!` });
           setShowSaveMenu(false);
           setSongTitleInput({ isOpen: false, value: '', onSubmit: () => { } });
         }
@@ -828,7 +845,7 @@ function App() {
 
     // Song already has a title, save directly
     await saveToCloud(currentSong);
-    setSavedSongs(getSavedSongs());
+    setNotification({ message: `"${currentSong.title}" saved to cloud!` });
     setShowSaveMenu(false);
   };
 

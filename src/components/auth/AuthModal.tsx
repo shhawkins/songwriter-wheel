@@ -17,6 +17,7 @@ interface AuthModalProps {
 export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     const [mounted, setMounted] = useState(false);
     const isPasswordRecovery = useAuthStore(state => state.isPasswordRecovery);
+    const authDefaultView = useAuthStore(state => state.authDefaultView);
     const user = useAuthStore(state => state.user);
 
     // Reactive subscription to songs and instruments
@@ -66,11 +67,6 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                     </button>
                 </div>
 
-                {/* Coming Soon Banner */}
-                <div className="bg-amber-600/90 text-white text-center py-2 px-4 text-sm font-medium">
-                    🚀 Account support coming soon! Stay tuned.
-                </div>
-
                 {/* Content */}
                 <div className="p-6 max-h-[80vh] overflow-y-auto">
                     {(!user && !isPasswordRecovery) || isPasswordRecovery ? (
@@ -105,7 +101,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                                 }}
                                 theme="dark"
                                 redirectTo={window.location.origin}
-                                view={isPasswordRecovery ? 'update_password' : undefined}
+                                view={isPasswordRecovery ? 'update_password' : authDefaultView}
                             />
                             {/* Policy Links */}
                             <div className="mt-4 pt-3 border-t border-stone-800 text-center">
