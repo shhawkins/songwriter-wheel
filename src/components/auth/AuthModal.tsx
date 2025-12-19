@@ -5,8 +5,9 @@ import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../stores/authStore';
 import { useSongStore } from '../../store/useSongStore';
-import { X, Music, Mic2 } from 'lucide-react';
+import { X, Music, Mic2, Trash2 } from 'lucide-react';
 import { playChord, setInstrument } from '../../utils/audioEngine';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
 
 
 interface AuthModalProps {
@@ -19,6 +20,19 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     const [authKey, setAuthKey] = useState(0); // Key to force Auth component remount
     const wasOpenRef = useRef(false); // Track previous open state
 
+    const [confirmDialog, setConfirmDialog] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+        isDestructive?: boolean;
+    }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: () => { }
+    });
+
     // Use separate selectors to avoid object creation causing infinite re-renders
     const isPasswordRecovery = useAuthStore(state => state.isPasswordRecovery);
     const authDefaultView = useAuthStore(state => state.authDefaultView);
@@ -28,6 +42,8 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     const cloudSongs = useSongStore(state => state.cloudSongs);
     const customInstruments = useSongStore(state => state.customInstruments);
     const loadSong = useSongStore(state => state.loadSong);
+    const deleteFromCloud = useSongStore(state => state.deleteFromCloud);
+    const removeCustomInstrument = useSongStore(state => state.removeCustomInstrument);
     const setCurrentInstrument = useSongStore(state => state.setInstrument);
     const selectedChord = useSongStore(state => state.selectedChord);
 
@@ -145,13 +161,29 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                                 {cloudSongs.length > 0 ? (
                                     <div className="space-y-1 max-h-32 overflow-y-auto">
                                         {cloudSongs.map(song => (
-                                            <button
-                                                key={song.id}
-                                                onClick={() => handleSongClick(song)}
-                                                className="w-full text-left px-3 py-2 text-sm text-stone-200 hover:bg-stone-800 rounded-lg transition-colors truncate"
-                                            >
-                                                {song.title}
-                                            </button>
+                                            <div key={song.id} className="group relative">
+                                                <button
+                                                    onClick={() => handleSongClick(song)}
+                                                    className="w-full text-left px-3 py-2 text-sm text-stone-200 hover:bg-stone-800 rounded-lg transition-colors truncate pr-10"
+                                                >
+                                                    {song.title}
+                                                </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setConfirmDialog({
+                                                            isOpen: true,
+                                                            title: 'Delete Song',
+                                                            message: `Are you sure you want to delete "${song.title}"? This cannot be undone.`,
+                                                            onConfirm: () => deleteFromCloud(song.id),
+                                                            isDestructive: true
+                                                        });
+                                                    }}
+                                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-stone-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all rounded"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </div>
                                         ))}
                                     </div>
                                 ) : (
@@ -168,13 +200,29 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                                 {customInstruments.length > 0 ? (
                                     <div className="space-y-1 max-h-32 overflow-y-auto">
                                         {customInstruments.map(inst => (
-                                            <button
-                                                key={inst.id}
-                                                onClick={() => handleInstrumentClick(inst)}
-                                                className="w-full text-left px-3 py-2 text-sm text-stone-200 hover:bg-stone-800 rounded-lg transition-colors truncate"
-                                            >
-                                                {inst.name}
-                                            </button>
+                                            <div key={inst.id} className="group relative">
+                                                <button
+                                                    onClick={() => handleInstrumentClick(inst)}
+                                                    className="w-full text-left px-3 py-2 text-sm text-stone-200 hover:bg-stone-800 rounded-lg transition-colors truncate pr-10"
+                                                >
+                                                    {inst.name}
+                                                </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setConfirmDialog({
+                                                            isOpen: true,
+                                                            title: 'Delete Instrument',
+                                                            message: `Are you sure you want to delete instrument "${inst.name}"?`,
+                                                            onConfirm: () => removeCustomInstrument(inst.id),
+                                                            isDestructive: true
+                                                        });
+                                                    }}
+                                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-stone-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all rounded"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </div>
                                         ))}
                                     </div>
                                 ) : (
@@ -196,6 +244,15 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                     )}
                 </div>
             </div>
+            {/* Confirmation Dialog */}
+            <ConfirmDialog
+                isOpen={confirmDialog.isOpen}
+                onClose={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+                onConfirm={confirmDialog.onConfirm}
+                title={confirmDialog.title}
+                message={confirmDialog.message}
+                isDestructive={confirmDialog.isDestructive}
+            />
         </div>,
         document.body
     );
