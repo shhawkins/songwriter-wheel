@@ -31,8 +31,18 @@
 </head>
 
 <body>
+  <!-- Static elements for Google crawler verification -->
+  <h1 style="position:absolute;left:-9999px;top:-9999px;">Songwriter Wheel</h1>
+  <noscript>
+    <a href="/privacy.html">Privacy Policy</a> | <a href="/terms.html">Terms of Service</a>
+  </noscript>
+
   <div id="root"></div>
   <script type="module" src="/src/main.tsx"></script>
+
+  <!-- Static privacy link for Google verification -->
+  <a href="/privacy.html" target="_blank" rel="noopener noreferrer" id="static-privacy-link"
+    style="position:fixed;bottom:2px;right:8px;font-size:9px;color:#57534e;text-decoration:none;z-index:9999;">Privacy</a>
 </body>
 
 </html>

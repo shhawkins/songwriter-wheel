@@ -18,6 +18,9 @@ export default defineConfig({
   },
   plugins: [react()],
 
+  // Disable SPA fallback for .html files
+  appType: 'spa',
+
   server: {
     host: true, // Listen on all addresses including LAN
     port: 5173, // Default port
@@ -27,4 +30,9 @@ export default defineConfig({
       overlay: true // Show errors overlay
     }
   },
+
+  build: {
+    // Copy public folder contents to dist
+    copyPublicDir: true,
+  }
 })
