@@ -143,6 +143,104 @@ export const unlockAudioForIOS = async (): Promise<void> => {
     console.log('[iOS Audio] Unlock sequence complete');
 };
 
+// Visibility change handling for audio context resumption
+let visibilityHandlerInstalled = false;
+let audioContextSuspendedByVisibility = false;
+
+/**
+ * Callback type for notifying the app that audio needs user gesture to resume
+ * (used for iOS edge cases where auto-resume fails)
+ */
+type AudioResumeNeededCallback = (needed: boolean) => void;
+let onAudioResumeNeeded: AudioResumeNeededCallback | null = null;
+
+/**
+ * Register a callback to be notified when audio resume requires user gesture
+ * This is used by the UI to show a "tap to resume audio" prompt on iOS
+ */
+export const setAudioResumeNeededCallback = (callback: AudioResumeNeededCallback | null): void => {
+    onAudioResumeNeeded = callback;
+};
+
+/**
+ * Attempt to resume the audio context. Returns true if successful.
+ * On iOS, this may fail if not called from a user gesture.
+ */
+export const tryResumeAudioContext = async (): Promise<boolean> => {
+    console.log('[Audio] Attempting to resume audio context, current state:', Tone.context.state);
+
+    try {
+        // First, try to resume the silent audio element (iOS)
+        if (silentAudioElement && silentAudioElement.paused) {
+            try {
+                await silentAudioElement.play();
+                console.log('[Audio] Silent audio resumed');
+            } catch (e) {
+                console.log('[Audio] Silent audio resume requires user gesture:', (e as Error).message);
+            }
+        }
+
+        // Then resume the Tone.js context
+        if (Tone.context.state === 'suspended') {
+            await Tone.context.resume();
+            console.log('[Audio] Context resumed, new state:', Tone.context.state);
+        }
+
+        // Check if we successfully resumed
+        if (Tone.context.state === 'running') {
+            audioContextSuspendedByVisibility = false;
+            onAudioResumeNeeded?.(false);
+            return true;
+        }
+
+        return false;
+    } catch (e) {
+        console.warn('[Audio] Resume failed:', e);
+        return false;
+    }
+};
+
+/**
+ * Handle visibility change events to resume suspended audio context
+ */
+const handleVisibilityChange = async (): Promise<void> => {
+    console.log('[Audio] Visibility changed, document.hidden:', document.hidden, 'context state:', Tone.context.state);
+
+    if (document.hidden) {
+        // Page is now hidden - the browser may suspend audio
+        if (Tone.context.state === 'running') {
+            console.log('[Audio] Page hidden while audio running - browser may suspend');
+        }
+    } else {
+        // Page is now visible - check if we need to resume
+        if (Tone.context.state === 'suspended') {
+            console.log('[Audio] Page visible but audio suspended - attempting resume');
+            audioContextSuspendedByVisibility = true;
+
+            // Attempt auto-resume
+            const resumed = await tryResumeAudioContext();
+
+            if (!resumed) {
+                // Auto-resume failed (likely iOS requiring user gesture)
+                console.log('[Audio] Auto-resume failed - user gesture required');
+                onAudioResumeNeeded?.(true);
+            }
+        }
+    }
+};
+
+/**
+ * Install the visibility change handler if not already installed.
+ * This is called automatically when audio is initialized.
+ */
+export const installVisibilityHandler = (): void => {
+    if (visibilityHandlerInstalled) return;
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    visibilityHandlerInstalled = true;
+    console.log('[Audio] Visibility change handler installed');
+};
+
 // Global limiter to prevent clipping on master output
 let masterLimiter: Tone.Limiter | null = null;
 

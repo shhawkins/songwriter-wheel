@@ -23,6 +23,7 @@ interface SectionOptionsPopupProps {
     // Navigation props
     onNavigatePrev?: () => void;
     onNavigateNext?: () => void;
+    onNavigateToSection?: (sectionId: string) => void;
     hasPrev?: boolean;
     hasNext?: boolean;
     // Section position in song
@@ -78,6 +79,7 @@ export const SectionOptionsPopup: React.FC<SectionOptionsPopupProps> = ({
     onSlotClick,
     onMoveUp,
     onMoveDown,
+    onNavigateToSection,
 }) => {
     const popupRef = useRef<HTMLDivElement>(null);
     const { currentSong, reorderSections, addSuggestedSection } = useSongStore();
@@ -248,19 +250,9 @@ export const SectionOptionsPopup: React.FC<SectionOptionsPopupProps> = ({
                         }}
                         onAddSection={addSuggestedSection}
                         onSectionClick={(sectionId) => {
-                            // Navigate to clicked section
-                            if (onNavigateNext && onNavigatePrev) {
-                                const targetIndex = currentSong.sections.findIndex((s: Section) => s.id === sectionId);
-                                const currentIndex = currentSong.sections.findIndex((s: Section) => s.id === section.id);
-                                if (targetIndex > currentIndex && onNavigateNext) {
-                                    for (let i = currentIndex; i < targetIndex; i++) {
-                                        onNavigateNext();
-                                    }
-                                } else if (targetIndex < currentIndex && onNavigatePrev) {
-                                    for (let i = currentIndex; i > targetIndex; i--) {
-                                        onNavigatePrev();
-                                    }
-                                }
+                            // Navigate directly to clicked section
+                            if (onNavigateToSection) {
+                                onNavigateToSection(sectionId);
                             }
                         }}
                     />

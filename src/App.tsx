@@ -13,7 +13,7 @@ import { saveAs } from 'file-saver';
 import { saveSong, getSavedSongs, deleteSong } from './utils/storage';
 import { getGuitarChord, type GuitarChordShape } from './utils/guitarChordData';
 import { getSectionDisplayName, type Song } from './types';
-import { setInstrument, setVolume, setMute, initAudio, startSilentAudioForIOS, unlockAudioForIOS } from './utils/audioEngine';
+import { setInstrument, setVolume, setMute, initAudio, startSilentAudioForIOS, unlockAudioForIOS, setAudioResumeNeededCallback, tryResumeAudioContext } from './utils/audioEngine';
 import { formatChordForDisplay } from './utils/musicTheory';
 
 import { ConfirmDialog } from './components/ui/ConfirmDialog';
@@ -775,6 +775,18 @@ function App() {
 
   // Audio initialization state
   const [audioReady, setAudioReady] = useState(false);
+  // Show prompt when audio context needs user gesture to resume (iOS edge case)
+  const [showAudioResumePrompt, setShowAudioResumePrompt] = useState(false);
+
+  // Register callback for audio resume prompt (handles iOS edge cases)
+  useEffect(() => {
+    setAudioResumeNeededCallback((needed: boolean) => {
+      setShowAudioResumePrompt(needed);
+    });
+    return () => {
+      setAudioResumeNeededCallback(null);
+    };
+  }, []);
 
   useEffect(() => {
     const startAudio = async () => {
@@ -1364,6 +1376,30 @@ function App() {
     </div>
   ) : (
     <div className="h-full w-full flex flex-col bg-bg-secondary text-text-primary overflow-hidden">
+      {/* Audio Resume Prompt - appears when returning to suspended audio context on iOS */}
+      {showAudioResumePrompt && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in"
+          onClick={async () => {
+            const resumed = await tryResumeAudioContext();
+            if (resumed) {
+              setShowAudioResumePrompt(false);
+            }
+          }}
+        >
+          <div className="bg-bg-secondary/95 rounded-2xl px-8 py-6 flex flex-col items-center gap-4 shadow-xl border border-border-subtle max-w-xs mx-4">
+            <div className="w-12 h-12 rounded-full bg-accent-primary/20 flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-accent-primary">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+              </svg>
+            </div>
+            <div className="text-center">
+              <p className="text-text-primary font-medium text-lg">Audio Paused</p>
+              <p className="text-text-muted text-sm mt-1">Tap anywhere to resume</p>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Header - slides up when in mobile immersive mode, when chord panel is open, or in landscape by default */}
       <header
         className={`${isMobile ? 'h-14' : 'h-12'} border-b border-border-subtle grid grid-cols-[1fr_auto_1fr] items-center ${isMobile ? 'px-4' : 'px-3'} bg-bg-secondary shrink-0 z-20 transition-all duration-300 ease-out ${(isMobile && !isLandscape && (mobileImmersive || chordPanelVisible)) ||

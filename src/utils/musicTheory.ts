@@ -98,6 +98,12 @@ export function getQualitySymbol(quality: string): string {
 }
 
 export function normalizeNote(note: string): string {
+    // Handle sharped naturals: E# → F, B# → C
+    // These don't exist in the chromatic scale (E# is enharmonic to F, B# to C)
+    if (note === 'E#') return 'F';
+    if (note === 'B#') return 'C';
+
+    // Handle flats → sharps (to match our NOTES array which uses sharps)
     if (note.includes('b')) {
         const flatMap: Record<string, string> = {
             'Db': 'C#', 'Eb': 'D#', 'Gb': 'F#', 'Ab': 'G#', 'Bb': 'A#', 'Cb': 'B', 'Fb': 'E'
@@ -401,9 +407,11 @@ export function getIntervalFromKey(keyRoot: string, note: string): string {
  */
 export function formatChordForDisplay(text: string): string {
     if (!text) return text;
-    // Replace 'b' that comes after a letter A-G (indicating a flat note)
-    // This handles: Bb, Db, Eb, Gb, Ab and also Bbm, Db7, etc.
-    return text.replace(/([A-G])b/g, '$1♭');
+    // Replace 'b' that comes after a letter A-G or in a roman numeral (indicates flat)
+    let formatted = text.replace(/([A-G]|[iIvV])b/g, '$1♭');
+    // Replace '#' with unicode sharp
+    formatted = formatted.replace(/#/g, '♯');
+    return formatted;
 }
 
 export function getContrastingTextColor(backgroundColor: string): string {

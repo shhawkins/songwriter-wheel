@@ -383,15 +383,24 @@ export const guitarChords: GuitarChordDatabase = {
 
 // Helper function to normalize root note (handle enharmonics)
 export function normalizeRoot(root: string): string {
+    // Clean up unicode symbols first
+    const cleanRoot = root.replace('♯', '#').replace('♭', 'b');
+
     // Handle common enharmonic equivalents
     const enharmonicMap: Record<string, string> = {
-        'C♯': 'C#', 'D♭': 'Db',
-        'D♯': 'D#', 'E♭': 'Eb',
-        'F♯': 'F#', 'G♭': 'Gb',
-        'G♯': 'G#', 'A♭': 'Ab',
-        'A♯': 'A#', 'B♭': 'Bb',
+        'C#': 'C#', 'Db': 'Db',
+        'D#': 'D#', 'Eb': 'Eb',
+        'F#': 'F#', 'Gb': 'Gb',
+        'G#': 'G#', 'Ab': 'Ab',
+        'A#': 'A#', 'Bb': 'Bb',
+        // Sharped/Flatted Naturals
+        'E#': 'F',
+        'B#': 'C',
+        'Fb': 'E',
+        'Cb': 'B',
     };
-    return enharmonicMap[root] || root.replace('♯', '#').replace('♭', 'b');
+
+    return enharmonicMap[cleanRoot] || cleanRoot;
 }
 
 // Helper function to normalize chord quality
@@ -436,9 +445,14 @@ export function normalizeQuality(quality: string): string {
 
         // Diminished
         'diminished': 'dim',
+        'dim': 'dim',
+        '°': 'dim',
         'half-diminished': 'm7b5',
         'halfDiminished7': 'm7b5',
         'm7♭5': 'm7b5',
+        'ø7': 'm7b5',
+        'ø': 'm7b5',
+        'm7b5': 'm7b5',
 
         // Other
         'sixth': '6',

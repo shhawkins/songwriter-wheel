@@ -24,4 +24,4 @@ dist-ssr
 *.sw?
 
 # Planning and development documents
-planning/
+/planning

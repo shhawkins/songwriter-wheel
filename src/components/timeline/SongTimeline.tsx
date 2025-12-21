@@ -8,7 +8,7 @@
  * Inspired by the PDF timeline footer but designed for the app's dark theme.
  */
 
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import clsx from 'clsx';
 import { Plus } from 'lucide-react';
 import type { Section } from '../../types';
@@ -21,6 +21,7 @@ import {
     useSensor,
     useSensors,
     type DragEndEvent,
+    type DragStartEvent,
     DragOverlay,
 } from '@dnd-kit/core';
 import {
@@ -152,9 +153,9 @@ const SortableSectionSegment: React.FC<SortableSectionSegmentProps> = ({
                 colors.bg,
                 // Active state
                 isActive && !isDragging && "ring-2 ring-white/50 ring-inset z-10",
-                !isActive && !isDragging && "opacity-70 hover:opacity-90",
-                // Dragging state - just highlight, no popup
-                isDragging && "opacity-100 scale-[1.08] z-50 ring-2 ring-white ring-inset shadow-lg",
+                !isActive && !isDragging && "opacity-80 hover:opacity-100",
+                // Dragging state - make the placeholder subtle
+                isDragging && "opacity-20 z-0",
                 // Cursor
                 "cursor-grab active:cursor-grabbing",
                 // Border between segments
@@ -199,6 +200,9 @@ export const SongTimeline: React.FC<SongTimelineProps> = ({
     onReorder,
     onAddSection
 }) => {
+    const [activeId, setActiveId] = useState<string | null>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+
     // Calculate total measures for proportional sizing
     const totalMeasures = sections.reduce((acc, s) => acc + s.measures.length, 0);
 
@@ -206,12 +210,12 @@ export const SongTimeline: React.FC<SongTimelineProps> = ({
     const sensors = useSensors(
         useSensor(PointerSensor, {
             activationConstraint: {
-                distance: 5, // 5px movement required to start drag
+                distance: 3, // Reduced distance for more responsive drag start
             },
         }),
         useSensor(TouchSensor, {
             activationConstraint: {
-                delay: 150, // 150ms hold before drag starts
+                delay: 200, // Slightly longer delay to favor clicks over drags on mobile
                 tolerance: 5,
             },
         }),
@@ -220,8 +224,13 @@ export const SongTimeline: React.FC<SongTimelineProps> = ({
         })
     );
 
+    const handleDragStart = (event: DragStartEvent) => {
+        setActiveId(event.active.id as string);
+    };
+
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
+        setActiveId(null);
 
         if (over && active.id !== over.id && onReorder) {
             const oldIndex = sections.findIndex(s => s.id === active.id);
@@ -230,6 +239,9 @@ export const SongTimeline: React.FC<SongTimelineProps> = ({
             onReorder(newSections);
         }
     };
+
+    // Find the active section for the overlay
+    const activeSection = sections.find(s => s.id === activeId);
 
     // Show empty state with just add button if no sections
     if (totalMeasures === 0 || sections.length === 0) {
@@ -253,11 +265,16 @@ export const SongTimeline: React.FC<SongTimelineProps> = ({
             {/* Timeline container with add button */}
             <div className="flex items-center gap-1">
                 {/* Timeline */}
-                <div className="relative flex-1 h-6 bg-black/20 rounded-lg overflow-hidden border border-white/5">
+                <div
+                    ref={containerRef}
+                    className="relative flex-1 h-6 bg-black/20 rounded-lg overflow-hidden border border-white/5"
+                >
                     <DndContext
                         sensors={sensors}
                         collisionDetection={closestCenter}
+                        onDragStart={handleDragStart}
                         onDragEnd={handleDragEnd}
+                        onDragCancel={() => setActiveId(null)}
                     >
                         <SortableContext
                             items={sections.map(s => s.id)}
@@ -279,12 +296,24 @@ export const SongTimeline: React.FC<SongTimelineProps> = ({
                             </div>
                         </SortableContext>
 
-                        {/* Empty DragOverlay - keeps dnd-kit happy */}
-                        <DragOverlay dropAnimation={{
-                            duration: 200,
-                            easing: 'ease-out',
-                        }}>
-                            {null}
+                        <DragOverlay adjustScale={true}>
+                            {activeSection ? (
+                                <div
+                                    className={clsx(
+                                        "h-[24px] flex items-center justify-center rounded shadow-2xl ring-2 ring-white z-[1000] scale-110",
+                                        TIMELINE_COLORS[activeSection.type]?.bg || DEFAULT_COLORS.bg,
+                                        TIMELINE_COLORS[activeSection.type]?.text || DEFAULT_COLORS.text
+                                    )}
+                                    style={{
+                                        width: `${(activeSection.measures.length / totalMeasures) * (containerRef.current?.clientWidth || 200)}px`,
+                                        minWidth: '40px',
+                                    }}
+                                >
+                                    <span className="text-[10px] font-bold uppercase tracking-tight">
+                                        {getSectionLabel(activeSection, sections)}
+                                    </span>
+                                </div>
+                            ) : null}
                         </DragOverlay>
                     </DndContext>
 

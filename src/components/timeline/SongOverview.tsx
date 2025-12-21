@@ -1044,6 +1044,13 @@ export const SongOverview: React.FC<SongOverviewProps> = ({ onSave, onExport }) 
                                 }
                             }
                         }}
+                        onNavigateToSection={(newId) => {
+                            setEditingSectionId(newId);
+                            const sectionElement = scrollContainerRef.current?.querySelector(`[data-section-id="${newId}"]`);
+                            if (sectionElement) {
+                                sectionElement.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                            }
+                        }}
                         hasPrev={hasPrev}
                         hasNext={hasNext}
                         sectionIndex={sectionIndex}
