@@ -1126,6 +1126,14 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                             // Select the clicked slot (this triggers auto-scroll via useEffect)
                             selectSlotOnly(editingSectionId, beatId);
                         }}
+                        onNavigateToSection={(sectionId) => {
+                            // Navigate to clicked section directly
+                            const newIndex = currentSong.sections.findIndex(s => s.id === sectionId);
+                            if (newIndex !== -1) {
+                                setEditingSectionId(sectionId);
+                                setActiveSectionIndex(newIndex);
+                            }
+                        }}
                         onMoveUp={() => {
                             if (hasPrev && editingSectionId) {
                                 const newSections = [...currentSong.sections];

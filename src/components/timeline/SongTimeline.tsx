@@ -23,6 +23,7 @@ import {
     type DragEndEvent,
     type DragStartEvent,
     DragOverlay,
+    type Modifier,
 } from '@dnd-kit/core';
 import {
     arrayMove,
@@ -79,6 +80,34 @@ const TIMELINE_COLORS: Record<string, { bg: string; border: string; text: string
 const DEFAULT_COLORS = { bg: 'bg-slate-600', border: 'border-slate-500', text: 'text-slate-100' };
 
 /**
+ * Custom modifier to snap the drag overlay to the pointer position.
+ * This fixes positioning issues when the DndContext is inside a transformed container (like a modal).
+ */
+const snapToPointer: Modifier = ({ transform, activatorEvent, draggingNodeRect }) => {
+    if (!activatorEvent || !draggingNodeRect) {
+        return transform;
+    }
+
+    // Get pointer position from mouse or touch event
+    const pointer = 'touches' in activatorEvent
+        ? { x: (activatorEvent as TouchEvent).touches[0]?.clientX ?? 0, y: (activatorEvent as TouchEvent).touches[0]?.clientY ?? 0 }
+        : { x: (activatorEvent as MouseEvent).clientX, y: (activatorEvent as MouseEvent).clientY };
+
+    // Calculate initial offset to center the overlay on the pointer
+    const initialOffsetX = pointer.x - draggingNodeRect.left - draggingNodeRect.width / 2;
+    // 75px above finger/cursor for perfect visibility
+    const initialOffsetY = pointer.y - draggingNodeRect.top - draggingNodeRect.height / 2 - 75;
+
+    return {
+        ...transform,
+        x: transform.x + initialOffsetX,
+        y: transform.y + initialOffsetY,
+        scaleX: 1.1,
+        scaleY: 1.1,
+    };
+};
+
+/**
  * Get the abbreviated label for a section, with numbering if multiple of same type exist
  */
 function getSectionLabel(section: Section, allSections: Section[]): string {
@@ -122,6 +151,11 @@ const SortableSectionSegment: React.FC<SortableSectionSegmentProps> = ({
         isDragging,
     } = useSortable({ id: section.id });
 
+    const [isTapping, setIsTapping] = React.useState(false);
+    const interactionStartTime = useRef<number>(0);
+    const interactionStartPos = useRef<{ x: number; y: number } | null>(null);
+    const hasMoved = useRef<boolean>(false);
+
     const widthPercent = (section.measures.length / totalMeasures) * 100;
     const colors = TIMELINE_COLORS[section.type] || DEFAULT_COLORS;
     const label = getSectionLabel(section, allSections);
@@ -134,26 +168,74 @@ const SortableSectionSegment: React.FC<SortableSectionSegmentProps> = ({
         minWidth: '16px',
     };
 
+    // Handle both mouse and touch interactions uniformly
+    const handleInteractionStart = (clientX: number, clientY: number) => {
+        interactionStartTime.current = Date.now();
+        interactionStartPos.current = { x: clientX, y: clientY };
+        hasMoved.current = false;
+        setIsTapping(true);
+    };
+
+    const handleInteractionMove = (clientX: number, clientY: number) => {
+        if (!interactionStartPos.current) return;
+
+        const distance = Math.sqrt(
+            Math.pow(clientX - interactionStartPos.current.x, 2) +
+            Math.pow(clientY - interactionStartPos.current.y, 2)
+        );
+
+        if (distance > 5) {
+            hasMoved.current = true;
+            setIsTapping(false);
+        }
+    };
+
+    const handleInteractionEnd = (e: React.MouseEvent | React.TouchEvent) => {
+        const duration = Date.now() - interactionStartTime.current;
+
+        setIsTapping(false);
+
+        // Quick tap without movement = click
+        if (!hasMoved.current && duration < 250) {
+            e.preventDefault();
+            e.stopPropagation();
+            onClick?.();
+        }
+
+        interactionStartPos.current = null;
+        hasMoved.current = false;
+    };
+
     return (
         <div
             ref={setNodeRef}
             style={style}
             {...attributes}
             {...listeners}
-            onClick={(e) => {
-                e.stopPropagation();
-                onClick?.();
+            onMouseDown={(e) => handleInteractionStart(e.clientX, e.clientY)}
+            onMouseMove={(e) => handleInteractionMove(e.clientX, e.clientY)}
+            onMouseUp={handleInteractionEnd}
+            onTouchStart={(e) => {
+                const touch = e.touches[0];
+                handleInteractionStart(touch.clientX, touch.clientY);
             }}
+            onTouchMove={(e) => {
+                const touch = e.touches[0];
+                handleInteractionMove(touch.clientX, touch.clientY);
+            }}
+            onTouchEnd={handleInteractionEnd}
             className={clsx(
                 // Base styles
                 "relative h-full flex items-center justify-center overflow-hidden",
                 "transition-all duration-200 ease-out",
-                "touch-none select-none",
+                "select-none",
                 // Background and border
                 colors.bg,
                 // Active state
                 isActive && !isDragging && "ring-2 ring-white/50 ring-inset z-10",
                 !isActive && !isDragging && "opacity-80 hover:opacity-100",
+                // Tapping feedback
+                isTapping && !isDragging && "opacity-90 scale-[0.98]",
                 // Dragging state - make the placeholder subtle
                 isDragging && "opacity-20 z-0",
                 // Cursor
@@ -161,7 +243,7 @@ const SortableSectionSegment: React.FC<SortableSectionSegmentProps> = ({
                 // Border between segments
                 !isLast && !isDragging && "border-r border-black/30"
             )}
-            title={`${section.name || section.type} (${section.measures.length} bars) - Drag to reorder`}
+            title={`${section.name || section.type} (${section.measures.length} bars) - Tap to select, hold to reorder`}
         >
             {/* Label */}
             {showLabel && (
@@ -210,13 +292,13 @@ export const SongTimeline: React.FC<SongTimelineProps> = ({
     const sensors = useSensors(
         useSensor(PointerSensor, {
             activationConstraint: {
-                distance: 3, // Reduced distance for more responsive drag start
+                distance: 5, // Balanced for both tap and drag
             },
         }),
         useSensor(TouchSensor, {
             activationConstraint: {
-                delay: 200, // Slightly longer delay to favor clicks over drags on mobile
-                tolerance: 5,
+                delay: 150, // Reduced delay for more responsive taps
+                tolerance: 3, // Tighter tolerance for better click detection
             },
         }),
         useSensor(KeyboardSensor, {
@@ -296,20 +378,29 @@ export const SongTimeline: React.FC<SongTimelineProps> = ({
                             </div>
                         </SortableContext>
 
-                        <DragOverlay adjustScale={true}>
+                        <DragOverlay
+                            adjustScale={false}
+                            modifiers={[snapToPointer]}
+                            dropAnimation={{
+                                duration: 200,
+                                easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)',
+                            }}
+                            style={{ zIndex: 999999 }}
+                        >
                             {activeSection ? (
                                 <div
                                     className={clsx(
-                                        "h-[24px] flex items-center justify-center rounded shadow-2xl ring-2 ring-white z-[1000] scale-110",
+                                        "h-[28px] flex items-center justify-center rounded-lg shadow-2xl ring-2 ring-white",
                                         TIMELINE_COLORS[activeSection.type]?.bg || DEFAULT_COLORS.bg,
                                         TIMELINE_COLORS[activeSection.type]?.text || DEFAULT_COLORS.text
                                     )}
                                     style={{
-                                        width: `${(activeSection.measures.length / totalMeasures) * (containerRef.current?.clientWidth || 200)}px`,
-                                        minWidth: '40px',
+                                        width: '60px',
+                                        minWidth: '60px',
+                                        boxShadow: '0 8px 32px rgba(0,0,0,0.5), 0 0 0 2px white',
                                     }}
                                 >
-                                    <span className="text-[10px] font-bold uppercase tracking-tight">
+                                    <span className="text-[11px] font-bold uppercase tracking-tight">
                                         {getSectionLabel(activeSection, sections)}
                                     </span>
                                 </div>
