@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <g transform="translate(50, 50) scale(0.8) translate(-50, -50)">
+  <g transform="translate(50, 50) scale(0.9) translate(-50, -50)">
   <!-- 12 wedge segments matching the Logo component -->
   <!-- Segment 0 - I - bright yellow (top) -->
   <path d="M 50 30 L 50 2 A 48 48 0 0 1 74.0 8.1 L 59.3 32.5 A 20 20 0 0 0 50 30" fill="rgb(202, 138, 4)" stroke="rgba(0, 0, 0, 0.4)" stroke-width="0.5"/>

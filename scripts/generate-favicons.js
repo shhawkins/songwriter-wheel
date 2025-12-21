@@ -7,56 +7,64 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 async function generateFavicons() {
-    const svgPath = join(__dirname, '../public/favicon.svg');
-    const svgBuffer = readFileSync(svgPath);
+  const svgPath = join(__dirname, '../public/favicon.svg');
+  const svgBuffer = readFileSync(svgPath);
+  const svgString = svgBuffer.toString();
 
-    console.log('Generating favicons from SVG...');
+  console.log('Generating favicons from SVG...');
 
-    // Generate different sizes
-    const sizes = [16, 32, 48, 180, 192, 512];
-    const pngBuffers = {};
+  // 1. Standard variant (for browser tabs: favicon.ico, favicon-32.png)
+  // Already has 0.8 scale and transparent bg from source.
+  const standardPng = async (size) => await sharp(svgBuffer).resize(size, size).png().toBuffer();
 
-    // Standard scale is 0.8 (from favicon.svg)
-    // For app icons (iOS/PWA), we want it slightly smaller (0.72)
-    // 0.72 is about 10% smaller than the original 0.8, providing safe padding for iOS.
-    const smallSvgString = svgBuffer.toString().replace('scale(0.8)', 'scale(0.72)');
-    const smallSvgBuffer = Buffer.from(smallSvgString);
+  const gradientDef = `
+    <defs>
+      <linearGradient id="bg-grad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" style="stop-color:#444444" />
+        <stop offset="100%" style="stop-color:#262626" />
+      </linearGradient>
+    </defs>
+    <rect width="100" height="100" fill="url(#bg-grad)"/>`;
 
-    for (const size of sizes) {
-        // Use standard buffer for browser icons (16, 32, 48)
-        // Use small buffer for app icons (180, 192, 512)
-        const activeBuffer = size > 48 ? smallSvgBuffer : svgBuffer;
+  // 2. PWA/Chrome variant (gradient background, 0.69 scale)
+  const pwaSvgString = svgString
+    .replace('<g transform=', gradientDef + '<g transform=')
+    .replace('scale(0.9)', 'scale(0.69)');
+  const pwaPng = async (size) => await sharp(Buffer.from(pwaSvgString)).resize(size, size).png().toBuffer();
 
-        const pngBuffer = await sharp(activeBuffer)
-            .resize(size, size)
-            .png()
-            .toBuffer();
-        pngBuffers[size] = pngBuffer;
-        console.log(`  ✓ Generated ${size}x${size} PNG (${size > 48 ? 'scaled down' : 'standard size'})`);
-    }
+  // 3. Safari/iOS variant (gradient background, 0.85 scale)
+  const safariSvgString = svgString
+    .replace('<g transform=', gradientDef + '<g transform=')
+    .replace('scale(0.9)', 'scale(0.85)');
+  const safariPng = async (size) => await sharp(Buffer.from(safariSvgString)).resize(size, size).png().toBuffer();
 
-    // Save favicon-32.png
-    writeFileSync(join(__dirname, '../public/favicon-32.png'), pngBuffers[32]);
-    console.log('  ✓ Saved favicon-32.png');
+  // Generate Standard Sizes
+  const png16 = await standardPng(16);
+  const png32 = await standardPng(32);
+  const png48 = await standardPng(48);
 
-    // Save apple-touch-icon (180x180) - uses scaled down version
-    writeFileSync(join(__dirname, '../public/apple-touch-icon.png'), pngBuffers[180]);
-    console.log('  ✓ Saved apple-touch-icon.png (smaller for iOS)');
+  // Save favicon-32.png (Standard)
+  writeFileSync(join(__dirname, '../public/favicon-32.png'), png32);
+  console.log('  ✓ Saved favicon-32.png (Standard)');
 
-    // Save icon-192 for PWA - uses scaled down version
-    writeFileSync(join(__dirname, '../public/icon-192.png'), pngBuffers[192]);
-    console.log('  ✓ Saved icon-192.png (smaller for PWA)');
+  // Save apple-touch-icon (180x180) - Dark variant, 0.85 scale
+  writeFileSync(join(__dirname, '../public/apple-touch-icon.png'), await safariPng(180));
+  console.log('  ✓ Saved apple-touch-icon.png (Dark Theme, 0.85 scale for Safari)');
 
-    // Save icon-512 for PWA - uses scaled down version
-    writeFileSync(join(__dirname, '../public/icon-512.png'), pngBuffers[512]);
-    console.log('  ✓ Saved icon-512.png (smaller for PWA)');
+  // Save icon-192 for PWA - Dark variant, 0.69 scale
+  writeFileSync(join(__dirname, '../public/icon-192.png'), await pwaPng(192));
+  console.log('  ✓ Saved icon-192.png (Dark Theme, 0.69 scale for Chrome)');
 
-    // Generate ICO file (contains 16, 32, 48 - standard size)
-    const icoBuffer = await pngToIco([pngBuffers[16], pngBuffers[32], pngBuffers[48]]);
-    writeFileSync(join(__dirname, '../public/favicon.ico'), icoBuffer);
-    console.log('  ✓ Saved favicon.ico (standard size)');
+  // Save icon-512 for PWA - Dark variant, 0.69 scale
+  writeFileSync(join(__dirname, '../public/icon-512.png'), await pwaPng(512));
+  console.log('  ✓ Saved icon-512.png (Dark Theme, 0.69 scale for Chrome)');
 
-    console.log('\n✅ All favicons generated successfully!');
+  // Generate ICO file (contains 16, 32, 48 - standard transparent)
+  const icoBuffer = await pngToIco([png16, png32, png48]);
+  writeFileSync(join(__dirname, '../public/favicon.ico'), icoBuffer);
+  console.log('  ✓ Saved favicon.ico (Standard)');
+
+  console.log('\n✅ All favicons generated successfully!');
 }
 
 generateFavicons().catch(console.error);
