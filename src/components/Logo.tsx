@@ -63,7 +63,7 @@ export const Logo: React.FC<LogoProps> = ({ className = '', size = 24 }) => {
                 })}
 
                 {/* Dark center circle */}
-                <circle cx="50" cy="50" r="18" fill="rgba(20, 20, 30, 0.95)" stroke="rgba(255, 255, 255, 0.15)" strokeWidth="1" />
+                <circle cx="50" cy="50" r="18" fill="none" stroke="rgba(255, 255, 255, 0.15)" strokeWidth="1" />
             </svg>
         </div>
     );

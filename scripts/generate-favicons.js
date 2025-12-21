@@ -17,8 +17,9 @@ async function generateFavicons() {
     const pngBuffers = {};
 
     // Standard scale is 0.8 (from favicon.svg)
-    // For app icons (iOS/PWA), we want it 20% smaller (0.8 * 0.8 = 0.64)
-    const smallSvgString = svgBuffer.toString().replace('scale(0.8)', 'scale(0.64)');
+    // For app icons (iOS/PWA), we want it slightly smaller (0.72)
+    // 0.72 is about 10% smaller than the original 0.8, providing safe padding for iOS.
+    const smallSvgString = svgBuffer.toString().replace('scale(0.8)', 'scale(0.72)');
     const smallSvgBuffer = Buffer.from(smallSvgString);
 
     for (const size of sizes) {

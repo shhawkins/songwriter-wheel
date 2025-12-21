@@ -25,7 +25,7 @@
   <path d="M 32.5 40.7 L 8.1 26.0 A 48 48 0 0 1 26.0 8.1 L 40.7 32.5 A 20 20 0 0 0 32.5 40.7" fill="rgb(140, 133, 128)" stroke="rgba(0, 0, 0, 0.4)" stroke-width="0.5"/>
   <!-- Segment 11 - IV - orange -->
   <path d="M 40.7 32.5 L 26.0 8.1 A 48 48 0 0 1 50 2 L 50 30 A 20 20 0 0 0 40.7 32.5" fill="rgb(234, 88, 12)" stroke="rgba(0, 0, 0, 0.4)" stroke-width="0.5"/>
-  <!-- Transparent center circle (cutout) -->
-  <circle cx="50" cy="50" r="18" fill="none"/>
+  <!-- Transparent center circle -->
+  <circle cx="50" cy="50" r="18" fill="none" stroke="rgba(0, 0, 0, 0.4)" stroke-width="0.5"/>
   </g>
 </svg>
