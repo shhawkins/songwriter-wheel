@@ -353,9 +353,13 @@ export function getWheelColors() {
         'F#': 'hsl(235, 60%, 58%)', // Blue-Indigo
         'Gb': 'hsl(235, 60%, 58%)', // Same as F#
         Db: 'hsl(265, 55%, 55%)',   // Purple
+        'C#': 'hsl(265, 55%, 55%)', // Alias for Db
         Ab: 'hsl(285, 50%, 52%)',   // Violet
+        'G#': 'hsl(285, 50%, 52%)', // Alias for Ab
         Eb: 'hsl(315, 60%, 55%)',   // Magenta
+        'D#': 'hsl(315, 60%, 55%)', // Alias for Eb
         Bb: 'hsl(350, 70%, 58%)',   // Red-Pink
+        'A#': 'hsl(350, 70%, 58%)', // Alias for Bb
         F: 'hsl(28, 85%, 55%)',     // Orange
     };
 }

@@ -492,8 +492,9 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
         // Get voicing suggestions if this is a diatonic chord
         let voicingSuggestion = '';
         if (wheelChord.positionIndex !== undefined && wheelChord.ringType) {
+            const relPos = getRelativePosition(wheelChord.positionIndex);
             voicingSuggestion = getVoicingSuggestion(
-                wheelChord.positionIndex,
+                relPos,
                 wheelChord.ringType === 'major' ? 'major' :
                     wheelChord.ringType === 'minor' ?
                         (wheelChord.numeral === 'ii' || wheelChord.numeral === 'vi' ? 'ii' : 'iii') :
@@ -635,15 +636,18 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
         if (selectedSegmentId) {
             return selectedSegmentId === ch.segmentId;
         }
-        const storeSegmentId = (selectedChord as WheelChord | undefined)?.segmentId;
-        if (storeSegmentId) {
-            return storeSegmentId === ch.segmentId;
-        }
-        // Fallback: match by root and quality when no segmentId (e.g., default C chord on load)
-        if (selectedChord && !storeSegmentId) {
-            return selectedChord.root === ch.root && selectedChord.quality === ch.quality;
-        }
-        return false;
+
+        if (!selectedChord) return false;
+
+        // match by root and ring category to keep segments highlighted even when voicing changes
+        const rootMatch = selectedChord.root === ch.root;
+        const qualityMatch = (
+            (ch.ringType === 'major' && !selectedChord.quality.includes('minor') && selectedChord.quality !== 'diminished') ||
+            (ch.ringType === 'minor' && (selectedChord.quality.includes('minor') || selectedChord.quality === 'minor7')) ||
+            (ch.ringType === 'diminished' && (selectedChord.quality.includes('dim') || selectedChord.quality.includes('half')))
+        );
+
+        return rootMatch && qualityMatch;
     };
 
     // Combined touch handler for both pinch-zoom and drag

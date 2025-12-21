@@ -127,7 +127,7 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
         return () => document.removeEventListener('keydown', handleKeyDown);
     }, [isOpen, onClose]);
 
-    const { chordInversion, setChordInversion, selectedChord, setSelectedChord, selectedKey, setChordPanelScrollTarget } = useSongStore();
+    const { chordInversion, setChordInversion, selectedChord, setSelectedChord, selectedKey, setChordPanelScrollTarget, timelineVisible } = useSongStore();
 
     const inKeyChords = useMemo(() => {
         const diatonic = getDiatonicChords(selectedKey);
@@ -250,13 +250,19 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
         <div
             ref={modalRef}
             className={clsx(
-                "fixed bg-bg-elevated/95 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl overflow-hidden touch-none",
+                "fixed bg-bg-elevated/95 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl touch-none",
                 "flex flex-col p-3 gap-3",
                 "animate-in fade-in zoom-in-95 duration-200",
-                "min-w-[320px] overflow-y-hidden touch-action-pan-x"
+                "min-w-[320px] touch-action-pan-x"
             )}
             style={{
-                bottom: isLandscapeMobile ? '56px' : (portraitWithPanel ? '6%' : (isMobile ? '13%' : '220px')),
+                bottom: isLandscapeMobile
+                    ? '56px'
+                    : (portraitWithPanel
+                        ? '6%'
+                        : (isMobile
+                            ? (timelineVisible ? '216px' : '13%')
+                            : '220px')),
                 left: '50%',
                 transform: 'translateX(-50%)',
                 maxWidth: isMobile ? 'calc(100vw - 24px)' : '520px',
@@ -264,7 +270,7 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
             }}
         >
             {/* ROW 1: VOICINGS & QUICK ACTIONS */}
-            <div className="flex items-center gap-2 w-full h-11 shrink-0 overflow-y-hidden">
+            <div className="flex items-center gap-2 w-full h-11 shrink-0">
                 <div className="flex flex-row items-center overflow-x-auto no-scrollbar mask-linear-fade flex-1 min-w-0 gap-1.5 h-full">
                     {voicings.map((voicing) => {
                         const isSelected = voicing.quality === currentQuality;
@@ -324,14 +330,14 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
                             onClick={(e) => {
                                 e.stopPropagation();
                                 const qualityToAdd = currentQuality || selectedQuality || voicings[0]?.quality;
-                                if (qualityToAdd) { onAddToTimeline(qualityToAdd); onClose(); }
+                                if (qualityToAdd) { onAddToTimeline(qualityToAdd); }
                             }}
                             onTouchStart={handleTouchStart}
                             onTouchEnd={(e) => {
                                 e.stopPropagation();
                                 handleTouchEnd(e, () => {
                                     const qualityToAdd = currentQuality || selectedQuality || voicings[0]?.quality;
-                                    if (qualityToAdd) { onAddToTimeline(qualityToAdd); onClose(); }
+                                    if (qualityToAdd) { onAddToTimeline(qualityToAdd); }
                                 });
                             }}
                             className="w-10 h-full flex items-center justify-center rounded-xl bg-accent-primary/10 text-accent-primary hover:bg-accent-primary hover:text-white transition-all shadow-sm outline-none"
