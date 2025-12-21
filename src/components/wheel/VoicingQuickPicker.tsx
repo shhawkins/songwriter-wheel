@@ -2,10 +2,11 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 import { playChord } from '../../utils/audioEngine';
-import { getChordNotes } from '../../utils/musicTheory';
 import { useMobileLayout } from '../../hooks/useIsMobile';
-import { Info, Plus } from 'lucide-react';
+import { Info, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { VoiceSelector } from '../playback/VoiceSelector';
+import { useSongStore } from '../../store/useSongStore';
+import { getInversionName, invertChord, getMaxInversion, getChordSymbolWithInversion, getChordNotes } from '../../utils/musicTheory';
 
 interface VoicingOption {
     quality: string;
@@ -28,10 +29,7 @@ interface VoicingQuickPickerProps {
 const AUTO_FADE_TIMEOUT = 7000;
 
 /**
- * VoicingQuickPicker - A clean, horizontal modal for selecting chord voicings
- * - Single tap: Preview chord (plays sound, selects voicing, keeps modal open)
- * - Double tap: Add to timeline and close
- * - Auto-fades after 2 seconds of inactivity
+ * VoicingQuickPicker - A clean, two-row modal for selecting chord voicings and inversions
  */
 export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
     isOpen,
@@ -45,17 +43,11 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
     portraitWithPanel = false
 }) => {
     const modalRef = useRef<HTMLDivElement>(null);
-    // Use useMobileLayout for consistent mobile/landscape detection
     const { isMobile, isLandscape } = useMobileLayout();
     const isLandscapeMobile = isMobile && isLandscape;
     const [currentQuality, setCurrentQuality] = useState<string | undefined>(selectedQuality);
 
-    // Double-tap tracking
-
-    // Double-tap tracking
     const lastTapRef = useRef<{ quality: string; time: number } | null>(null);
-
-    // Touch handling for better responsiveness
     const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
     const handleTouchStart = (e: React.TouchEvent) => {
@@ -67,69 +59,44 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
 
     const handleTouchEnd = (e: React.TouchEvent, action: () => void) => {
         if (!touchStartRef.current) return;
-
         const endX = e.changedTouches[0].clientX;
         const endY = e.changedTouches[0].clientY;
         const deltaX = Math.abs(endX - touchStartRef.current.x);
         const deltaY = Math.abs(endY - touchStartRef.current.y);
 
-        // Allow some slop (10px) to consider it a tap vs drag/scroll
-        if (deltaX < 10 && deltaY < 10) {
-            if (e.cancelable) e.preventDefault(); // Prevent click firing if possible
+        // Use a 15px threshold for "slop" to avoid unintentional clicks during scrolling
+        if (deltaX < 15 && deltaY < 15) {
+            if (e.cancelable) e.preventDefault();
             action();
         }
-
         touchStartRef.current = null;
     };
 
-    // Auto-fade timer
     const fadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // Reset current quality when modal opens with new chord
     useEffect(() => {
-        if (isOpen) {
-            setCurrentQuality(selectedQuality);
-        }
+        if (isOpen) setCurrentQuality(selectedQuality);
     }, [isOpen, selectedQuality]);
 
-    // Reset activity timer whenever there's interaction
     const resetFadeTimer = useCallback(() => {
-        if (fadeTimerRef.current) {
-            clearTimeout(fadeTimerRef.current);
-        }
-        fadeTimerRef.current = setTimeout(() => {
-            onClose();
-        }, AUTO_FADE_TIMEOUT);
+        if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current);
+        fadeTimerRef.current = setTimeout(() => onClose(), AUTO_FADE_TIMEOUT);
     }, [onClose]);
 
-    // Start fade timer when modal opens
     useEffect(() => {
-        if (isOpen) {
-            resetFadeTimer();
-        }
-        return () => {
-            if (fadeTimerRef.current) {
-                clearTimeout(fadeTimerRef.current);
-            }
-        };
+        if (isOpen) resetFadeTimer();
+        return () => { if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current); };
     }, [isOpen, resetFadeTimer]);
 
-    // Close on outside click
     useEffect(() => {
         if (!isOpen) return;
-
         const handleClickOutside = (e: MouseEvent) => {
-            if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
-                onClose();
-            }
+            if (modalRef.current && !modalRef.current.contains(e.target as Node)) onClose();
         };
-
-        // Add listener after a small delay to avoid closing immediately
         const timeoutId = setTimeout(() => {
             document.addEventListener('mousedown', handleClickOutside);
             document.addEventListener('touchstart', handleClickOutside as any);
         }, 100);
-
         return () => {
             clearTimeout(timeoutId);
             document.removeEventListener('mousedown', handleClickOutside);
@@ -137,214 +104,203 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
         };
     }, [isOpen, onClose]);
 
-    // Close on escape
     useEffect(() => {
         if (!isOpen) return;
-
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Escape') onClose();
         };
-
         document.addEventListener('keydown', handleKeyDown);
         return () => document.removeEventListener('keydown', handleKeyDown);
     }, [isOpen, onClose]);
+
+    const { chordInversion, setChordInversion, selectedChord, setSelectedChord } = useSongStore();
 
     if (!isOpen) return null;
 
     const handleVoicingClick = (quality: string) => {
         const now = Date.now();
-
-        // Reset fade timer on any interaction
         resetFadeTimer();
-
-        // Check for double-tap
-        if (
-            lastTapRef.current &&
-            lastTapRef.current.quality === quality &&
-            now - lastTapRef.current.time < 400
-        ) {
-            // Double-tap detected - add to timeline
-            if (onAddToTimeline) {
-                onAddToTimeline(quality);
-            }
+        if (lastTapRef.current && lastTapRef.current.quality === quality && now - lastTapRef.current.time < 400) {
+            if (onAddToTimeline) onAddToTimeline(quality);
             onClose();
             lastTapRef.current = null;
             return;
         }
-
-        // Single tap - preview the chord
         const notes = getChordNotes(chordRoot, quality);
-        playChord(notes);
-
-        // Update selection (but don't close)
+        const invertedNotes = invertChord(notes, chordInversion);
+        playChord(invertedNotes);
         setCurrentQuality(quality);
         onSelect(quality);
-
-        // Record tap for double-tap detection
         lastTapRef.current = { quality, time: now };
+    };
+
+    const handleInversionChange = (direction: 'up' | 'down') => {
+        resetFadeTimer();
+        const quality = currentQuality || selectedQuality || voicings[0]?.quality || 'major';
+        const notes = getChordNotes(chordRoot, quality);
+        const maxInv = getMaxInversion(notes);
+
+        let newInversion = chordInversion;
+        if (direction === 'up') {
+            newInversion = Math.min(maxInv, chordInversion + 1);
+        } else {
+            newInversion = Math.max(0, chordInversion - 1);
+        }
+
+        if (newInversion === chordInversion) return;
+
+        // Perform store updates
+        setChordInversion(newInversion);
+
+        // Update selected chord if it matches this root to keep UI in sync
+        if (selectedChord && selectedChord.root === chordRoot) {
+            const symbol = getChordSymbolWithInversion(chordRoot, quality, notes, newInversion);
+            setSelectedChord({
+                ...selectedChord,
+                quality: quality as any,
+                notes,
+                inversion: newInversion,
+                symbol
+            });
+        }
+
+        const invertedNotes = invertChord(notes, newInversion);
+        playChord(invertedNotes);
     };
 
     return createPortal(
         <div
             ref={modalRef}
             className={clsx(
-                "fixed bg-bg-elevated border border-border-medium rounded-xl shadow-xl",
-                "flex flex-row flex-nowrap items-center justify-between",
-                "animate-in fade-in zoom-in-95 duration-150",
-                // Smaller padding/gap when many voicings - ONLY on mobile
-                (isMobile && voicings.length > 5) ? "p-1 gap-1" : (isLandscapeMobile ? "p-1 gap-1" : "p-2 gap-2")
+                "fixed bg-bg-elevated/95 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl",
+                "flex flex-col p-3 gap-3",
+                "animate-in fade-in zoom-in-95 duration-200",
+                "min-w-[280px]"
             )}
             style={{
-                // Position varies by mode:
-                // - Landscape mobile: bottom of left panel, over playback controls
-                // - Portrait mobile with panel (both sections collapsed): just above the section headers
-                // - Portrait mobile (no panel): use bottom positioning for consistency whether timeline is open/closed
-                // - Desktop/full-width: lower-right area of wheel frame, above timeline
                 bottom: isLandscapeMobile ? '56px' : (portraitWithPanel ? '6%' : (isMobile ? '13%' : '220px')),
-                top: 'auto',
-                // Use left/right positioning for portrait/desktop to ensure modal stays within viewport
-                // Use centered positioning for landscape mobile (narrower content area)
-                // Desktop: position in lower-right of wheel area (right side, above timeline)
-                ...(isLandscapeMobile
-                    ? { left: '24%', transform: 'translateX(-50%)', maxWidth: 'min(55vw, fit-content)' }
-                    : isMobile
-                        ? { left: '50%', transform: 'translateX(-50%)', maxWidth: 'calc(100vw - 32px)' }
-                        : { right: '340px', left: 'auto', transform: 'none', maxWidth: 'calc(100vw - 400px)' }
-                ),
+                left: '50%',
+                transform: 'translateX(-50%)',
+                maxWidth: isMobile ? 'calc(100vw - 24px)' : '480px',
                 zIndex: 99999
             }}
         >
             {(() => {
-                // Dynamic sizing logic moved to component scope for visibility in all parts of the modal
-                const isCompact = (isMobile && voicings.length > 4) || isLandscapeMobile;
                 const isTiny = isMobile && voicings.length >= 6;
 
                 return (
                     <>
-                        {/* Scrollable Voicings List */}
-                        <div className={clsx(
-                            "flex flex-row items-center overflow-x-auto no-scrollbar mask-linear-fade flex-1 min-w-0",
-                            (isMobile && voicings.length > 5) ? "gap-1" : "gap-2"
-                        )}>
-                            {voicings.map((voicing) => {
-                                const isSelected = voicing.quality === currentQuality;
+                        {/* ROW 1: VOICINGS & QUICK ACTIONS */}
+                        <div className="flex items-center gap-2 w-full">
+                            <div className="flex flex-row items-center overflow-x-auto no-scrollbar mask-linear-fade flex-1 min-w-0 gap-1.5">
+                                {voicings.map((voicing) => {
+                                    const isSelected = voicing.quality === currentQuality;
+                                    return (
+                                        <button
+                                            key={voicing.quality}
+                                            onClick={(e) => { e.stopPropagation(); handleVoicingClick(voicing.quality); }}
+                                            onTouchStart={handleTouchStart}
+                                            onTouchEnd={(e) => { e.stopPropagation(); handleTouchEnd(e, () => handleVoicingClick(voicing.quality)); }}
+                                            className={clsx(
+                                                "flex items-center justify-center rounded-xl transition-all shrink-0 active:scale-95",
+                                                isTiny ? "min-w-[36px] h-10 px-1" : "min-w-[44px] h-11 px-2.5",
+                                                isSelected
+                                                    ? "bg-accent-primary text-white shadow-lg shadow-accent-primary/20"
+                                                    : "text-text-secondary hover:text-text-primary hover:bg-bg-tertiary border border-white/5"
+                                            )}
+                                        >
+                                            <span className={clsx("font-bold", isTiny ? "text-[10px]" : "text-xs")}>
+                                                {voicing.label || 'maj'}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
 
-                                return (
+                            <div className="w-px h-8 bg-white/10 shrink-0 mx-1" />
+
+                            <div className="flex items-center gap-1 shrink-0">
+                                {onOpenDetails && (
                                     <button
-                                        key={voicing.quality}
+                                        onClick={(e) => { e.stopPropagation(); onOpenDetails(); onClose(); }}
+                                        onTouchStart={handleTouchStart}
+                                        onTouchEnd={(e) => { e.stopPropagation(); handleTouchEnd(e, () => { onOpenDetails(); onClose(); }); }}
+                                        className="w-10 h-10 flex items-center justify-center rounded-xl text-text-tertiary hover:text-text-secondary hover:bg-bg-tertiary transition-colors"
+                                    >
+                                        <Info size={18} />
+                                    </button>
+                                )}
+                                {onAddToTimeline && (
+                                    <button
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            handleVoicingClick(voicing.quality);
+                                            const qualityToAdd = currentQuality || selectedQuality || voicings[0]?.quality;
+                                            if (qualityToAdd) { onAddToTimeline(qualityToAdd); onClose(); }
                                         }}
                                         onTouchStart={handleTouchStart}
                                         onTouchEnd={(e) => {
                                             e.stopPropagation();
-                                            handleTouchEnd(e, () => handleVoicingClick(voicing.quality));
+                                            handleTouchEnd(e, () => {
+                                                const qualityToAdd = currentQuality || selectedQuality || voicings[0]?.quality;
+                                                if (qualityToAdd) { onAddToTimeline(qualityToAdd); onClose(); }
+                                            });
                                         }}
-                                        className={clsx(
-                                            "flex items-center justify-center rounded-lg transition-all shrink-0",
-                                            "active:scale-95", // Add visual feedback
-                                            isTiny
-                                                ? "min-w-[32px] h-9 px-0.5"
-                                                : isCompact
-                                                    ? "min-w-[40px] h-10 px-1.5"
-                                                    : "min-w-[48px] h-12 px-2",
-                                            isSelected
-                                                ? "bg-accent-primary text-white shadow-lg"
-                                                : "text-text-secondary hover:text-text-primary hover:bg-bg-tertiary"
-                                        )}
-                                        title={`Tap to preview, double-tap to add ${chordRoot}${voicing.label}`}
+                                        className="w-10 h-10 flex items-center justify-center rounded-xl bg-accent-primary/10 text-accent-primary hover:bg-accent-primary hover:text-white transition-all shadow-sm"
                                     >
-                                        <span className={clsx(
-                                            "font-semibold whitespace-nowrap",
-                                            isTiny ? "text-[10px]" : isCompact ? "text-xs" : (isSelected ? "text-sm" : "text-xs")
-                                        )}>
-                                            {voicing.label || 'maj'}
-                                        </span>
+                                        <Plus size={20} />
                                     </button>
-                                );
-                            })}
+                                )}
+                            </div>
                         </div>
 
-                        {/* Fixed Action Buttons Container - Pushed to bottom right in wrapping layout or just inline if small */}
-                        <div className={clsx(
-                            "flex flex-row items-center shrink-0 border-l border-border-subtle pl-2 ml-1",
-                            "self-stretch" // Ensure separator spans full height
-                        )}>
-                            {/* Chord Details shortcut button */}
-                            {onOpenDetails && (
+                        {/* ROW 2: INVERSION & INSTRUMENT */}
+                        <div className="flex items-center justify-between gap-3 pt-2 border-t border-white/5 w-full">
+                            {/* Inversion Controls */}
+                            <div className="flex items-center bg-bg-tertiary/60 border border-white/10 rounded-xl px-1 h-11 flex-1 shadow-inner overflow-hidden">
                                 <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        onOpenDetails();
-                                        onClose();
-                                    }}
+                                    onClick={(e) => { e.stopPropagation(); handleInversionChange('down'); }}
                                     onTouchStart={handleTouchStart}
                                     onTouchEnd={(e) => {
                                         e.stopPropagation();
-                                        // Add slight prevention of ghost clicks if needed, but primary is to trigger action
-                                        handleTouchEnd(e, () => {
-                                            onOpenDetails();
-                                            onClose();
-                                        });
+                                        handleTouchEnd(e, () => handleInversionChange('down'));
                                     }}
-                                    className={clsx(
-                                        "flex items-center justify-center rounded-lg transition-all shrink-0",
-                                        "text-text-tertiary hover:text-text-secondary hover:bg-bg-tertiary",
-                                        isTiny
-                                            ? "w-7 h-9"
-                                            : isCompact
-                                                ? "w-8 h-10"
-                                                : "w-10 h-12"
-                                    )}
-                                    title="Open chord details"
+                                    disabled={chordInversion <= 0}
+                                    className="w-10 h-full flex items-center justify-center text-text-muted hover:text-accent-primary transition-colors disabled:opacity-20 active:bg-white/5"
                                 >
-                                    <Info size={isTiny ? 12 : (isCompact ? 14 : 16)} />
+                                    <ChevronLeft size={18} />
                                 </button>
-                            )}
 
-                            {/* Add to timeline button */}
-                            {onAddToTimeline && (
+                                <div className="flex flex-col items-center justify-center flex-1 px-2 pointer-events-none min-w-[60px]">
+                                    <span className="text-[10px] font-black text-accent-primary uppercase tracking-tighter leading-none">
+                                        {getInversionName(chordInversion)}
+                                    </span>
+                                    <span className="text-[7px] text-text-muted font-bold uppercase tracking-[0.2em] mt-0.5">
+                                        BASS
+                                    </span>
+                                </div>
+
                                 <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        const qualityToAdd = currentQuality || selectedQuality || voicings[0]?.quality;
-                                        if (qualityToAdd) {
-                                            onAddToTimeline(qualityToAdd);
-                                            onClose();
-                                        }
-                                    }}
+                                    onClick={(e) => { e.stopPropagation(); handleInversionChange('up'); }}
                                     onTouchStart={handleTouchStart}
                                     onTouchEnd={(e) => {
                                         e.stopPropagation();
-                                        handleTouchEnd(e, () => {
-                                            const qualityToAdd = currentQuality || selectedQuality || voicings[0]?.quality;
-                                            if (qualityToAdd) {
-                                                onAddToTimeline(qualityToAdd);
-                                                onClose();
-                                            }
-                                        });
+                                        handleTouchEnd(e, () => handleInversionChange('up'));
                                     }}
-                                    className={clsx(
-                                        "flex items-center justify-center rounded-lg transition-all shrink-0",
-                                        "text-accent-primary hover:text-white hover:bg-accent-primary/20",
-                                        isTiny
-                                            ? "w-7 h-9"
-                                            : isCompact
-                                                ? "w-8 h-10"
-                                                : "w-10 h-12"
-                                    )}
-                                    title="Add to timeline"
+                                    disabled={(() => {
+                                        const q = currentQuality || selectedQuality || voicings[0]?.quality || 'major';
+                                        return chordInversion >= getMaxInversion(getChordNotes(chordRoot, q));
+                                    })()}
+                                    className="w-10 h-full flex items-center justify-center text-text-muted hover:text-accent-primary transition-colors disabled:opacity-20 active:bg-white/5"
                                 >
-                                    <Plus size={isTiny ? 14 : (isCompact ? 16 : 18)} />
+                                    <ChevronRight size={18} />
                                 </button>
-                            )}
+                            </div>
 
                             {/* Instrument Selector */}
                             <VoiceSelector
-                                variant={isTiny ? 'tiny' : (isCompact ? 'compact' : 'default')}
-                                showLabel={false}
-                                className="ml-1"
+                                variant="default"
+                                showLabel={true}
+                                className="flex-1 shrink-0"
                                 onInteraction={resetFadeTimer}
                             />
                         </div>
@@ -356,81 +312,32 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
     );
 };
 
-/**
- * Parse voicing suggestion string into VoicingOption array
- * e.g., "maj7, maj9, maj13 or 6" => [{quality: 'maj7', label: 'maj7'}, ...]
- */
 export function parseVoicingSuggestions(suggestion: string, baseQuality: string): VoicingOption[] {
     if (!suggestion) return [];
-
-    // Split by comma and "or"
     const parts = suggestion.split(/,\s*|\s+or\s+/).map(s => s.trim()).filter(Boolean);
-
-    // Add the base quality first (major, minor, dim)
     const options: VoicingOption[] = [];
-
-    // Add base quality
-    if (baseQuality === 'major') {
-        options.push({ quality: 'major', label: '' }); // Empty label = just the root (e.g., "C")
-    } else if (baseQuality === 'minor') {
-        options.push({ quality: 'minor', label: 'm' });
-    } else if (baseQuality === 'diminished') {
-        options.push({ quality: 'diminished', label: '°' });
-    }
-
-    // Parse each suggested voicing
+    if (baseQuality === 'major') options.push({ quality: 'major', label: '' });
+    else if (baseQuality === 'minor') options.push({ quality: 'minor', label: 'm' });
+    else if (baseQuality === 'diminished') options.push({ quality: 'diminished', label: '°' });
     for (const part of parts) {
         let quality = part;
         let label = part;
-
-        // Handle special cases - map to quality strings that match EXTENDED_CHORD_FORMULAS
-        if (part === '6') {
-            quality = 'major6';
-            label = '6';
-        } else if (part === 'm6') {
-            quality = 'minor6';
-            label = 'm6';
-        } else if (part === 'm7♭5 (ø7)') {
-            quality = 'halfDiminished7';
-            label = 'ø7';
-        } else if (part === 'm7') {
-            quality = 'minor7';
-            label = 'm7';
-        } else if (part === 'm9') {
-            quality = 'minor9';
-            label = 'm9';
-        } else if (part === 'm11') {
-            quality = 'minor11';
-            label = 'm11';
-        } else if (part === 'sus4') {
-            quality = 'sus4';
-            label = 'sus4';
-        } else if (part === '7') {
-            quality = 'dominant7';
-            label = '7';
-        } else if (part === '9') {
-            quality = 'dominant9';
-            label = '9';
-        } else if (part === '11') {
-            quality = 'dominant11';
-            label = '11';
-        } else if (part === '13') {
-            quality = 'dominant13';
-            label = '13';
-        } else if (part === 'maj7') {
-            quality = 'major7';
-            label = 'maj7';
-        } else if (part === 'maj9') {
-            quality = 'major9';
-            label = 'maj9';
-        } else if (part === 'maj13') {
-            quality = 'major13';
-            label = 'maj13';
-        }
-
+        if (part === '6') { quality = 'major6'; label = '6'; }
+        else if (part === 'm6') { quality = 'minor6'; label = 'm6'; }
+        else if (part === 'm7♭5 (ø7)') { quality = 'halfDiminished7'; label = 'ø7'; }
+        else if (part === 'm7') { quality = 'minor7'; label = 'm7'; }
+        else if (part === 'm9') { quality = 'minor9'; label = 'm9'; }
+        else if (part === 'm11') { quality = 'minor11'; label = 'm11'; }
+        else if (part === 'sus4') { quality = 'sus4'; label = 'sus4'; }
+        else if (part === '7') { quality = 'dominant7'; label = '7'; }
+        else if (part === '9') { quality = 'dominant9'; label = '9'; }
+        else if (part === '11') { quality = 'dominant11'; label = '11'; }
+        else if (part === '13') { quality = 'dominant13'; label = '13'; }
+        else if (part === 'maj7') { quality = 'major7'; label = 'maj7'; }
+        else if (part === 'maj9') { quality = 'major9'; label = 'maj9'; }
+        else if (part === 'maj13') { quality = 'major13'; label = 'maj13'; }
         options.push({ quality, label });
     }
-
     return options;
 }
 

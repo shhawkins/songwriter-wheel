@@ -151,6 +151,9 @@ interface SongState {
     isMuted: boolean;
     customInstruments: CustomInstrument[];
 
+    chordInversion: number;
+    setChordInversion: (inversion: number) => void;
+
     // Actions
     setKey: (key: string, options?: { skipRotation?: boolean }) => void;
     rotateWheel: (direction: 'cw' | 'ccw') => void;  // Cumulative rotation
@@ -479,6 +482,7 @@ export const useSongStore = create<SongState>()(
             isMuted: false,
             customInstruments: [] as CustomInstrument[],
             cloudSongs: [] as Song[],
+            chordInversion: 0,
             isLoadingCloud: false,
 
             resetState: () => set({
@@ -728,6 +732,8 @@ export const useSongStore = create<SongState>()(
                     instrument: state.instrument === id ? 'piano' : state.instrument
                 }));
             },
+
+            setChordInversion: (inversion) => set({ chordInversion: inversion }),
 
             setKey: (key, options) => set((state) => {
                 // In rotating mode, also update the wheel rotation to snap this key to the top

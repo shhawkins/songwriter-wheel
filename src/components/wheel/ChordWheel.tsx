@@ -8,6 +8,7 @@ import {
     CIRCLE_OF_FIFTHS,
     formatChordForDisplay,
     getQualitySymbol,
+    getChordSymbolWithInversion,
     type Chord
 } from '../../utils/musicTheory';
 import { WheelSegment } from './WheelSegment';
@@ -66,7 +67,9 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
         toggleChordPanel,
         pulseChordPanel,
         chordPanelGuitarExpanded,
-        chordPanelVoicingsExpanded
+        chordPanelVoicingsExpanded,
+        chordPanelAttention,
+        chordInversion
     } = useSongStore();
 
     // Calculate wheel rotation
@@ -1091,11 +1094,13 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
                 onSelect={(quality: string) => {
                     if (voicingPickerState.chord) {
                         const newNotes = getChordNotes(voicingPickerState.chord.root, quality);
+                        const symbol = getChordSymbolWithInversion(voicingPickerState.chord.root, quality, newNotes, chordInversion);
                         const newChord: Chord = {
                             ...voicingPickerState.chord,
-                            quality: quality as any, // Extended qualities like maj7, dom9, etc.
+                            quality: quality as any,
                             notes: newNotes,
-                            symbol: `${voicingPickerState.chord.root}${getQualitySymbol(quality)}`
+                            inversion: chordInversion,
+                            symbol
                         };
                         setSelectedChord(newChord);
                     }
@@ -1103,11 +1108,13 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
                 onAddToTimeline={(quality: string) => {
                     if (voicingPickerState.chord) {
                         const newNotes = getChordNotes(voicingPickerState.chord.root, quality);
+                        const symbol = getChordSymbolWithInversion(voicingPickerState.chord.root, quality, newNotes, chordInversion);
                         const newChord: Chord = {
                             ...voicingPickerState.chord,
                             quality: quality as any,
                             notes: newNotes,
-                            symbol: `${voicingPickerState.chord.root}${getQualitySymbol(quality)}`
+                            inversion: chordInversion,
+                            symbol
                         };
 
                         // Get current section/slot from store (may be updated after openTimeline)

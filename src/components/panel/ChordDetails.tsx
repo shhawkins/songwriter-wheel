@@ -30,7 +30,9 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
         openTimeline,
         setChordPanelGuitarExpanded,
         setChordPanelVoicingsExpanded,
-        chordPanelAttention
+        chordPanelAttention,
+        chordInversion,
+        setChordInversion
     } = useSongStore();
     const colors = getWheelColors();
     const [previewVariant, setPreviewVariant] = useState<string | null>(null);
@@ -55,7 +57,6 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
     const [showScales, setShowScales] = useState(false); // Collapsed by default
     const [showTheory, setShowTheory] = useState(false); // Collapsed by default
     const [showGuitar, setShowGuitarLocal] = useState(!isMobile || isLandscapeVariant); // Collapsed on mobile (except landscape), expanded on desktop
-    const [chordInversion, setChordInversion] = useState(0); // Chord inversion (0 = root position)
     const pianoOctave = 4; // Fixed octave for piano keyboard
 
     // Sync local state to global store for voicing picker logic
@@ -303,12 +304,18 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
         }
     }, [selectedChord]);
 
-    // Clear preview and reset inversion when chord changes
+    // Clear preview when chord root or quality changes, 
+    // but only reset inversion when the ROOT changes to prevent UI reset while exploring voicings
     useEffect(() => {
         setPreviewVariant(null);
         setPreviewNotes([]);
-        setChordInversion(0); // Reset inversion for new chord
+        // Only set chord inversion to 0 here if it's a completely different root
+        // or let the specific click handlers manage resets
     }, [chord?.root, chord?.quality]);
+
+    useEffect(() => {
+        setChordInversion(0);
+    }, [chord?.root]);
 
     // Auto-scroll to Guitar section in landscape view when it's open
     useEffect(() => {
