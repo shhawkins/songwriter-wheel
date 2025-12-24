@@ -3,7 +3,7 @@ import { PianoKeyboard } from './PianoKeyboard';
 import { GuitarChord } from './GuitarChord';
 import { MusicStaff } from './MusicStaff';
 import { getWheelColors, getChordNotes, getIntervalFromKey, invertChord, getMaxInversion, getInversionName, getChordSymbolWithInversion, formatChordForDisplay, getQualitySymbol, getMajorScale } from '../../utils/musicTheory';
-import { PanelRightClose, PanelRight, GripVertical, ChevronDown, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { PanelRightClose, PanelRight, GripVertical, ChevronDown, ChevronLeft, ChevronRight, Plus, MoveRight } from 'lucide-react';
 import { playChord, playNote } from '../../utils/audioEngine';
 import { useState, useCallback, useEffect, useRef } from 'react';
 
@@ -34,7 +34,9 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
         chordInversion,
         setChordInversion,
         chordPanelScrollTarget,
-        setChordPanelScrollTarget
+        setChordPanelScrollTarget,
+        autoAdvance,
+        toggleAutoAdvance
     } = useSongStore();
     const colors = getWheelColors();
     const [previewVariant, setPreviewVariant] = useState<string | null>(null);
@@ -811,9 +813,22 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
 
                     {/* Placeholder for center column when grid is active, or hidden when stacked */}
                     {!isVeryNarrowPanel && <div />}
-                    {/* Right column: Add button + Close button (close button hidden on mobile drawer - can swipe to close) */}
+                    {/* Right column: Auto-advance + Add button + Close button */}
                     <div className={`flex items-center gap-2 shrink-0 ${isVeryNarrowPanel ? 'justify-center w-full' : 'justify-end'}`}>
-                        {/* Add to Timeline button - wider on mobile drawer since close button is hidden */}
+                        {/* Auto-advance toggle - desktop sidebar only */}
+                        {!isMobile && !isDrawer && !isLandscapeVariant && chord && (
+                            <button
+                                onClick={toggleAutoAdvance}
+                                className={`p-1.5 rounded-lg transition-all flex items-center justify-center ${autoAdvance
+                                        ? "bg-accent-primary text-white shadow-[0_0_8px_rgba(99,102,241,0.3)]"
+                                        : "bg-bg-tertiary/60 text-text-muted hover:text-text-primary hover:bg-bg-tertiary"
+                                    }`}
+                                title={autoAdvance ? "Auto-advance ON - moves to next slot after adding" : "Auto-advance OFF"}
+                            >
+                                <MoveRight size={14} />
+                            </button>
+                        )}
+                        {/* Add to Timeline button */}
                         {chord && (
                             <button
                                 onClick={handleDiagramDoubleClick}

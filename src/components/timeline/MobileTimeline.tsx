@@ -256,13 +256,13 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
     const sensors = useSensors(
         useSensor(PointerSensor, {
             activationConstraint: {
-                distance: 10, // Require 10px movement before drag starts (allows scroll)
+                distance: 15, // Require 15px movement before drag starts (allows scroll)
             },
         }),
         useSensor(TouchSensor, {
             activationConstraint: {
-                delay: 200, // 200ms hold before drag starts on touch
-                tolerance: 20, // Allow 20px movement during the delay (lets scrolling happen)
+                delay: 400, // 400ms hold before drag starts on touch (prevents accidental drags)
+                tolerance: 25, // Allow 25px movement during the delay (lets scrolling happen)
             },
         }),
         useSensor(KeyboardSensor, {
@@ -338,7 +338,7 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                 // Also scroll the section tab into view with a slight delay for DOM updates
                 setTimeout(() => {
                     if (sectionTabsRef.current) {
-                        const sectionTab = sectionTabsRef.current.querySelector(`[data-section-id="${selectedSectionId}"]`);
+                        const sectionTab = sectionTabsRef.current.querySelector(`[data - section - id= "${selectedSectionId}"]`);
                         if (sectionTab) {
                             sectionTab.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
                         }
@@ -361,7 +361,7 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
     // Auto-scroll chord container to show playing slot
     useEffect(() => {
         if (playingSlotId && scrollRef.current) {
-            const playingElement = scrollRef.current.querySelector(`[data-slot-id="${playingSlotId}"]`);
+            const playingElement = scrollRef.current.querySelector(`[data - slot - id= "${playingSlotId}"]`);
             if (playingElement) {
                 playingElement.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
             }
@@ -377,7 +377,7 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
         // Delay to ensure the drawer animation completes and DOM is fully rendered
         const timeoutId = setTimeout(() => {
             if (scrollRef.current) {
-                const selectedElement = scrollRef.current.querySelector(`[data-slot-id="${selectedSlotId}"]`);
+                const selectedElement = scrollRef.current.querySelector(`[data - slot - id= "${selectedSlotId}"]`);
                 if (selectedElement) {
                     selectedElement.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
                 }
@@ -534,7 +534,7 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
             data-mobile-timeline
             className={clsx(
                 "relative w-full bg-bg-secondary border-t-2 border-border-subtle overflow-hidden flex flex-col mobile-timeline-drawer pb-1",
-                isLandscape && "h-full", // Fill available height in landscape mode
+                isLandscape && "h-full pb-3", // Fill available height in landscape mode + bottom margin
                 hideCloseButton && "h-full border-t-0" // Embedded mode: fill parent height, no border (parent has it)
             )}
             style={{
@@ -565,19 +565,40 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
 
                 {/* Section navigator - compact mode uses a simpler dropdown-style layout */}
                 {isCompact ? (
-                    // Compact: Single row with section dropdown - centered layout
-                    // Use grid to properly center the navigation group while keeping Map button on left
-                    <div className="relative flex items-center justify-center shrink-0 px-1 py-1">
-                        {/* Left: Map button - absolutely positioned to not affect centering */}
-                        <button
-                            onClick={() => toggleSongMap(true)}
-                            className="absolute left-1 rounded text-text-muted hover:text-accent-primary touch-feedback flex items-center justify-center w-5 h-5"
-                            title="Song Overview"
-                        >
-                            <MapIcon size={12} />
-                        </button>
+                    <div className="flex items-center justify-between shrink-0 px-1 py-1">
+                        {/* Left Group: Map and Zoom (Green Area) */}
+                        <div className="flex items-center gap-1.5 pl-0.5">
+                            <button
+                                onClick={() => toggleSongMap(true)}
+                                className="no-touch-enlarge rounded text-text-muted hover:text-accent-primary touch-feedback flex items-center justify-center w-6 h-6"
+                                title="Song Overview"
+                            >
+                                <MapIcon size={14} />
+                            </button>
 
-                        {/* Center: Navigation group - arrows with section button between them */}
+                            {/* Timeline Zoom Controls - Combined with Map in green area */}
+                            <div className="flex items-center gap-1 border-l border-white/10 pl-1.5 h-4">
+                                <button
+                                    onClick={() => setTimelineZoom(timelineZoom - 0.1)}
+                                    className="w-4 h-4 flex items-center justify-center rounded bg-bg-tertiary/60 hover:bg-bg-tertiary text-text-muted transition-colors active:scale-90"
+                                    title="Zoom Out"
+                                >
+                                    <Minus size={8} />
+                                </button>
+                                <span className="text-[9px] font-mono text-text-muted min-w-[24px] text-center opacity-70">
+                                    {Math.round(timelineZoom * 100)}%
+                                </span>
+                                <button
+                                    onClick={() => setTimelineZoom(timelineZoom + 0.1)}
+                                    className="w-4 h-4 flex items-center justify-center rounded bg-bg-tertiary/60 hover:bg-bg-tertiary text-text-muted transition-colors active:scale-90"
+                                    title="Zoom In"
+                                >
+                                    <Plus size={8} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Center: Navigation Group */}
                         <div className="flex items-center justify-center gap-1">
                             <button
                                 onClick={() => navigateSection('prev')}
@@ -587,7 +608,7 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                                 <ChevronLeft size={14} />
                             </button>
 
-                            {/* Current section button - abbreviated to first letter with section number in compact mode */}
+                            {/* Current section button */}
                             <div className="relative">
                                 <button
                                     onClick={() => activeSection && setEditingSectionId(activeSection.id)}
@@ -605,21 +626,6 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                                     </span>
                                     <Settings2 size={10} className="opacity-70 shrink-0" />
                                 </button>
-                                {/* TODO: X badge for deleting section - needs styling work
-                            {activeSection && (
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        removeSection(activeSection.id);
-                                    }}
-                                    onMouseDown={(e) => e.stopPropagation()}
-                                    className="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-black/70 backdrop-blur-sm hover:bg-white/20 flex items-center justify-center transition-all z-30 border border-white/30 hover:border-white/50"
-                                    title="Delete section"
-                                >
-                                    <span className="text-white/90 text-[10px] font-bold leading-none">×</span>
-                                </button>
-                            )}
-                            */}
                             </div>
 
                             <button
@@ -631,29 +637,8 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                             </button>
                         </div>
 
-                        {/* Zoom Controls - compact and sleek */}
-                        <div className="flex items-center gap-1 mx-2 pl-2 border-l border-white/10 shrink-0 h-4">
-                            <button
-                                onClick={() => setTimelineZoom(timelineZoom - 0.1)}
-                                className="w-3.5 h-3.5 flex items-center justify-center rounded bg-bg-tertiary/60 hover:bg-bg-tertiary text-text-muted transition-colors active:scale-90"
-                                title="Zoom Out"
-                            >
-                                <Minus size={7} />
-                            </button>
-                            <span className="text-[8px] font-mono text-text-muted min-w-[20px] text-center opacity-70">
-                                {Math.round(timelineZoom * 100)}%
-                            </span>
-                            <button
-                                onClick={() => setTimelineZoom(timelineZoom + 0.1)}
-                                className="w-3.5 h-3.5 flex items-center justify-center rounded bg-bg-tertiary/60 hover:bg-bg-tertiary text-text-muted transition-colors active:scale-90"
-                                title="Zoom In"
-                            >
-                                <Plus size={7} />
-                            </button>
-                        </div>
-
-                        {/* Right: Undo/Redo - absolutely positioned */}
-                        <div className="absolute right-1 flex items-center gap-0.5">
+                        {/* Right: Undo/Redo */}
+                        <div className="flex items-center gap-0.5">
                             <button
                                 onClick={undo}
                                 disabled={!canUndo}
@@ -690,60 +675,65 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                             >
                                 <MapIcon size={isDesktop ? 18 : 16} />
                             </button>
-                            {/* Undo/Redo buttons */}
-                            <div className="flex items-center gap-0.5 ml-1">
-                                <button
-                                    onClick={undo}
-                                    disabled={!canUndo}
-                                    className={clsx(
-                                        "no-touch-enlarge flex items-center justify-center rounded bg-bg-tertiary/60 hover:bg-bg-tertiary text-text-muted hover:text-text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors",
-                                        isDesktop ? "w-8 h-8" : "w-7 h-7"
-                                    )}
-                                    title="Undo"
-                                >
-                                    <RotateCcw size={isDesktop ? 14 : 12} />
-                                </button>
-                                <button
-                                    onClick={redo}
-                                    disabled={!canRedo}
-                                    className={clsx(
-                                        "no-touch-enlarge flex items-center justify-center rounded bg-bg-tertiary/60 hover:bg-bg-tertiary text-text-muted hover:text-text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors",
-                                        isDesktop ? "w-8 h-8" : "w-7 h-7"
-                                    )}
-                                    title="Redo"
-                                >
-                                    <RotateCw size={isDesktop ? 14 : 12} />
-                                </button>
-                            </div>
+                            {/* Undo/Redo buttons - mobile only (desktop has them in main header) */}
+                            {!isDesktop && (
+                                <div className="flex items-center gap-0.5 ml-1">
+                                    <button
+                                        onClick={undo}
+                                        disabled={!canUndo}
+                                        className={clsx(
+                                            "no-touch-enlarge flex items-center justify-center rounded bg-bg-tertiary/60 hover:bg-bg-tertiary text-text-muted hover:text-text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors",
+                                            isDesktop ? "w-8 h-8" : "w-7 h-7"
+                                        )}
+                                        title="Undo"
+                                    >
+                                        <RotateCcw size={isDesktop ? 14 : 12} />
+                                    </button>
+                                    <button
+                                        onClick={redo}
+                                        disabled={!canRedo}
+                                        className={clsx(
+                                            "no-touch-enlarge flex items-center justify-center rounded bg-bg-tertiary/60 hover:bg-bg-tertiary text-text-muted hover:text-text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors",
+                                            isDesktop ? "w-8 h-8" : "w-7 h-7"
+                                        )}
+                                        title="Redo"
+                                    >
+                                        <RotateCw size={isDesktop ? 14 : 12} />
+                                    </button>
+                                </div>
+                            )}
 
-                            {/* Zoom Controls for full view */}
-                            <div className="flex items-center gap-1 ml-4 pl-4 border-l border-white/10 h-6">
-                                <button
-                                    onClick={() => setTimelineZoom(timelineZoom - 0.1)}
-                                    className="w-4 h-4 flex items-center justify-center rounded bg-bg-tertiary/60 hover:bg-bg-tertiary text-text-muted transition-colors active:scale-90"
-                                    title="Zoom Out"
-                                >
-                                    <Minus size={8} />
-                                </button>
-                                <span className="text-[9px] font-mono text-text-muted min-w-[28px] text-center opacity-70">
-                                    {Math.round(timelineZoom * 100)}%
-                                </span>
-                                <button
-                                    onClick={() => setTimelineZoom(timelineZoom + 0.1)}
-                                    className="w-4 h-4 flex items-center justify-center rounded bg-bg-tertiary/60 hover:bg-bg-tertiary text-text-muted transition-colors active:scale-90"
-                                    title="Zoom In"
-                                >
-                                    <Plus size={8} />
-                                </button>
-                            </div>
+                            {/* Zoom Controls - desktop only (hide on mobile portrait) */}
+                            {isDesktop && (
+                                <div className="flex items-center gap-1 ml-4 pl-4 border-l border-white/10 h-6">
+                                    <button
+                                        onClick={() => setTimelineZoom(timelineZoom - 0.1)}
+                                        className="w-4 h-4 flex items-center justify-center rounded bg-bg-tertiary/60 hover:bg-bg-tertiary text-text-muted transition-colors active:scale-90"
+                                        title="Zoom Out"
+                                    >
+                                        <Minus size={8} />
+                                    </button>
+                                    <span className="text-[9px] font-mono text-text-muted min-w-[28px] text-center opacity-70">
+                                        {Math.round(timelineZoom * 100)}%
+                                    </span>
+                                    <button
+                                        onClick={() => setTimelineZoom(timelineZoom + 0.1)}
+                                        className="w-4 h-4 flex items-center justify-center rounded bg-bg-tertiary/60 hover:bg-bg-tertiary text-text-muted transition-colors active:scale-90"
+                                        title="Zoom In"
+                                    >
+                                        <Plus size={8} />
+                                    </button>
+                                </div>
+                            )}
                         </div>
                         <button
-                            onClick={() => scrollSectionTabs('left')}
+                            onClick={() => isDesktop ? navigateSection('prev') : scrollSectionTabs('left')}
+                            disabled={isDesktop && activeSectionIndex === 0}
                             className={clsx(
-                                "no-touch-enlarge rounded text-text-muted hover:text-text-primary touch-feedback",
+                                "no-touch-enlarge rounded text-text-muted hover:text-text-primary disabled:opacity-30 disabled:cursor-not-allowed touch-feedback",
                                 isDesktop ? "p-2" : "p-1.5"
                             )}
-                            title="Scroll sections left"
+                            title={isDesktop ? "Previous section" : "Scroll sections left"}
                         >
                             <ChevronLeft size={isDesktop ? 18 : 16} />
                         </button>
@@ -791,12 +781,13 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
 
 
                         <button
-                            onClick={() => scrollSectionTabs('right')}
+                            onClick={() => isDesktop ? navigateSection('next') : scrollSectionTabs('right')}
+                            disabled={isDesktop && activeSectionIndex === currentSong.sections.length - 1}
                             className={clsx(
-                                "no-touch-enlarge rounded text-text-muted hover:text-text-primary touch-feedback",
+                                "no-touch-enlarge rounded text-text-muted hover:text-text-primary disabled:opacity-30 disabled:cursor-not-allowed touch-feedback",
                                 isDesktop ? "p-2" : "p-1.5"
                             )}
-                            title="Scroll sections right"
+                            title={isDesktop ? "Next section" : "Scroll sections right"}
                         >
                             <ChevronRight size={isDesktop ? 18 : 16} />
                         </button>
@@ -815,108 +806,121 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                             : "overflow-x-auto overflow-y-hidden no-scrollbar select-none" // Portrait: horizontal scroll
                     )}
                 >
-                    {activeSection && (
-                        <div className={clsx(
-                            isLandscape
-                                ? isCompact
-                                    ? "flex flex-col gap-0" // Landscape compact: stack bars vertically
-                                    : "grid grid-cols-4 gap-0.5" // Landscape full width: 4 bars per row
-                                : clsx(
-                                    "flex flex-row items-center",
-                                    isDesktop ? "gap-1.5" : "gap-0.5" // Desktop: larger gap between measures
-                                )
-                        )}>
-                            {activeSection.measures.map((measure, measureIdx) => (
-                                <React.Fragment key={measure.id}>
-                                    {/* Measure row/group */}
-                                    <div className={clsx(
-                                        "flex items-center",
-                                        isLandscape
-                                            ? isCompact
-                                                ? "gap-0.5 w-full min-w-0" // Landscape compact: full width row, can shrink
-                                                : "gap-0.5" // Landscape full width: grid handles sizing
-                                            : isDesktop ? "gap-1 shrink-0" : "gap-0.5 shrink-0" // Portrait: compact, don't shrink (larger gap on desktop)
-                                    )}>
-                                        {/* Bar number + Note Value Selector - stacked vertically */}
-                                        <div className={clsx(
-                                            "flex flex-col items-center justify-center shrink-0",
-                                            isLandscape ? "gap-0 w-4" : isDesktop ? "gap-0 w-6" : "gap-0 w-5"
-                                        )}>
-                                            {/* Bar number */}
-                                            <span className={clsx(
-                                                "font-mono text-text-muted text-center leading-none",
-                                                isDesktop ? "text-[9px]" : (isLandscape ? "text-[7px]" : "text-[8px]")
-                                            )}>
-                                                {measureIdx + 1}
-                                            </span>
-                                            {/* Note Value Selector */}
-                                            <NoteValueSelector
-                                                value={measure.beats.length}
-                                                onChange={(newValue) => setMeasureSubdivision(activeSection.id, measure.id, newValue)}
-                                                timeSignature={activeSection.timeSignature || [4, 4]}
-                                                isCompact={isLandscape}
-                                            />
-                                        </div>
-                                        {/* Measure beats container */}
-                                        <div className={clsx(
-                                            "flex items-center",
-                                            isLandscape
-                                                ? isCompact
-                                                    ? `flex-1 gap-0.5 min-w-0 ${measure.beats.length > 4 ? 'overflow-x-auto scrollbar-hide no-scrollbar' : 'overflow-hidden'}` // Landscape compact: fill row
-                                                    : `flex-1 gap-0.5 min-w-0 ${measure.beats.length > 4 ? 'overflow-x-auto scrollbar-hide no-scrollbar' : 'overflow-hidden'}` // Landscape grid: fill grid cell
-                                                : "gap-0.5" // Portrait: natural sizing
-                                        )}>
-                                            {measure.beats.map((beat) => {
-                                                // Calculate proportional width based on beat count
-                                                const beatCount = measure.beats.length;
-
-                                                // For landscape: dynamic sizing based on beat count
-                                                // 1-4 beats: use flex-1 (fill available space, no horizontal scroll)
-                                                // 8+ beats: use fixed widths that scale down (may require scroll)
-                                                let landscapeWidth: number | undefined;
-                                                if (isLandscape && beatCount > 4) {
-                                                    // Scale down as beat count increases
-                                                    // 8 beats: ~25px each
-                                                    landscapeWidth = Math.max(22, Math.floor(160 / beatCount));
-                                                }
-
-                                                // For portrait mode: calculate proportional width
-                                                // Desktop gets larger base width for better visibility
-                                                const baseWidth = isDesktop ? 48 : 36;
-                                                const widthMultiplier = 4 / beatCount;
-                                                const slotWidth = Math.round(baseWidth * widthMultiplier);
-                                                const finalWidth = Math.max(isDesktop ? 36 : 28, Math.min(isDesktop ? 192 : 144, slotWidth));
-
-                                                // Determine height based on device mode
-                                                // Landscape compact: shorter heights since space is limited
-                                                // Landscape full width (grid): taller heights since we have more room
-                                                const slotHeight = isDesktop ? 40 : (isLandscape ? (isCompact ? (beatCount <= 4 ? 26 : 24) : 32) : 32);
-
-                                                // Apply zoom scaling
-                                                const zoomedWidth = isLandscape && landscapeWidth ? Math.round(landscapeWidth * timelineZoom) : Math.round(finalWidth * timelineZoom);
-                                                const zoomedHeight = Math.round(slotHeight * timelineZoom);
-
-                                                return (
-                                                    <ChordSlot
-                                                        key={beat.id}
-                                                        slot={beat}
-                                                        sectionId={activeSection.id}
-                                                        size={zoomedHeight}
-                                                        width={zoomedWidth}
-                                                    />
-                                                );
-                                            })}
-                                        </div>
+                    {/* Multi-section visualization for landscape mode */}
+                    {(isLandscape ? currentSong.sections : [activeSection]).map((section, sectionIdx) => (
+                        section && (
+                            <div key={section.id} className={clsx(
+                                "flex flex-col",
+                                isLandscape ? "mb-6 pb-6 border-b border-white/5 last:border-0" : ""
+                            )}>
+                                {/* Section Label - only shown in landscape multi-section view */}
+                                {isLandscape && (
+                                    <div className="flex items-center gap-2 mb-2 px-1">
+                                        <div
+                                            className="w-1.5 h-4 rounded-full"
+                                            style={{ backgroundColor: section.type === 'chorus' ? '#8b5cf6' : section.type === 'verse' ? '#10b981' : '#6366f1' }}
+                                        />
+                                        <span className="text-[10px] font-bold text-text-primary uppercase tracking-wider opacity-90">
+                                            {getSectionDisplayName(section, currentSong.sections)}
+                                        </span>
                                     </div>
+                                )}
 
-                                    {/* Measure separator - only in portrait mode (not landscape or compact) */}
-                                    {!isCompact && !isLandscape && measureIdx < activeSection.measures.length - 1 && (
-                                        <div className="w-px h-5 bg-border-medium shrink-0" />
-                                    )}
-                                </React.Fragment>
-                            ))}
-                        </div>
-                    )}
+                                <div className={clsx(
+                                    isLandscape
+                                        ? isCompact
+                                            ? "flex flex-col gap-1.5" // Landscape compact: stack bars vertically
+                                            : "grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-1" // Landscape full width: responsive grid
+                                        : clsx(
+                                            "flex flex-row items-center",
+                                            isDesktop ? "gap-1.5" : "gap-0.5" // Desktop: larger gap between measures
+                                        )
+                                )}>
+                                    {section.measures.map((measure, measureIdx) => (
+                                        <React.Fragment key={measure.id}>
+                                            <div className={clsx(
+                                                "flex items-center",
+                                                isLandscape
+                                                    ? isCompact ? "gap-1 w-full" : "gap-1"
+                                                    : isDesktop ? "gap-1 shrink-0" : "gap-0.5 shrink-0"
+                                            )}>
+                                                {/* Bar marker */}
+                                                <div className={clsx(
+                                                    "flex flex-col items-center justify-center shrink-0",
+                                                    isLandscape ? "gap-0 w-4" : isDesktop ? "gap-0 w-6" : "gap-0 w-5"
+                                                )}>
+                                                    <span className={clsx(
+                                                        "font-mono text-text-muted text-center leading-none",
+                                                        isDesktop ? "text-[9px]" : (isLandscape ? "text-[7px]" : "text-[8px]")
+                                                    )}>
+                                                        {measureIdx + 1}
+                                                    </span>
+                                                    <NoteValueSelector
+                                                        value={measure.beats.length}
+                                                        onChange={(newValue) => setMeasureSubdivision(section.id, measure.id, newValue)}
+                                                        timeSignature={section.timeSignature || [4, 4]}
+                                                        isCompact={isLandscape}
+                                                    />
+                                                </div>
+
+                                                {/* Beats */}
+                                                <div className={clsx(
+                                                    "flex items-center",
+                                                    isLandscape
+                                                        ? isCompact
+                                                            ? `flex - 1 gap - 1 min - w - 0 ${measure.beats.length > 4 ? 'overflow-x-auto no-scrollbar' : 'overflow-hidden'} `
+                                                            : `flex - 1 gap - 1 min - w - 0 ${measure.beats.length > 4 ? 'overflow-x-auto no-scrollbar' : 'overflow-hidden'} `
+                                                        : "gap-0.5"
+                                                )}>
+                                                    {measure.beats.map((beat) => {
+                                                        const beatCount = measure.beats.length;
+
+                                                        // Landscape widths
+                                                        let landscapeWidth: number | undefined;
+                                                        if (isLandscape) {
+                                                            landscapeWidth = Math.max(24, Math.floor(180 / Math.max(4, beatCount)));
+                                                        }
+
+                                                        // Portrait widths
+                                                        const baseWidth = isDesktop ? 48 : 36;
+                                                        const widthMultiplier = 4 / beatCount;
+                                                        const slotWidth = Math.round(baseWidth * widthMultiplier);
+                                                        const finalWidth = Math.max(isDesktop ? 36 : 28, Math.min(isDesktop ? 192 : 144, slotWidth));
+
+                                                        // Heights
+                                                        const slotHeight = isDesktop ? 40 : (isLandscape ? (isCompact ? 28 : 34) : 32);
+
+                                                        // Final dimensions with zoom
+                                                        const zoomedWidth = isLandscape && landscapeWidth ? Math.round(landscapeWidth * timelineZoom) : Math.round(finalWidth * timelineZoom);
+
+                                                        // Zoom scaling: favor height when zooming out to keep text readable
+                                                        const heightFactor = timelineZoom >= 1
+                                                            ? timelineZoom
+                                                            : 1 + (1 - timelineZoom) * 0.7;
+                                                        const zoomedHeight = Math.round(slotHeight * heightFactor);
+
+                                                        return (
+                                                            <ChordSlot
+                                                                key={beat.id}
+                                                                slot={beat}
+                                                                sectionId={section.id}
+                                                                size={zoomedHeight}
+                                                                width={zoomedWidth}
+                                                            />
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+
+                                            {!isCompact && !isLandscape && measureIdx < section.measures.length - 1 && (
+                                                <div className="w-px h-5 bg-border-medium shrink-0" />
+                                            )}
+                                        </React.Fragment>
+                                    ))}
+                                </div>
+                            </div>
+                        )
+                    ))}
                 </div>
                 {/* Options Popup */}
                 {editingSectionId && (() => {

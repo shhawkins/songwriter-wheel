@@ -193,7 +193,7 @@ const MobilePortraitDrawers: React.FC<MobilePortraitDrawersProps> = ({
 
 
 function App() {
-  const { currentSong, selectedKey, timelineVisible, toggleTimeline, selectedSectionId, selectedSlotId, clearSlot, clearTimeline, setTitle, setArtist, setTags, setSongTimeSignature, loadSong: loadSongToStore, newSong, instrument, volume, isMuted, undo, redo, canUndo, canRedo, chordPanelVisible, isPlaying, songInfoModalVisible, toggleSongInfoModal, instrumentManagerModalVisible, toggleInstrumentManagerModal, cloudSongs, loadCloudSongs, saveToCloud, deleteFromCloud, isLoadingCloud } = useSongStore();
+  const { currentSong, selectedKey, timelineVisible, toggleTimeline, timelineZoom, setTimelineZoom, selectedSectionId, selectedSlotId, clearSlot, clearTimeline, setTitle, setArtist, setTags, setSongTimeSignature, loadSong: loadSongToStore, newSong, instrument, volume, isMuted, undo, redo, canUndo, canRedo, chordPanelVisible, isPlaying, songInfoModalVisible, toggleSongInfoModal, instrumentManagerModalVisible, toggleInstrumentManagerModal, cloudSongs, loadCloudSongs, saveToCloud, deleteFromCloud, isLoadingCloud } = useSongStore();
 
   // Audio Sync Logic
   useEffect(() => {
@@ -587,13 +587,13 @@ function App() {
 
       // For desktop/tablet, compute wheel size based on actual available space
       if (!mobile) {
-        // Get timeline height based on visibility
-        const timelineH = useSongStore.getState().timelineVisible ? 152 : 48;
-        // Available height = viewport - header(48) - footer(56) - timeline - padding(32)
-        const availableHeight = height - 48 - 56 - timelineH - 32;
+        // Available height = viewport - header(48) - footer(64) - timeline(152) - padding(40)
+        // Using conservative padding to ensure everything fits on iPad screens
+        const timelineH = useSongStore.getState().timelineVisible ? 152 : 0;
+        const availableHeight = height - 48 - 64 - timelineH - 40;
         // Available width = viewport - sidebar(380) - padding(40)
         const availableWidth = width - 380 - 40;
-        setComputedWheelSize(Math.max(300, Math.min(availableWidth, availableHeight)));
+        setComputedWheelSize(Math.max(200, Math.min(availableWidth, availableHeight)));
       }
 
 
@@ -1433,7 +1433,7 @@ function App() {
       )}
       {/* Header - slides up when in mobile immersive mode, when chord panel is open, or in landscape by default */}
       <header
-        className={`${isMobile ? 'h-14' : 'h-12'} border-b border-border-subtle grid grid-cols-[1fr_auto_1fr] items-center ${isMobile ? 'px-4' : 'px-3'} bg-bg-secondary shrink-0 z-20 transition-all duration-300 ease-out ${(isMobile && !isLandscape && (mobileImmersive || chordPanelVisible)) ||
+        className={`${isMobile ? 'h-14' : 'h-12'} border-b border-border-subtle grid grid-cols-[1fr_auto_1fr] items-center ${isMobile ? 'px-4' : 'px-3'} bg-bg-secondary shrink-0 z-50 transition-all duration-300 ease-out ${(isMobile && !isLandscape && (mobileImmersive || chordPanelVisible)) ||
           (isMobile && isLandscape && !landscapeHeaderVisible)
           ? 'opacity-0 -translate-y-full pointer-events-none absolute top-0 left-0 right-0'
           : 'relative'
@@ -1728,6 +1728,27 @@ function App() {
                         <RotateCw size={12} />
                         <span className="text-[9px] font-medium uppercase tracking-wide">Redo</span>
                       </button>
+
+                      {/* Timeline Zoom Controls - Desktop Left Area */}
+                      <div className="flex items-center gap-1 ml-4 pl-4 border-l border-border-subtle/20 h-5">
+                        <button
+                          onClick={() => setTimelineZoom(timelineZoom - 0.1)}
+                          className="w-5 h-5 flex items-center justify-center rounded bg-bg-tertiary/60 hover:bg-bg-tertiary text-text-muted transition-colors"
+                          title="Zoom Out"
+                        >
+                          <Minus size={10} />
+                        </button>
+                        <span className="text-[10px] font-mono text-text-muted min-w-[32px] text-center">
+                          {Math.round(timelineZoom * 100)}%
+                        </span>
+                        <button
+                          onClick={() => setTimelineZoom(timelineZoom + 0.1)}
+                          className="w-5 h-5 flex items-center justify-center rounded bg-bg-tertiary/60 hover:bg-bg-tertiary text-text-muted transition-colors"
+                          title="Zoom In"
+                        >
+                          <Plus size={10} />
+                        </button>
+                      </div>
                     </div>
                     <div className="flex items-center gap-1">
                       <button
@@ -1785,9 +1806,9 @@ function App() {
              When ONLY one panel open: use expanded/full views
           */
           <>
-            {/* Timeline Panel + Handle - when collapsed, only shows handle with no flex-grow */}
+            {/* Timeline Panel + Handle */}
             <div
-              className={`flex h-full ${mobileTimelineOpen ? 'flex-1' : 'justify-end'} shrink-0`}
+              className={`flex h-full ${mobileTimelineOpen ? (chordPanelVisible ? 'flex-[2]' : 'flex-1') : 'justify-end'} shrink-0`}
               style={{
                 minWidth: mobileTimelineOpen ? '100px' : '28px',
                 transition: 'all 0.25s ease-out'
@@ -1876,7 +1897,7 @@ function App() {
       {/* Footer: Playback - hidden in mobile immersive mode or when chord panel is open (unless scrolled to bottom), BUT always show when playing */}
       {(isPlaying || !(isMobile && !isLandscape && (mobileImmersive || (chordPanelVisible && !chordPanelScrolledToBottom)))) && (
         <div
-          className="shrink-0 z-30 relative bg-bg-elevated transition-all duration-300 mt-2 pb-2"
+          className="shrink-0 z-50 relative bg-bg-elevated transition-all duration-300 mt-2 pb-2"
         >
           <PlaybackControls />
         </div>
@@ -1964,7 +1985,7 @@ function App() {
 
       {/* Toast Notification */}
       {notification && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[200] px-4 py-2 bg-stone-800 border border-stone-700 text-white text-sm font-medium rounded-full shadow-xl animate-in fade-in slide-in-from-top-4 duration-300 flex items-center gap-3">
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[2000] px-4 py-2 bg-stone-800 border border-stone-700 text-white text-sm font-medium rounded-full shadow-xl animate-in fade-in slide-in-from-top-4 duration-300 flex items-center gap-3">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-green-500" />
             {notification.message}

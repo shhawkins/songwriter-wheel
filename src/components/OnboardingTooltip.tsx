@@ -37,7 +37,7 @@ export const OnboardingTooltip: React.FC<OnboardingTooltipProps> = ({ onDismiss 
 
     return (
         <div
-            className={`fixed inset-0 z-[100] flex items-center justify-center p-4 transition-all duration-300 ${isAnimatingOut ? 'opacity-0' : 'opacity-100'
+            className={`fixed inset-0 z-[900] flex items-center justify-center p-4 transition-all duration-300 ${isAnimatingOut ? 'opacity-0' : 'opacity-100'
                 }`}
             style={{
                 paddingTop: 'max(16px, env(safe-area-inset-top))',
