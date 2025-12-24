@@ -55,7 +55,7 @@ export const MAJOR_POSITIONS: MajorPosition[] = [
 export interface Chord {
     root: string;
     quality: 'major' | 'minor' | 'diminished' | 'augmented' | 'major7' | 'minor7' | 'dominant7' | 'halfDiminished7' | 'sus2' | 'sus4';
-    numeral: string;
+    numeral?: string;
     notes: string[];
     symbol: string;
     inversion?: number; // 0 = root position, 1 = first inversion, 2 = second, etc.

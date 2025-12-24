@@ -5,7 +5,6 @@ import clsx from 'clsx';
 import { useSongStore } from '../../store/useSongStore';
 import { getWheelColors, normalizeNote, formatChordForDisplay, getVoicingSuggestion } from '../../utils/musicTheory';
 import { playChord } from '../../utils/audioEngine';
-import { useIsMobile } from '../../hooks/useIsMobile';
 
 interface ChordSlotProps {
     slot: IChordSlot;
@@ -20,20 +19,15 @@ export const ChordSlot: React.FC<ChordSlotProps> = ({ slot, sectionId, size = 48
         selectedSlotId,
         selectedSectionId,
         selectSlotOnly,
-        setSelectedChord,
         toggleSlotSelection,
         selectRangeTo,
         setSelectedSlots,
         playingSectionId,
         playingSlotId,
         isPlaying: isGloballyPlaying,
-        selectedChord,
-        addChordToSlot,
         clearSlot,
-        chordPanelVisible,
-        setVoicingPickerState
+        openVoicingPicker
     } = useSongStore();
-    const isMobile = useIsMobile();
     const colors = getWheelColors();
     const resolvedWidth = width ?? size;
 
@@ -41,12 +35,12 @@ export const ChordSlot: React.FC<ChordSlotProps> = ({ slot, sectionId, size = 48
     const mouseStartPos = useRef<{ x: number; y: number } | null>(null);
 
     const { isOver, setNodeRef: setDroppableRef } = useDroppable({
-        id: `slot-${slot.id}`,
+        id: `slot - ${slot.id} `,
         data: { type: 'slot', sectionId, slotId: slot.id }
     });
 
     const { attributes, listeners, setNodeRef: setDraggableRef, transform, isDragging } = useDraggable({
-        id: `chord-${slot.id}`,
+        id: `chord - ${slot.id} `,
         data: { type: 'chord', chord: slot.chord, originSlotId: slot.id, originSectionId: sectionId },
         disabled: !slot.chord
     });
@@ -64,25 +58,17 @@ export const ChordSlot: React.FC<ChordSlotProps> = ({ slot, sectionId, size = 48
 
     const handleMouseDown = (e: React.MouseEvent) => {
         if (e.button !== 0) return;
-        e.stopPropagation();
+        // DO NOT stopPropagation - we need dnd-kit sensors to see this
 
         if (e.shiftKey) {
             selectRangeTo(sectionId, slot.id);
         } else if (e.metaKey || e.ctrlKey) {
             toggleSlotSelection(sectionId, slot.id);
         } else {
-            // Empty slot behavior:
-            // - First click: select the slot (highlight it)  
-            // - Second click (when already selected): add the selected chord
+            // Normal click selection logic
             if (!slot.chord) {
-                const isCurrentlySelected = selectedSectionId === sectionId && selectedSlotId === slot.id;
-                if (isCurrentlySelected && selectedChord) {
-                    // Second click on already-selected empty slot: add chord
-                    addChordToSlot(selectedChord, sectionId, slot.id);
-                } else {
-                    // First click: just select the empty slot
-                    selectSlotOnly(sectionId, slot.id);
-                }
+                // Empty slot behavior: just select it
+                selectSlotOnly(sectionId, slot.id);
                 return;
             }
 
@@ -105,11 +91,31 @@ export const ChordSlot: React.FC<ChordSlotProps> = ({ slot, sectionId, size = 48
         mouseStartPos.current = { x: e.clientX, y: e.clientY };
     };
 
-    // Play chord on click if no significant movement occurred (not a drag)
-    // Two-click behavior: first click plays chord, second click updates global chord selection
-    const handleChordClick = (e: React.MouseEvent) => {
+    // Unified click handler for the slot
+    const handleSlotClick = (e: React.MouseEvent) => {
         e.stopPropagation();
 
+        if (!slot.chord) {
+            // Empty slot behavior: select it and open picker for wheel chord
+            selectSlotOnly(sectionId, slot.id);
+
+            const currentState = useSongStore.getState();
+            const currentWheelChord = currentState.selectedChord;
+
+            // Atomic open: syncs chord + inversion immediately
+            openVoicingPicker({
+                chord: currentWheelChord,
+                inversion: currentState.chordInversion,
+                voicingSuggestion: '',
+                baseQuality: currentWheelChord?.quality || 'major'
+            });
+            return;
+        }
+    };
+
+    // Play chord on click if no significant movement occurred (not a drag)
+    const handleChordClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
         if (!slot.chord) return;
 
         // Check if mouse moved significantly (indicating a drag attempt)
@@ -129,28 +135,17 @@ export const ChordSlot: React.FC<ChordSlotProps> = ({ slot, sectionId, size = 48
             playChord(slot.chord.notes);
         }
 
-        const isCurrentlySelected = selectedSectionId === sectionId && selectedSlotId === slot.id;
+        // Open voicing picker
+        // User requested: "allow the VoicingQuickPicker to be opened on mobile with the chord details pane open if the user taps a chord on the timeline"
+        // Atomic open: avoids state dsync by setting everything in one go
+        const inv = slot.chord.inversion ?? 0;
 
-        // Open voicing picker if on desktop (first click) OR if on mobile and already selected (second click) + panel closed
-        if (!isMobile || (isCurrentlySelected && !chordPanelVisible)) {
-            setSelectedChord(slot.chord);
-            setVoicingPickerState({
-                isOpen: true,
-                chord: slot.chord,
-                voicingSuggestion: getVoicingSuggestion(0, slot.chord.quality.includes('minor') ? 'ii' : 'major'), // Basic heuristic
-                baseQuality: slot.chord.quality
-            });
-        }
-    };
-
-    // Handle double-click on any slot - add currently selected chord
-    const handleSlotDoubleClick = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (!selectedChord) return; // Need a chord selected to add
-
-        // Add the selected chord to this slot (overwrites existing chord if any)
-        addChordToSlot(selectedChord, sectionId, slot.id);
-        selectSlotOnly(sectionId, slot.id);
+        openVoicingPicker({
+            chord: slot.chord,
+            inversion: inv,
+            voicingSuggestion: getVoicingSuggestion(0, slot.chord.quality.includes('minor') ? 'ii' : 'major'),
+            baseQuality: slot.chord.quality
+        });
     };
 
     // Handle delete badge click - remove chord from slot
@@ -190,11 +185,10 @@ export const ChordSlot: React.FC<ChordSlotProps> = ({ slot, sectionId, size = 48
             ref={setDroppableRef}
             data-slot-id={slot.id}
             onMouseDown={handleMouseDown}
-            onClick={(e) => e.stopPropagation()}
-            onDoubleClick={handleSlotDoubleClick}
+            onClick={handleSlotClick}
             style={{ width: resolvedWidth, height: size }}
             className={clsx(
-                "rounded-md flex items-center justify-center transition-all relative flex-shrink-0 group",
+                "rounded-md flex items-center justify-center transition-all relative flex-shrink-0 group select-none",
                 isOver ? "border-2 border-accent-primary bg-accent-glow scale-105" : "",
                 !isOver && !slot.chord && "border-2 border-dashed border-border-medium bg-bg-elevated hover:border-text-muted cursor-pointer",
                 !isOver && slot.chord && "border-0",
@@ -220,7 +214,7 @@ export const ChordSlot: React.FC<ChordSlotProps> = ({ slot, sectionId, size = 48
                     style={{
                         ...style,
                         backgroundColor: 'rgba(0, 0, 0, 0.3)',
-                        border: `2px solid ${chordColor}`,
+                        border: `2px solid ${chordColor} `,
                         touchAction: 'none', // Required for touch device dragging
                     }}
                     className={clsx(
@@ -235,7 +229,7 @@ export const ChordSlot: React.FC<ChordSlotProps> = ({ slot, sectionId, size = 48
                         }}
                         className="truncate px-0.5 text-center font-bold"
                     >
-                        {formatChordForDisplay(slot.chord.symbol)}
+                        {formatChordForDisplay(slot.chord.symbol || '')}
                     </span>
                 </div>
             )}
@@ -246,12 +240,12 @@ export const ChordSlot: React.FC<ChordSlotProps> = ({ slot, sectionId, size = 48
                     onClick={handleDeleteClick}
                     onMouseDown={(e) => e.stopPropagation()}
                     className={clsx(
-                        "absolute -top-2 -right-2 w-4 h-4 rounded-full bg-black/70 backdrop-blur-sm hover:bg-white/20 flex items-center justify-center transition-all z-30 border border-white/30 hover:border-white/50",
+                        "absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-black/70 backdrop-blur-sm hover:bg-white/20 flex items-center justify-center transition-all z-30 border border-white/20 hover:border-white/50 no-touch-enlarge",
                         isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
                     )}
                     title="Remove chord"
                 >
-                    <span className="text-white/90 text-[10px] font-bold leading-none">×</span>
+                    <span className="text-white/90 text-[10px] font-bold leading-none -mt-0.5 pointer-events-none">×</span>
                 </button>
             )}
         </div>

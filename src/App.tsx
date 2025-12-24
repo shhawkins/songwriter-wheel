@@ -229,6 +229,9 @@ function App() {
 
   const prevUserRef = useRef<typeof user>(null);
 
+  // Ref to hold a song that needs to be saved after a successful login (e.g. rename flow)
+  const pendingSaveSongRef = useRef<any>(null);
+
   const [notification, setNotification] = useState<{
     message: string;
     action?: { label: string; onClick: () => void };
@@ -283,11 +286,23 @@ function App() {
     }
 
     if (user) {
+      // If we have a pending save (e.g. from renaming "Untitled Song" before login), execute it now
+      if (pendingSaveSongRef.current) {
+        const songToSave = pendingSaveSongRef.current;
+        pendingSaveSongRef.current = null;
+
+        saveToCloud(songToSave).then(() => {
+          setNotification({ message: `"${songToSave.title}" has been saved!` });
+          // Auto-dismiss after 3 seconds
+          setTimeout(() => setNotification(null), 3000);
+        });
+      }
+
       loadCloudSongs();
     }
 
     prevUserRef.current = user;
-  }, [user, isPasswordRecovery, loadCloudSongs]);
+  }, [user, isPasswordRecovery, loadCloudSongs, saveToCloud]);
 
   // Force open auth modal if in password recovery mode
   useEffect(() => {
@@ -465,6 +480,12 @@ function App() {
       // but NOT when touching interactive wheel elements, buttons, or other UI elements
       // Also skip when in portrait mode with chord panel open (user needs to scroll)
       if (isInWheelBackground && !isInChordDetails && !isInPlaybackControls && !isInMobileTimeline && !isInHeader && !isInHelpButton && !isInteractiveWheelElement && !isPortraitWithPanel) {
+        // Consolidated action: CLOSE picker (if open) AND toggle immersive UI
+        const state = useSongStore.getState();
+        if (state.voicingPickerState.isOpen) {
+          state.closeVoicingPicker();
+        }
+
         setMobileImmersive(prev => !prev);
         // Reset the auto-immersive timer
         if (immersiveTimeoutRef.current) {
@@ -734,6 +755,16 @@ function App() {
       // Auto-dismiss after 3 seconds
       setTimeout(() => setNotification(null), 3000);
     } else {
+      // Store the song to be saved after login
+      const songToSave = {
+        ...currentSong,
+        title: newTitle,
+        artist: newArtist,
+        tags: newTags,
+        timeSignature: newTimeSignature
+      };
+      pendingSaveSongRef.current = songToSave;
+
       setNotification({
         message: 'Save to cloud?',
         action: {
@@ -1643,6 +1674,8 @@ function App() {
                   onPanChange={handlePanChange}
                   rotationOffset={wheelRotationOffset}
                   disableModeToggle={wheelRotationOffset !== 0}
+                  onOpenKeySelector={() => setShowKeySelector(true)}
+                  onToggleUI={() => setMobileImmersive(prev => !prev)}
                 />
               </div>
             </div>
@@ -1716,7 +1749,7 @@ function App() {
                       </button>
                       <button
                         onClick={toggleTimeline}
-                        className="no-touch-enlarge text-[8px] px-1 py-0.5 text-text-muted hover:text-text-primary rounded hover:bg-bg-tertiary transition-colors flex items-center gap-0.5"
+                        className="no-touch-enlarge text-[8px] px-1 py-0.5 text-text-muted hover:text-text-primary rounded hover:bg-bg-tertiary transition-colors flex items-center gap-0.5 timeline-toggle"
                         title="Hide timeline"
                       >
                         <ChevronDown size={8} />
@@ -1735,7 +1768,7 @@ function App() {
               <div className="h-12 bg-bg-secondary border-t border-border-subtle flex items-center justify-center shrink-0">
                 <button
                   onClick={toggleTimeline}
-                  className="px-3 h-full flex items-center gap-1 text-[8px] text-text-muted hover:text-text-primary hover:bg-bg-tertiary transition-colors"
+                  className="px-3 h-full flex items-center gap-1 text-[8px] text-text-muted hover:text-text-primary hover:bg-bg-tertiary transition-colors timeline-toggle"
                   title="Show timeline"
                 >
                   <ChevronUp size={10} />
@@ -1843,7 +1876,7 @@ function App() {
       {/* Footer: Playback - hidden in mobile immersive mode or when chord panel is open (unless scrolled to bottom), BUT always show when playing */}
       {(isPlaying || !(isMobile && !isLandscape && (mobileImmersive || (chordPanelVisible && !chordPanelScrolledToBottom)))) && (
         <div
-          className="shrink-0 z-30 relative bg-bg-elevated transition-all duration-300"
+          className="shrink-0 z-30 relative bg-bg-elevated transition-all duration-300 mt-2 pb-2"
         >
           <PlaybackControls />
         </div>
@@ -1861,7 +1894,7 @@ function App() {
 
       {/* Song Title Input Modal */}
       {songTitleInput.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm song-title-input-modal">
           <div className="w-full max-w-sm bg-stone-900 border border-stone-700 rounded-xl shadow-2xl p-6">
             <h3 className="text-lg font-semibold text-stone-200 mb-4">Name Your Song</h3>
             <input
@@ -1931,7 +1964,7 @@ function App() {
 
       {/* Toast Notification */}
       {notification && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[60] px-4 py-2 bg-stone-800 border border-stone-700 text-white text-sm font-medium rounded-full shadow-xl animate-in fade-in slide-in-from-top-4 duration-300 flex items-center gap-3">
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[200] px-4 py-2 bg-stone-800 border border-stone-700 text-white text-sm font-medium rounded-full shadow-xl animate-in fade-in slide-in-from-top-4 duration-300 flex items-center gap-3">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-green-500" />
             {notification.message}

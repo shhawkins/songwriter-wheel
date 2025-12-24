@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Copy, Eraser, Trash2, X, ChevronLeft, ChevronRight, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Copy, Eraser, Trash2, X, ChevronLeft, ChevronRight, ArrowLeft, ArrowRight, Map } from 'lucide-react';
 import clsx from 'clsx';
 import type { Section } from '../../types';
 import { NoteIcon, getNoteType, getStepOptions } from './NoteValueSelector';
@@ -82,7 +82,7 @@ export const SectionOptionsPopup: React.FC<SectionOptionsPopupProps> = ({
     onNavigateToSection,
 }) => {
     const popupRef = useRef<HTMLDivElement>(null);
-    const { currentSong, reorderSections, addSuggestedSection } = useSongStore();
+    const { currentSong, reorderSections, addSuggestedSection, toggleSongMap } = useSongStore();
     const sectionTimeSignature = section.timeSignature || songTimeSignature;
     const signatureValue = `${sectionTimeSignature[0]}/${sectionTimeSignature[1]}`;
     const measureCount = section.measures.length;
@@ -235,15 +235,28 @@ export const SectionOptionsPopup: React.FC<SectionOptionsPopupProps> = ({
                             </span>
                         )}
                     </div>
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onClose();
-                        }}
-                        className="p-1.5 rounded-full hover:bg-bg-tertiary text-text-muted hover:text-text-primary transition-colors shrink-0"
-                    >
-                        <X size={14} />
-                    </button>
+                    <div className="flex items-center gap-1 shrink-0">
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                toggleSongMap(true);
+                                onClose();
+                            }}
+                            className="p-1.5 rounded-full hover:bg-bg-tertiary text-text-muted hover:text-accent-primary transition-colors shrink-0"
+                            title="Open Song Map"
+                        >
+                            <Map size={14} />
+                        </button>
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onClose();
+                            }}
+                            className="p-1.5 rounded-full hover:bg-bg-tertiary text-text-muted hover:text-text-primary transition-colors shrink-0"
+                        >
+                            <X size={14} />
+                        </button>
+                    </div>
                 </div>
 
                 {/* Song Timeline - visual overview of all sections */}

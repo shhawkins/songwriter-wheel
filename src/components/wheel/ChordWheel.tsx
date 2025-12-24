@@ -10,6 +10,7 @@ import {
     getQualitySymbol,
     getChordSymbolWithInversion,
     getVoicingSuggestion,
+    invertChord,
     type Chord
 } from '../../utils/musicTheory';
 import { WheelSegment } from './WheelSegment';
@@ -30,6 +31,10 @@ interface ChordWheelProps {
     disableModeToggle?: boolean;
     /** Whether the footer (playback controls) is visible - affects floating chord tag position */
     footerVisible?: boolean;
+    /** Callback to open key selection modal */
+    onOpenKeySelector?: () => void;
+    /** Callback to toggle UI (header/footer) visibility */
+    onToggleUI?: () => void;
 }
 
 type WheelChord = Chord & {
@@ -46,7 +51,9 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
     onPanChange,
     rotationOffset = 0,
     disableModeToggle = false,
-    footerVisible = true
+    footerVisible = true,
+    onOpenKeySelector,
+    onToggleUI
 }) => {
     const {
         selectedKey,
@@ -67,13 +74,11 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
         chordPanelVisible,
         toggleChordPanel,
         pulseChordPanel,
-        chordPanelGuitarExpanded,
-        chordPanelVoicingsExpanded,
-        chordPanelAttention,
         chordInversion,
         setChordInversion,
         voicingPickerState,
-        setVoicingPickerState
+        setVoicingPickerState,
+        isDraggingVoicingPicker
     } = useSongStore();
 
     // Calculate wheel rotation
@@ -127,10 +132,12 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
             selectedSectionId,
             selectedSlotId,
             timelineVisible,
-            chordInversion
+            chordInversion,
+            autoAdvance
         } = state;
 
-        const notes = getChordNotes(root, quality);
+        const rawNotes = getChordNotes(root, quality);
+        const notes = invertChord(rawNotes, chordInversion);
         const symbol = getChordSymbolWithInversion(root, quality, notes, chordInversion);
         const newChord: Chord = {
             root,
@@ -152,11 +159,21 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
         }
 
         addChordToSlot(newChord, currentSectionId, currentSlotId);
-        const advanced = selectNextSlotAfter(currentSectionId, currentSlotId);
 
-        if (!advanced) {
-            setSelectedSlot(currentSectionId, currentSlotId);
-            setSelectedChord(newChord);
+        // Feedback: Select the added chord and open the voicing modal
+        setSelectedSlot(currentSectionId, currentSlotId);
+        setSelectedChord(newChord);
+
+        // Open voicing picker for the new chord
+        state.setVoicingPickerState({
+            isOpen: true,
+            chord: newChord,
+            voicingSuggestion: getVoicingSuggestion(0, quality.includes('minor') ? 'ii' : 'major'),
+            baseQuality: quality
+        });
+
+        if (autoAdvance) {
+            selectNextSlotAfter(currentSectionId, currentSlotId);
         }
 
         if (!timelineVisible) {
@@ -238,6 +255,7 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
 
         // Click is on the wheel (between minRadius and maxWheelRadius) -> rotate
         if (distance > minRadius && distance <= maxWheelRadius) {
+            if (isDraggingVoicingPicker) return;
             setIsDragging(true);
             dragStartAngle.current = getAngleFromCenter(e.clientX, e.clientY);
             accumulatedRotation.current = wheelRotation;
@@ -276,7 +294,7 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
     }, [getAngleFromCenter, wheelRotation]);
 
     const handleTouchMoveForDrag = useCallback((e: React.TouchEvent) => {
-        if (e.touches.length !== 1 || !dragStartPos.current) return;
+        if (e.touches.length !== 1 || !dragStartPos.current || isDraggingVoicingPicker) return;
 
         const touch = e.touches[0];
         const dx = touch.clientX - dragStartPos.current.x;
@@ -318,10 +336,10 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
                 }
             }
         }
-    }, [getAngleFromCenter, handleRotate, wheelMode, normalizeAngleDelta]);
+    }, [getAngleFromCenter, handleRotate, wheelMode, normalizeAngleDelta, isDraggingVoicingPicker]);
 
     const handleDragMove = useCallback((e: MouseEvent) => {
-        if (!isDragging) return;
+        if (!isDragging || isDraggingVoicingPicker) return;
 
         const currentAngle = getAngleFromCenter(e.clientX, e.clientY);
         // Normalize to handle wrap-around when crossing ±180°
@@ -547,12 +565,8 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
 
         // Show voicing picker for ALL chords (with or without suggestions)
         // - Always show on desktop and landscape mobile
-        // - In mobile portrait with chord panel open: only show if BOTH Guitar and Voicings sections are collapsed
-        //   (if either is expanded, the picker is redundant)
-        const isMobilePortrait = isMobile && !isLandscape;
-        const bothSectionsCollapsed = !chordPanelGuitarExpanded && !chordPanelVoicingsExpanded;
-        const shouldShowPicker = !isMobilePortrait || !chordPanelVisible || bothSectionsCollapsed;
-
+        // - In mobile portrait with chord panel open: DON'T show (as requested)
+        const shouldShowPicker = !isMobile || isLandscape || !chordPanelVisible;
         if (shouldShowPicker) {
             setVoicingPickerState({
                 isOpen: true,
@@ -584,14 +598,41 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
             }
         }
 
-        // Add chord to the selected slot
+        // 1. Add chord to the selected slot FIRST
         addChordToSlot(chord, currentSectionId, currentSlotId);
-        const advanced = selectNextSlotAfter(currentSectionId, currentSlotId);
 
-        if (!advanced) {
-            setSelectedSlot(currentSectionId, currentSlotId);
-            setSelectedSegmentId(wheelChord.segmentId ?? null);
-            setSelectedChord(chord);
+        // 2. Select the slot and chord in the store
+        setSelectedSlot(currentSectionId, currentSlotId);
+        setSelectedChord(chord);
+
+        // 3. Update the segments/highlight
+        setSelectedSegmentId(wheelChord.segmentId ?? null);
+
+        // 4. Feedback: Keep the voicing picker in sync after adding
+        let voicingSuggestion = '';
+        if (wheelChord.positionIndex !== undefined && wheelChord.ringType) {
+            const relPos = getRelativePosition(wheelChord.positionIndex);
+            voicingSuggestion = getVoicingSuggestion(
+                relPos,
+                wheelChord.ringType === 'major' ? 'major' :
+                    wheelChord.ringType === 'minor' ?
+                        (wheelChord.numeral === 'ii' || wheelChord.numeral === 'vi' ? 'ii' : 'iii') :
+                        'dim'
+            );
+        }
+
+        useSongStore.getState().setVoicingPickerState({
+            isOpen: true,
+            chord: wheelChord,
+            voicingSuggestion,
+            baseQuality: wheelChord.quality
+        });
+
+        // 5. Advance to next slot
+        // Check if auto-advance is enabled
+        const autoAdvance = useSongStore.getState().autoAdvance;
+        if (autoAdvance) {
+            selectNextSlotAfter(currentSectionId, currentSlotId);
         }
 
         // Open timeline if it's hidden so user can see the result
@@ -798,6 +839,28 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
                         </filter>
                     </defs>
 
+                    {/* Invisible background to capture taps/clicks for navigation and UI toggling */}
+                    <rect
+                        x="-100%"
+                        y="-100%"
+                        width="300%"
+                        height="300%"
+                        fill="transparent"
+                        onClick={(_e) => {
+                            // Don't stop propagation, allow App.tsx to catch it too if needed,
+                            // but we'll also handle it here for safety on desktop/mobile.
+
+                            const state = useSongStore.getState();
+                            if (state.voicingPickerState.isOpen) {
+                                state.closeVoicingPicker();
+                            }
+
+                            // Always toggle UI
+                            onToggleUI?.();
+                        }}
+                        style={{ pointerEvents: 'all' }}
+                    />
+
                     {/* ROTATING WHEEL - rotates based on selected key */}
                     <g
                         style={{
@@ -992,7 +1055,25 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
                         })}
                     </g>
 
-                    {/* Center Circle */}
+                    {/* Center Clickable Area - transparent overlay for tapping the center */}
+                    <circle
+                        cx={cx}
+                        cy={cy}
+                        r={centerRadius}
+                        fill="transparent"
+                        className="cursor-pointer"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenKeySelector?.();
+                        }}
+                        onTouchEnd={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onOpenKeySelector?.();
+                        }}
+                    />
+
+                    {/* Center Circle Visual */}
                     <circle cx={cx} cy={cy} r={centerRadius} fill="#1a1a24" stroke="#3a3a4a" strokeWidth="2" style={{ pointerEvents: 'none' }} />
 
                     {/* KEY Label */}
@@ -1172,7 +1253,7 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
                         setSelectedSegmentId((chord as WheelChord).segmentId);
                     }
                 }}
-                portraitWithPanel={isMobile && !isLandscape && chordPanelVisible && !chordPanelGuitarExpanded && !chordPanelVoicingsExpanded}
+                portraitWithPanel={isMobile && !isLandscape && chordPanelVisible}
             />
 
             {/* Floating chord indicator - shows on mobile portrait when chord panel is closed */}

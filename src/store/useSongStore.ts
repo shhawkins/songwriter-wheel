@@ -122,6 +122,7 @@ interface SongState {
     wheelMode: 'rotating' | 'fixed';  // Rotating = wheel spins, Fixed = highlights move
     chordPanelVisible: boolean;   // Toggle chord panel visibility
     timelineVisible: boolean;     // Toggle timeline visibility
+    timelineZoom: number;         // Zoom level for timeline slots
     songMapVisible: boolean;      // Toggle Song Map visibility
     songInfoModalVisible: boolean; // Toggle Song Info Modal visibility
     instrumentManagerModalVisible: boolean; // Toggle Instrument Manager Modal visibility
@@ -161,6 +162,10 @@ interface SongState {
     chordInversion: number;
     setChordInversion: (inversion: number) => void;
     setChordPanelScrollTarget: (target: 'voicings' | 'guitar' | 'scales' | 'theory' | null) => void;
+    autoAdvance: boolean;
+    toggleAutoAdvance: () => void;
+    isDraggingVoicingPicker: boolean;
+    setIsDraggingVoicingPicker: (isDragging: boolean) => void;
 
     // Actions
     setKey: (key: string, options?: { skipRotation?: boolean }) => void;
@@ -168,6 +173,7 @@ interface SongState {
     toggleWheelMode: () => void;
     toggleChordPanel: () => void;
     toggleTimeline: () => void;
+    setTimelineZoom: (zoom: number) => void;
     openTimeline: () => void;  // Opens timeline if not already open (for double-tap from wheel/details)
     toggleSongMap: (force?: boolean) => void;
     toggleSongInfoModal: (force?: boolean) => void;
@@ -176,6 +182,12 @@ interface SongState {
     setChordPanelGuitarExpanded: (expanded: boolean) => void;
     setChordPanelVoicingsExpanded: (expanded: boolean) => void;
     pulseChordPanel: () => void;  // Trigger attention animation on chord panel
+    openVoicingPicker: (config: {
+        chord: Chord | null;
+        inversion: number;
+        voicingSuggestion?: string;
+        baseQuality?: string;
+    }) => void;
     setVoicingPickerState: (state: Partial<SongState['voicingPickerState']>) => void;
     closeVoicingPicker: () => void;
 
@@ -469,6 +481,7 @@ export const useSongStore = create<SongState>()(
             wheelMode: 'fixed' as SongState['wheelMode'],
             chordPanelVisible: true,
             timelineVisible: true,
+            timelineZoom: 1,
             songMapVisible: false,
             songInfoModalVisible: false,
             instrumentManagerModalVisible: false,
@@ -489,6 +502,7 @@ export const useSongStore = create<SongState>()(
             selectedSlotId: null as string | null,
             selectedSlots: [] as SelectionSlot[],
             selectionAnchor: null as SelectionSlot | null,
+            isDraggingVoicingPicker: false,
             isPlaying: false,
             playingSectionId: null as string | null,
             playingSlotId: null as string | null,
@@ -501,6 +515,7 @@ export const useSongStore = create<SongState>()(
             cloudSongs: [] as Song[],
             chordInversion: 0,
             isLoadingCloud: false,
+            autoAdvance: true,
 
             resetState: () => set({
                 cloudSongs: [],
@@ -513,7 +528,7 @@ export const useSongStore = create<SongState>()(
             }),
 
             loadCloudSongs: async () => {
-                const { data: { user } } = await supabase.auth.getUser();
+                const { data: { user } = {} } = await supabase.auth.getUser();
                 if (!user) return;
 
                 set({ isLoadingCloud: true });
@@ -541,7 +556,7 @@ export const useSongStore = create<SongState>()(
             },
 
             saveToCloud: async (song: Song) => {
-                const { data: { user } } = await supabase.auth.getUser();
+                const { data: { user } = {} } = await supabase.auth.getUser();
                 if (!user) return;
 
                 set({ isLoadingCloud: true });
@@ -650,7 +665,7 @@ export const useSongStore = create<SongState>()(
             },
 
             saveInstrumentToCloud: async (instrument: CustomInstrument) => {
-                const { data: { user } } = await supabase.auth.getUser();
+                const { data: { user } = {} } = await supabase.auth.getUser();
                 if (!user) return;
 
                 const { error } = await supabase
@@ -669,7 +684,7 @@ export const useSongStore = create<SongState>()(
             },
 
             fetchUserInstruments: async () => {
-                const { data: { user } } = await supabase.auth.getUser();
+                const { data: { user } = {} } = await supabase.auth.getUser();
                 if (!user) return [];
 
                 const { data, error } = await supabase
@@ -690,7 +705,7 @@ export const useSongStore = create<SongState>()(
             },
 
             uploadSample: async (file: Blob, folder: string, filename: string) => {
-                const { data: { user } } = await supabase.auth.getUser();
+                const { data: { user } = {} } = await supabase.auth.getUser();
                 if (!user) return null;
 
                 // Enforce 1MB limit (client-side check strictly)
@@ -699,7 +714,7 @@ export const useSongStore = create<SongState>()(
                     return null;
                 }
 
-                const path = `${user.id} /${folder}/${filename} `;
+                const path = `${user.id}/${folder}/${filename}`;
 
                 const { data, error } = await supabase
                     .storage
@@ -779,9 +794,9 @@ export const useSongStore = create<SongState>()(
 
             // Cumulative rotation to avoid wrap-around animation issues
             rotateWheel: (direction) => set((state) => ({
-                wheelRotation: state.wheelMode === 'rotating'
+                wheelRotation: state.wheelMode === 'rotating' && !state.isDraggingVoicingPicker
                     ? state.wheelRotation + (direction === 'cw' ? -30 : 30)
-                    : 0  // In fixed mode, wheel doesn't rotate
+                    : 0  // In fixed mode, wheel doesn't rotate, or if dragging voicing picker
             })),
 
             toggleWheelMode: () => set((state) => {
@@ -806,6 +821,7 @@ export const useSongStore = create<SongState>()(
 
             toggleChordPanel: () => set((state) => ({ chordPanelVisible: !state.chordPanelVisible })),
             toggleTimeline: () => set((state) => ({ timelineVisible: !state.timelineVisible })),
+            setTimelineZoom: (zoom) => set({ timelineZoom: Math.max(0.3, Math.min(2, zoom)) }),
             openTimeline: () => set((state) => {
                 // Dispatch custom event for mobile to open its timeline drawer
                 if (typeof window !== 'undefined') {
@@ -865,22 +881,29 @@ export const useSongStore = create<SongState>()(
                 set({ chordPanelAttention: true });
                 setTimeout(() => set({ chordPanelAttention: false }), 600);
             },
-            setVoicingPickerState: (updates) => {
-                set((state) => ({
-                    voicingPickerState: {
-                        ...state.voicingPickerState,
-                        ...updates
-                    }
-                }));
-            },
-            closeVoicingPicker: () => {
-                set((state) => ({
-                    voicingPickerState: {
-                        ...state.voicingPickerState,
-                        isOpen: false
-                    }
-                }));
-            },
+            setVoicingPickerState: (pickerState) => set((state) => ({
+                voicingPickerState: { ...state.voicingPickerState, ...pickerState }
+            })),
+
+            openVoicingPicker: (config) => set((state) => ({
+                selectedChord: config.chord,
+                chordInversion: config.inversion,
+                voicingPickerState: {
+                    isOpen: true,
+                    chord: config.chord,
+                    voicingSuggestion: config.voicingSuggestion || '',
+                    baseQuality: config.baseQuality || config.chord?.quality || 'major'
+                }
+            })),
+            closeVoicingPicker: () => set((state) => ({
+                voicingPickerState: {
+                    ...state.voicingPickerState,
+                    isOpen: false
+                }
+            })),
+
+            setIsDraggingVoicingPicker: (isDragging) => set({ isDraggingVoicingPicker: isDragging }),
+            toggleAutoAdvance: () => set((state) => ({ autoAdvance: !state.autoAdvance })),
 
             setSelectedChord: (chord) => set({ selectedChord: chord }),
             setSelectedSlot: (sectionId, slotId) => set((state) => {
@@ -1789,8 +1812,8 @@ export const useSongStore = create<SongState>()(
                 });
 
                 if (!sourceChord && !targetChord) return {};
-                // Note: sourceChord might be null if we allow dragging empty slots, 
-                // but usually the UI prevents dragging empty slots. 
+                // Note: sourceChord might be null if we allow dragging empty slots,
+                // but usually the UI prevents dragging empty slots.
                 // If source is null, we are just "swapping" null into the target, clearing it,
                 // and moving the target back to source.
 
