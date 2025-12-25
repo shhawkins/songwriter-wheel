@@ -588,10 +588,12 @@ function App() {
 
       // For desktop/tablet, compute wheel size based on actual available space
       if (!mobile) {
-        // Available height = viewport - header(48) - footer(65) - timeline(152) - padding(20)
-        // Using tighter padding to maximize size
-        const timelineH = useSongStore.getState().timelineVisible ? 152 : 60;
-        const availableHeight = height - 48 - 280 - timelineH - 20;
+        // Available height = viewport - header(48) - footer(70) - timeline(152/48) - padding(30)
+        // We use a safe footer estimate of 70px (actual is ~65px) + 30px padding for safety
+        const currentTimelineVisible = useSongStore.getState().timelineVisible;
+        const timelineH = currentTimelineVisible ? 152 : 48;
+        const availableHeight = height - 48 - 70 - timelineH - 30;
+
         // Available width = viewport - sidebar(380) - padding(40)
         const availableWidth = width - 380 - 40;
         setComputedWheelSize(Math.max(200, Math.min(availableWidth, availableHeight)));
@@ -634,8 +636,8 @@ function App() {
     const width = window.innerWidth;
     const height = window.innerHeight;
     const timelineH = timelineVisible ? 152 : 48;
-    // Footer height estimate adjusted to 65px, tighter padding (20px)
-    const availableHeight = height - 48 - 65 - timelineH - 20;
+    // Match the calculation in updateLayout
+    const availableHeight = height - 48 - 70 - timelineH - 30;
     const availableWidth = width - 380 - 40;
     setComputedWheelSize(Math.max(300, Math.min(availableWidth, availableHeight)));
   }, [timelineVisible, isMobile]);
@@ -1707,7 +1709,7 @@ function App() {
               <>
                 {/* Timeline - compact fixed height with mobile-inspired design */}
                 <div
-                  className="shrink-0 bg-bg-secondary border-t border-border-subtle overflow-hidden flex flex-col relative z-20 mb-6"
+                  className="shrink-0 bg-bg-secondary border-t border-border-subtle overflow-hidden flex flex-col relative z-20"
                   style={{ height: timelineHeight }}
                 >
                   {/* Timeline Header Handle */}
@@ -1730,7 +1732,8 @@ function App() {
               </>
             ) : (
               /* Collapsed timeline - thin bar with show button */
-              <div className="h-12 bg-bg-secondary border-t border-border-subtle flex items-center justify-center shrink-0 relative z-50 mb-6">
+              /* Collapsed timeline - thin bar with show button */
+              <div className="h-12 bg-bg-secondary border-t border-border-subtle flex items-center justify-center shrink-0 relative z-50">
                 <button
                   onClick={toggleTimeline}
                   className="px-3 h-full flex items-center gap-1 text-[8px] text-text-muted hover:text-text-primary hover:bg-bg-tertiary transition-colors timeline-toggle"
@@ -1841,7 +1844,7 @@ function App() {
       {/* Footer: Playback - hidden in mobile immersive mode or when chord panel is open (unless scrolled to bottom), BUT always show when playing */}
       {(isPlaying || !(isMobile && !isLandscape && (mobileImmersive || (chordPanelVisible && !chordPanelScrolledToBottom)))) && (
         <div
-          className="shrink-0 z-50 relative bg-bg-elevated transition-all duration-300 mt-2 pb-2"
+          className="shrink-0 z-50 relative bg-bg-elevated transition-all duration-300 pb-2"
         >
           <PlaybackControls />
         </div>

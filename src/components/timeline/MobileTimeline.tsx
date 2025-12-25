@@ -540,6 +540,7 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
             style={{
                 // No max height in landscape, embedded mode (hideCloseButton), or when parent manages height
                 maxHeight: isLandscape || hideCloseButton ? undefined : '140px',
+                height: hideCloseButton ? '100%' : undefined,
                 transform: swipeOffset > 0 ? `translateY(${swipeOffset}px)` : undefined,
                 opacity: swipeOffset > 0 ? Math.max(0.5, 1 - (swipeOffset / 150)) : 1,
                 transition: swipeOffset === 0 ? 'all 0.2s ease-out' : 'none'
@@ -799,6 +800,7 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                     className={clsx(
                         "flex-1",
                         isDesktop ? "px-3 pb-2 pt-3" : "px-1 pb-1 pt-3", // Extra top padding for delete badge
+                        "min-h-0", // Ensure flex child shrinks/scrolls correctly
                         isLandscape
                             ? "overflow-y-auto overflow-x-hidden no-scrollbar select-none" // Landscape: vertical scroll, bars stacked
                             : "overflow-x-auto overflow-y-hidden no-scrollbar select-none" // Portrait: horizontal scroll
