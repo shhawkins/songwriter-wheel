@@ -836,8 +836,8 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
                     )}
                     {/* Right column: Auto-advance + Add button + Close button */}
                     <div className={`flex items-center gap-2 shrink-0 ${isVeryNarrowPanel ? 'justify-center w-full' : 'justify-end'}`}>
-                        {/* Auto-advance toggle - desktop sidebar only */}
-                        {!isMobile && !isDrawer && !isLandscapeVariant && chord && (
+                        {/* Auto-advance toggle - visible on desktop and mobile */}
+                        {!isLandscapeVariant && chord && (
                             <button
                                 onClick={toggleAutoAdvance}
                                 className={`px-2 py-1.5 rounded-lg transition-all flex flex-col items-center justify-center gap-0.5 ${autoAdvance

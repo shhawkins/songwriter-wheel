@@ -170,7 +170,9 @@ const SortableSection = ({ section, allSections, onSelectBeat, onBeatTap, onEmpt
 
     // Calculate width based on compact mode
     const minWidth = isCompact ? 40 : 100;
-    const sectionWidth = Math.max(minWidth, measures.length * measureWidth);
+    // Ensure we respect the minimum measure width (32px + gap) to prevent cutoff
+    const effectiveMeasureWidth = Math.max(measureWidth, 32);
+    const sectionWidth = Math.max(minWidth, measures.length * effectiveMeasureWidth);
     const sectionHeight = isCompact ? 60 : 140;
 
     // Compact/simplified view for zoomed out state
@@ -706,7 +708,7 @@ export const SongOverview: React.FC<SongOverviewProps> = ({ onSave, onExport }) 
 
     const [zoomLevel, setZoomLevel] = useState(1); // 0.5 to 2
     const scrollContainerRef = useRef<HTMLDivElement>(null);
-    // const { isLandscape } = useMobileLayout(); // Unused in new design
+    const { isLandscape, isMobile } = useMobileLayout();
 
     // State for selected chord within the Song Map (two-tap selection)
     const [selectedMapChord, setSelectedMapChord] = useState<Chord | null>(null);
@@ -859,267 +861,315 @@ export const SongOverview: React.FC<SongOverviewProps> = ({ onSave, onExport }) 
             onClick={() => toggleSongMap(false)}
         >
             {/* Header - Edge to Edge with gradient */}
-            <div
-                className="shrink-0 relative z-20"
-                style={{ paddingTop: 'max(16px, env(safe-area-inset-top))' }}
-                onClick={(e) => e.stopPropagation()}
-            >
-                <div className="absolute inset-0 bg-gradient-to-b from-black/60 to-transparent pointer-events-none" />
-                <div className="relative flex items-center justify-between px-4 py-3 mt-2">
-                    <div
-                        className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            toggleSongInfoModal(true);
-                        }}
-                    >
-                        <div>
-                            <h2 className="font-bold text-white text-base leading-tight">
-                                {currentSong.title}
-                            </h2>
-                            {currentSong.artist && currentSong.artist.trim() && (
-                                <p className="text-white/40 text-[11px] italic">
-                                    by {currentSong.artist}
-                                </p>
-                            )}
-                        </div>
-                    </div>
+            {isMobile && isLandscape ? (
+                // COMPACT LANDSCAPE HEADER
+                <div
+                    className="shrink-0 relative z-20 flex items-center justify-between px-4 py-2 bg-gradient-to-b from-black/80 to-transparent"
+                    style={{ paddingTop: 'max(8px, env(safe-area-inset-top))' }}
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <h2 className="font-bold text-white text-sm truncate flex-1 mr-4">
+                        {currentSong.title}
+                        <span className="text-white/40 font-normal ml-2 text-xs opacity-70">
+                            {currentSong.sections.length} sections • {totalMeasures} bars
+                        </span>
+                    </h2>
 
-                    {/* Action buttons */}
                     <div className="flex items-center gap-2">
-                        {/* Undo/Redo */}
-                        <div className="flex items-center gap-1 bg-white/5 rounded-full p-0.5 border border-white/5 mr-2">
+                        {/* Undo/Redo - Tiny */}
+                        <div className="flex items-center gap-0.5 bg-white/5 rounded-full p-0.5 border border-white/5 mr-1 scale-90 origin-right">
                             <button
                                 onClick={(e) => { e.stopPropagation(); undo(); }}
                                 disabled={!canUndo}
-                                className={clsx(
-                                    "w-7 h-7 rounded-full flex items-center justify-center transition-all",
-                                    canUndo
-                                        ? "text-white/70 hover:text-white hover:bg-white/10 active:scale-95"
-                                        : "text-white/20 cursor-not-allowed"
-                                )}
-                                title="Undo"
+                                className={clsx("w-6 h-6 flex items-center justify-center rounded-full text-white/70", canUndo ? "hover:text-white" : "opacity-30")}
                             >
-                                <RotateCcw size={14} />
+                                <RotateCcw size={12} />
                             </button>
                             <button
                                 onClick={(e) => { e.stopPropagation(); redo(); }}
                                 disabled={!canRedo}
-                                className={clsx(
-                                    "w-7 h-7 rounded-full flex items-center justify-center transition-all",
-                                    canRedo
-                                        ? "text-white/70 hover:text-white hover:bg-white/10 active:scale-95"
-                                        : "text-white/20 cursor-not-allowed"
-                                )}
-                                title="Redo"
+                                className={clsx("w-6 h-6 flex items-center justify-center rounded-full text-white/70", canRedo ? "hover:text-white" : "opacity-30")}
                             >
-                                <RotateCw size={14} />
+                                <RotateCw size={12} />
                             </button>
                         </div>
 
-                        {onSave && (
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onSave();
-                                }}
-                                className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 active:bg-white/20 flex items-center justify-center text-white/70 hover:text-white transition-colors"
-                                title="Save song"
-                            >
-                                <Save size={16} />
-                            </button>
-                        )}
-                        {onExport && (
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onExport();
-                                }}
-                                className="h-8 px-2.5 rounded-full bg-accent-primary/20 hover:bg-accent-primary/30 active:bg-accent-primary/40 flex items-center justify-center gap-1 text-accent-primary hover:text-white transition-colors"
-                                title="Export PDF"
-                            >
-                                <Download size={14} />
-                                <span className="text-[10px] font-bold">PDF</span>
-                            </button>
-                        )}
                         <button
                             onClick={() => toggleSongMap(false)}
-                            className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 active:bg-white/20 flex items-center justify-center text-white/70 transition-colors"
+                            className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-white/70"
                         >
-                            <X size={16} />
+                            <X size={14} />
                         </button>
                     </div>
                 </div>
+            ) : (
+                /* DEFAULT PORTRAIT / DESKTOP HEADER */
+                <div
+                    className="shrink-0 relative z-20"
+                    style={{ paddingTop: 'max(16px, env(safe-area-inset-top))' }}
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <div className="absolute inset-0 bg-gradient-to-b from-black/60 to-transparent pointer-events-none" />
+                    <div className="relative flex items-center justify-between px-4 py-3 mt-2">
+                        <div
+                            className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                toggleSongInfoModal(true);
+                            }}
+                        >
+                            <div>
+                                <h2 className="font-bold text-white text-base leading-tight">
+                                    {currentSong.title}
+                                </h2>
+                                {currentSong.artist && currentSong.artist.trim() && (
+                                    <p className="text-white/40 text-[11px] italic">
+                                        by {currentSong.artist}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
 
-                {/* Song Stats Bar */}
-                <div className="flex items-center gap-4 px-4 pb-4 text-[10px] font-medium text-white/40 overflow-x-auto no-scrollbar">
-                    <div className="flex items-center gap-1.5 shrink-0">
-                        <span className="text-accent-primary">{currentSong.sections.length}</span>
-                        <span>Sections</span>
+                        {/* Action buttons */}
+                        <div className="flex items-center gap-2">
+                            {/* Undo/Redo */}
+                            <div className="flex items-center gap-1 bg-white/5 rounded-full p-0.5 border border-white/5 mr-2">
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); undo(); }}
+                                    disabled={!canUndo}
+                                    className={clsx(
+                                        "w-7 h-7 rounded-full flex items-center justify-center transition-all",
+                                        canUndo
+                                            ? "text-white/70 hover:text-white hover:bg-white/10 active:scale-95"
+                                            : "text-white/20 cursor-not-allowed"
+                                    )}
+                                    title="Undo"
+                                >
+                                    <RotateCcw size={14} />
+                                </button>
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); redo(); }}
+                                    disabled={!canRedo}
+                                    className={clsx(
+                                        "w-7 h-7 rounded-full flex items-center justify-center transition-all",
+                                        canRedo
+                                            ? "text-white/70 hover:text-white hover:bg-white/10 active:scale-95"
+                                            : "text-white/20 cursor-not-allowed"
+                                    )}
+                                    title="Redo"
+                                >
+                                    <RotateCw size={14} />
+                                </button>
+                            </div>
+
+                            {onSave && (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onSave();
+                                    }}
+                                    className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 active:bg-white/20 flex items-center justify-center text-white/70 hover:text-white transition-colors"
+                                    title="Save song"
+                                >
+                                    <Save size={16} />
+                                </button>
+                            )}
+                            {onExport && (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onExport();
+                                    }}
+                                    className="h-8 px-2.5 rounded-full bg-accent-primary/20 hover:bg-accent-primary/30 active:bg-accent-primary/40 flex items-center justify-center gap-1 text-accent-primary hover:text-white transition-colors"
+                                    title="Export PDF"
+                                >
+                                    <Download size={14} />
+                                    <span className="text-[10px] font-bold">PDF</span>
+                                </button>
+                            )}
+                            <button
+                                onClick={() => toggleSongMap(false)}
+                                className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 active:bg-white/20 flex items-center justify-center text-white/70 transition-colors"
+                            >
+                                <X size={16} />
+                            </button>
+                        </div>
                     </div>
-                    <div className="w-px h-2 bg-white/10 shrink-0" />
-                    <div className="flex items-center gap-1.5 shrink-0">
-                        <span className="text-accent-primary">{totalMeasures}</span>
-                        <span>Bars</span>
-                    </div>
-                    <div className="w-px h-2 bg-white/10 shrink-0" />
-                    <div className="flex items-center gap-1.5 shrink-0">
-                        <span className="text-accent-primary">{formattedDuration}</span>
-                        <span>Duration</span>
+
+                    {/* Song Stats Bar */}
+                    <div className="flex items-center gap-4 px-4 pb-4 text-[10px] font-medium text-white/40 overflow-x-auto no-scrollbar">
+                        <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="text-accent-primary">{currentSong.sections.length}</span>
+                            <span>Sections</span>
+                        </div>
+                        <div className="w-px h-2 bg-white/10 shrink-0" />
+                        <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="text-accent-primary">{totalMeasures}</span>
+                            <span>Bars</span>
+                        </div>
+                        <div className="w-px h-2 bg-white/10 shrink-0" />
+                        <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="text-accent-primary">{formattedDuration}</span>
+                            <span>Duration</span>
+                        </div>
                     </div>
                 </div>
+            )}
 
 
-                {/* Song Timeline Overview */}
-                <div className="px-4 pb-4">
-                    <SongTimeline
-                        sections={currentSong.sections}
-                        activeSectionId={(playingSectionId || selectedMapSectionId || editingSectionId) || undefined}
-                        onReorder={reorderSections}
-                        onAddSection={addSuggestedSection}
-                        onSectionClick={(sectionId) => {
-                            const sectionElement = scrollContainerRef.current?.querySelector(`[data-section-id="${sectionId}"]`);
-                            if (sectionElement) {
-                                sectionElement.scrollIntoView({
-                                    behavior: 'smooth',
-                                    inline: 'center',
-                                    block: 'nearest'
-                                });
-                            }
-                            setEditingSectionId(sectionId);
-                            setSelectedMapChord(null);
-                            setSelectedMapBeatId(null);
-                            setSelectedMapSectionId(null);
-                        }}
-                    />
-                </div>
+            {/* Song Timeline Overview - More vertical space in landscape */}
+            <div className={clsx("px-4", isMobile && isLandscape ? "pb-2 flex-1 flex flex-col justify-end" : "pb-4")}>
+                <SongTimeline
+                    sections={currentSong.sections}
+                    activeSectionId={(playingSectionId || selectedMapSectionId || editingSectionId) || undefined}
+                    onReorder={reorderSections}
+                    onAddSection={addSuggestedSection}
+                    onSectionClick={(sectionId) => {
+                        const sectionElement = scrollContainerRef.current?.querySelector(`[data-section-id="${sectionId}"]`);
+                        if (sectionElement) {
+                            sectionElement.scrollIntoView({
+                                behavior: 'smooth',
+                                inline: 'center',
+                                block: 'nearest'
+                            });
+                        }
+                        setEditingSectionId(sectionId);
+                        setSelectedMapChord(null);
+                        setSelectedMapBeatId(null);
+                        setSelectedMapSectionId(null);
+                    }}
+                />
             </div>
+            {/* End Header Wrapper */}
+
 
             {/* Section Options Modal */}
-            {editingSectionId && (() => {
-                const sectionIndex = currentSong.sections.findIndex((s: Section) => s.id === editingSectionId);
-                const section = currentSong.sections[sectionIndex];
+            {
+                editingSectionId && (() => {
+                    const sectionIndex = currentSong.sections.findIndex((s: Section) => s.id === editingSectionId);
+                    const section = currentSong.sections[sectionIndex];
 
-                if (!section) return null;
+                    if (!section) return null;
 
-                const hasPrev = sectionIndex > 0;
-                const hasNext = sectionIndex < currentSong.sections.length - 1;
+                    const hasPrev = sectionIndex > 0;
+                    const hasNext = sectionIndex < currentSong.sections.length - 1;
 
-                return (
-                    <SectionOptionsPopup
-                        section={section}
-                        isOpen={true}
-                        onClose={() => setEditingSectionId(null)}
-                        onTimeSignatureChange={(val) => {
-                            const [top, bottom] = val.split('/').map(Number);
-                            if (top && bottom) {
-                                useSongStore.getState().setSectionTimeSignature(section.id, [top, bottom]);
-                            }
-                        }}
-                        onBarsChange={(count) => useSongStore.getState().setSectionMeasures(section.id, count)}
-                        onStepCountChange={(steps) => useSongStore.getState().setSectionSubdivision(section.id, steps)}
-                        onNameChange={(name, type) => useSongStore.getState().updateSection(section.id, { name, type })}
-                        onCopy={() => {
-                            useSongStore.getState().duplicateSection(section.id);
-                            // Auto switch to the new section (next one)
-                            // We don't reset editingSectionId here so the modal stays open,
-                            // but we switch it to the new section ID.
-                            const nextIndex = sectionIndex + 1;
-                            // Wait a tick for store update then find the new section
-                            setTimeout(() => {
-                                const currentSections = useSongStore.getState().currentSong.sections;
-                                // The new section should be at nextIndex (inserted after current)
-                                if (nextIndex < currentSections.length) {
-                                    const newSection = currentSections[nextIndex];
-                                    if (newSection) setEditingSectionId(newSection.id);
+                    return (
+                        <SectionOptionsPopup
+                            section={section}
+                            isOpen={true}
+                            onClose={() => setEditingSectionId(null)}
+                            onTimeSignatureChange={(val) => {
+                                const [top, bottom] = val.split('/').map(Number);
+                                if (top && bottom) {
+                                    useSongStore.getState().setSectionTimeSignature(section.id, [top, bottom]);
                                 }
-                            }, 50);
-                        }}
-                        onClear={() => useSongStore.getState().clearSection(section.id)}
-                        onDelete={() => {
-                            // If we delete the section, we must close or switch.
-                            // User request: "Remove buttons... shouldn't close the modal"
-                            // But if it's gone, we can't show it.
-                            // We will try to switch to the *previous* section, or next if prev unavailable.
-                            // If it's the only section, we have to close.
+                            }}
+                            onBarsChange={(count) => useSongStore.getState().setSectionMeasures(section.id, count)}
+                            onStepCountChange={(steps) => useSongStore.getState().setSectionSubdivision(section.id, steps)}
+                            onNameChange={(name, type) => useSongStore.getState().updateSection(section.id, { name, type })}
+                            onCopy={() => {
+                                useSongStore.getState().duplicateSection(section.id);
+                                // Auto switch to the new section (next one)
+                                // We don't reset editingSectionId here so the modal stays open,
+                                // but we switch it to the new section ID.
+                                const nextIndex = sectionIndex + 1;
+                                // Wait a tick for store update then find the new section
+                                setTimeout(() => {
+                                    const currentSections = useSongStore.getState().currentSong.sections;
+                                    // The new section should be at nextIndex (inserted after current)
+                                    if (nextIndex < currentSections.length) {
+                                        const newSection = currentSections[nextIndex];
+                                        if (newSection) setEditingSectionId(newSection.id);
+                                    }
+                                }, 50);
+                            }}
+                            onClear={() => useSongStore.getState().clearSection(section.id)}
+                            onDelete={() => {
+                                // If we delete the section, we must close or switch.
+                                // User request: "Remove buttons... shouldn't close the modal"
+                                // But if it's gone, we can't show it.
+                                // We will try to switch to the *previous* section, or next if prev unavailable.
+                                // If it's the only section, we have to close.
 
-                            const sections = currentSong.sections;
-                            const nextIdToEdit = hasPrev
-                                ? sections[sectionIndex - 1].id
-                                : hasNext
-                                    ? sections[sectionIndex + 1].id
-                                    : null;
+                                const sections = currentSong.sections;
+                                const nextIdToEdit = hasPrev
+                                    ? sections[sectionIndex - 1].id
+                                    : hasNext
+                                        ? sections[sectionIndex + 1].id
+                                        : null;
 
-                            useSongStore.getState().removeSection(section.id);
+                                useSongStore.getState().removeSection(section.id);
 
-                            if (nextIdToEdit) {
-                                setEditingSectionId(nextIdToEdit);
-                            } else {
+                                if (nextIdToEdit) {
+                                    setEditingSectionId(nextIdToEdit);
+                                } else {
+                                    setEditingSectionId(null);
+                                }
+                            }}
+                            songTimeSignature={currentSong.timeSignature}
+                            onNavigatePrev={() => {
+                                if (hasPrev) {
+                                    const newId = currentSong.sections[sectionIndex - 1].id;
+                                    setEditingSectionId(newId);
+                                    const sectionElement = scrollContainerRef.current?.querySelector(`[data-section-id="${newId}"]`);
+                                    if (sectionElement) {
+                                        sectionElement.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                                    }
+                                }
+                            }}
+                            onNavigateNext={() => {
+                                if (hasNext) {
+                                    const newId = currentSong.sections[sectionIndex + 1].id;
+                                    setEditingSectionId(newId);
+                                    const sectionElement = scrollContainerRef.current?.querySelector(`[data-section-id="${newId}"]`);
+                                    if (sectionElement) {
+                                        sectionElement.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                                    }
+                                }
+                            }}
+                            onNavigateToSection={(newId) => {
+                                setEditingSectionId(newId);
+                                const sectionElement = scrollContainerRef.current?.querySelector(`[data-section-id="${newId}"]`);
+                                if (sectionElement) {
+                                    sectionElement.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                                }
+                            }}
+                            hasPrev={hasPrev}
+                            hasNext={hasNext}
+                            sectionIndex={sectionIndex}
+                            totalSections={currentSong.sections.length}
+                            onSlotClick={(beatId) => {
+                                // Close popup and select the slot
                                 setEditingSectionId(null);
-                            }
-                        }}
-                        songTimeSignature={currentSong.timeSignature}
-                        onNavigatePrev={() => {
-                            if (hasPrev) {
-                                const newId = currentSong.sections[sectionIndex - 1].id;
-                                setEditingSectionId(newId);
-                                const sectionElement = scrollContainerRef.current?.querySelector(`[data-section-id="${newId}"]`);
-                                if (sectionElement) {
-                                    sectionElement.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                                // Find the chord in the section to select
+                                const beat = section.measures.flatMap((m: any) => m.beats).find((b: any) => b.id === beatId);
+                                if (beat && beat.chord) {
+                                    useSongStore.getState().setSelectedChord(beat.chord);
                                 }
-                            }
-                        }}
-                        onNavigateNext={() => {
-                            if (hasNext) {
-                                const newId = currentSong.sections[sectionIndex + 1].id;
-                                setEditingSectionId(newId);
-                                const sectionElement = scrollContainerRef.current?.querySelector(`[data-section-id="${newId}"]`);
-                                if (sectionElement) {
-                                    sectionElement.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                                setSelectedSlot(section.id, beatId);
+                                openTimeline();
+                            }}
+                            onMoveUp={() => {
+                                if (sectionIndex > 0) {
+                                    const newSections = [...currentSong.sections];
+                                    [newSections[sectionIndex - 1], newSections[sectionIndex]] = [newSections[sectionIndex], newSections[sectionIndex - 1]];
+                                    reorderSections(newSections);
+                                    // Keep modal open and tracking the moved section (id shouldn't change)
                                 }
-                            }
-                        }}
-                        onNavigateToSection={(newId) => {
-                            setEditingSectionId(newId);
-                            const sectionElement = scrollContainerRef.current?.querySelector(`[data-section-id="${newId}"]`);
-                            if (sectionElement) {
-                                sectionElement.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                            }
-                        }}
-                        hasPrev={hasPrev}
-                        hasNext={hasNext}
-                        sectionIndex={sectionIndex}
-                        totalSections={currentSong.sections.length}
-                        onSlotClick={(beatId) => {
-                            // Close popup and select the slot
-                            setEditingSectionId(null);
-                            // Find the chord in the section to select
-                            const beat = section.measures.flatMap((m: any) => m.beats).find((b: any) => b.id === beatId);
-                            if (beat && beat.chord) {
-                                useSongStore.getState().setSelectedChord(beat.chord);
-                            }
-                            setSelectedSlot(section.id, beatId);
-                            openTimeline();
-                        }}
-                        onMoveUp={() => {
-                            if (sectionIndex > 0) {
-                                const newSections = [...currentSong.sections];
-                                [newSections[sectionIndex - 1], newSections[sectionIndex]] = [newSections[sectionIndex], newSections[sectionIndex - 1]];
-                                reorderSections(newSections);
-                                // Keep modal open and tracking the moved section (id shouldn't change)
-                            }
-                        }}
-                        onMoveDown={() => {
-                            if (sectionIndex < currentSong.sections.length - 1) {
-                                const newSections = [...currentSong.sections];
-                                [newSections[sectionIndex], newSections[sectionIndex + 1]] = [newSections[sectionIndex + 1], newSections[sectionIndex]];
-                                reorderSections(newSections);
-                                // Keep modal open and tracking the moved section
-                            }
-                        }}
-                    />
-                );
-            })()}
+                            }}
+                            onMoveDown={() => {
+                                if (sectionIndex < currentSong.sections.length - 1) {
+                                    const newSections = [...currentSong.sections];
+                                    [newSections[sectionIndex], newSections[sectionIndex + 1]] = [newSections[sectionIndex + 1], newSections[sectionIndex]];
+                                    reorderSections(newSections);
+                                    // Keep modal open and tracking the moved section
+                                }
+                            }}
+                        />
+                    );
+                })()
+            }
 
             {/* Scrollable Map Area - Edge to Edge */}
             <div
@@ -1221,120 +1271,164 @@ export const SongOverview: React.FC<SongOverviewProps> = ({ onSave, onExport }) 
                 selectedMapBeatId={selectedMapBeatId}
             />
 
-            {/* Two-Row Footer Controls */}
-            <div
-                className="shrink-0 bg-[#1a1a24] border-t border-white/5 z-[110]"
-                style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
-                onClick={(e) => e.stopPropagation()}
-            >
-                {/* Row 1: Zoom & Secondary Controls */}
-                <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
-                    {/* Zoom Control */}
-                    <div className="flex items-center gap-4 w-full">
-                        <button
-                            onClick={() => setZoomLevel(Math.max(0.08, zoomLevel - 0.1))}
-                            className="p-2 -m-2 text-text-secondary active:text-white transition-colors"
-                        >
-                            <ZoomOut size={18} />
-                        </button>
-                        <input
-                            type="range"
-                            min="0.08"
-                            max="2"
-                            step="0.05"
-                            value={zoomLevel}
-                            onChange={handleZoomChange}
-                            onTouchStart={(e) => e.stopPropagation()}
-                            onTouchMove={(e) => e.stopPropagation()}
-                            className="flex-1 h-2 bg-white/10 rounded-full appearance-none cursor-pointer touch-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-accent-primary"
-                            style={{ WebkitAppearance: 'none' }}
-                        />
-                        <button
-                            onClick={() => setZoomLevel(Math.min(2, zoomLevel + 0.1))}
-                            className="p-2 -m-2 text-text-secondary active:text-white transition-colors"
-                        >
-                            <ZoomIn size={18} />
-                        </button>
-                    </div>
-                </div>
+            {
+                isMobile && isLandscape ? (
+                    // COMPACT LANDSCAPE FOOTER - Single Row
+                    <div
+                        className="shrink-0 bg-[#1a1a24] border-t border-white/5 z-[110]"
+                        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-center justify-between px-6 py-2">
+                            {/* Left: Zoom - Compact */}
+                            <div className="flex items-center gap-2 w-32">
+                                <button onClick={() => setZoomLevel(Math.max(0.08, zoomLevel - 0.1))} className="p-1 active:text-white text-white/50"><ZoomOut size={16} /></button>
+                                <input type="range" min="0.08" max="2" step="0.05" value={zoomLevel} onChange={handleZoomChange} className="flex-1 h-1 bg-white/10 rounded-full appearance-none" />
+                                <button onClick={() => setZoomLevel(Math.min(2, zoomLevel + 0.1))} className="p-1 active:text-white text-white/50"><ZoomIn size={16} /></button>
+                            </div>
 
-                {/* Row 2: Main Playback Controls - Stacked Vertically */}
-                <div className="flex flex-col items-center gap-6 px-6 py-6 max-w-sm mx-auto">
-                    {/* Transport - Primary Action */}
-                    <div className="flex items-center justify-center gap-8 w-full order-1">
-                        <button
-                            onClick={() => handleSkip('prev')}
-                            className="text-accent-primary/80 hover:text-accent-primary transition-colors p-2 active:scale-95"
-                        >
-                            <SkipBack size={26} fill="currentColor" />
-                        </button>
-
-                        <button
-                            onClick={handlePlayPause}
-                            className={clsx(
-                                "w-16 h-16 rounded-full flex items-center justify-center shadow-xl transition-all active:scale-95",
-                                isPlaying ? "bg-accent-primary text-white shadow-accent-primary/30" : "bg-accent-primary/20 text-accent-primary border-2 border-accent-primary"
-                            )}
-                        >
-                            {isPlaying ? (
-                                <Pause size={30} fill="currentColor" />
-                            ) : (
-                                <Play size={30} fill="currentColor" className="ml-1" />
-                            )}
-                        </button>
-
-                        <button
-                            onClick={() => handleSkip('next')}
-                            className="text-accent-primary/80 hover:text-accent-primary transition-colors p-2 active:scale-95"
-                        >
-                            <SkipForward size={26} fill="currentColor" />
-                        </button>
-                    </div>
-
-                    {/* Secondary Controls Row (BPM and Voice) */}
-                    <div className="flex items-center justify-between w-full order-2 pt-2 border-t border-white/5">
-                        {/* Tempo - Interactive */}
-                        <div className="flex flex-col items-start gap-1">
-                            <span className="text-[10px] uppercase tracking-wider text-white/30 font-bold">Tempo</span>
-                            {isEditingBpm ? (
-                                <input
-                                    ref={bpmInputRef}
-                                    type="number"
-                                    inputMode="numeric"
-                                    value={bpmInputValue}
-                                    onChange={(e) => setBpmInputValue(e.target.value)}
-                                    onBlur={handleBpmSave}
-                                    onKeyDown={handleBpmKeyDown}
-                                    className="w-16 h-9 bg-bg-tertiary border border-accent-primary rounded px-2 py-1 text-center text-white font-mono font-medium focus:outline-none"
-                                    min={40}
-                                    max={240}
-                                />
-                            ) : (
-                                <div
-                                    onTouchStart={handleBpmTouchStart}
-                                    onTouchMove={handleBpmTouchMove}
-                                    onTouchEnd={handleBpmTouchEnd}
-                                    onClick={handleBpmTap}
+                            {/* Center: Play Controls - Inline */}
+                            <div className="flex items-center gap-6">
+                                <button onClick={() => handleSkip('prev')} className="text-accent-primary p-2 active:scale-95"><SkipBack size={20} fill="currentColor" /></button>
+                                <button
+                                    onClick={handlePlayPause}
                                     className={clsx(
-                                        "h-9 flex items-center justify-center min-w-[60px] text-lg font-mono font-medium cursor-ew-resize select-none px-3 rounded transition-colors",
-                                        isSwiping ? "text-accent-primary bg-accent-primary/10" : "text-accent-primary hover:bg-white/5"
+                                        "w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95",
+                                        isPlaying ? "bg-accent-primary text-white" : "bg-accent-primary/20 text-accent-primary border border-accent-primary"
                                     )}
                                 >
+                                    {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" className="ml-0.5" />}
+                                </button>
+                                <button onClick={() => handleSkip('next')} className="text-accent-primary p-2 active:scale-95"><SkipForward size={20} fill="currentColor" /></button>
+                            </div>
+
+                            {/* Right: Tempo - Minimal */}
+                            <div className="flex items-center gap-3 w-32 justify-end">
+                                <VoiceSelector variant="compact" className="scale-90 origin-right" />
+                                <div className="text-accent-primary font-mono font-bold text-sm" onClick={handleBpmTap}>
                                     {tempo}
                                 </div>
-                            )}
-                        </div>
-
-                        {/* Voice Selector */}
-                        <div className="flex flex-col items-end gap-1">
-                            <VoiceSelector
-                                variant="compact"
-                                className="z-10"
-                            />
+                            </div>
                         </div>
                     </div>
-                </div>
-            </div>
+                ) : (
+                    /* DEFAULT PORTRAIT / DESKTOP FOOTER */
+                    <div
+                        className="shrink-0 bg-[#1a1a24] border-t border-white/5 z-[110]"
+                        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Row 1: Zoom & Secondary Controls */}
+                        <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
+                            {/* Zoom Control */}
+                            <div className="flex items-center gap-4 w-full">
+                                <button
+                                    onClick={() => setZoomLevel(Math.max(0.08, zoomLevel - 0.1))}
+                                    className="p-2 -m-2 text-text-secondary active:text-white transition-colors"
+                                >
+                                    <ZoomOut size={18} />
+                                </button>
+                                <input
+                                    type="range"
+                                    min="0.08"
+                                    max="2"
+                                    step="0.05"
+                                    value={zoomLevel}
+                                    onChange={handleZoomChange}
+                                    onTouchStart={(e) => e.stopPropagation()}
+                                    onTouchMove={(e) => e.stopPropagation()}
+                                    className="flex-1 h-2 bg-white/10 rounded-full appearance-none cursor-pointer touch-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-accent-primary"
+                                    style={{ WebkitAppearance: 'none' }}
+                                />
+                                <button
+                                    onClick={() => setZoomLevel(Math.min(2, zoomLevel + 0.1))}
+                                    className="p-2 -m-2 text-text-secondary active:text-white transition-colors"
+                                >
+                                    <ZoomIn size={18} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Row 2: Main Playback Controls - Stacked Vertically */}
+                        <div className="flex flex-col items-center gap-6 px-6 py-6 max-w-sm mx-auto">
+                            {/* Transport - Primary Action */}
+                            <div className="flex items-center justify-center gap-8 w-full order-1">
+                                <button
+                                    onClick={() => handleSkip('prev')}
+                                    className="text-accent-primary/80 hover:text-accent-primary transition-colors p-2 active:scale-95"
+                                >
+                                    <SkipBack size={26} fill="currentColor" />
+                                </button>
+
+                                <button
+                                    onClick={handlePlayPause}
+                                    className={clsx(
+                                        "w-16 h-16 rounded-full flex items-center justify-center shadow-xl transition-all active:scale-95",
+                                        isPlaying ? "bg-accent-primary text-white shadow-accent-primary/30" : "bg-accent-primary/20 text-accent-primary border-2 border-accent-primary"
+                                    )}
+                                >
+                                    {isPlaying ? (
+                                        <Pause size={30} fill="currentColor" />
+                                    ) : (
+                                        <Play size={30} fill="currentColor" className="ml-1" />
+                                    )}
+                                </button>
+
+                                <button
+                                    onClick={() => handleSkip('next')}
+                                    className="text-accent-primary/80 hover:text-accent-primary transition-colors p-2 active:scale-95"
+                                >
+                                    <SkipForward size={26} fill="currentColor" />
+                                </button>
+                            </div>
+
+                            {/* Secondary Controls Row (BPM and Voice) */}
+                            <div className="flex items-center justify-between w-full order-2 pt-2 border-t border-white/5">
+                                {/* Tempo - Interactive */}
+                                <div className="flex flex-col items-start gap-1">
+                                    <span className="text-[10px] uppercase tracking-wider text-white/30 font-bold">Tempo</span>
+                                    {isEditingBpm ? (
+                                        <input
+                                            ref={bpmInputRef}
+                                            type="number"
+                                            inputMode="numeric"
+                                            value={bpmInputValue}
+                                            onChange={(e) => setBpmInputValue(e.target.value)}
+                                            onBlur={handleBpmSave}
+                                            onKeyDown={handleBpmKeyDown}
+                                            className="w-16 h-9 bg-bg-tertiary border border-accent-primary rounded px-2 py-1 text-center text-white font-mono font-medium focus:outline-none"
+                                            min={40}
+                                            max={240}
+                                        />
+                                    ) : (
+                                        <div
+                                            onTouchStart={handleBpmTouchStart}
+                                            onTouchMove={handleBpmTouchMove}
+                                            onTouchEnd={handleBpmTouchEnd}
+                                            onClick={handleBpmTap}
+                                            className={clsx(
+                                                "h-9 flex items-center justify-center min-w-[60px] text-lg font-mono font-medium cursor-ew-resize select-none px-3 rounded transition-colors",
+                                                isSwiping ? "text-accent-primary bg-accent-primary/10" : "text-accent-primary hover:bg-white/5"
+                                            )}
+                                        >
+                                            {tempo}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Voice Selector */}
+                                <div className="flex flex-col items-end gap-1">
+                                    <VoiceSelector
+                                        variant="compact"
+                                        className="z-10"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+
         </div >
     );
 };

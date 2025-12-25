@@ -34,13 +34,17 @@ const SECTION_THEMES: Record<string, { bg: string; border: string; accent: strin
     custom: { bg: 'bg-slate-500/15', border: 'border-slate-500/40', accent: 'bg-slate-500' },
 };
 
-export const SectionPreview: React.FC<SectionPreviewProps> = ({
+// Add hook import
+import { useMobileLayout } from '../../hooks/useIsMobile';
+
+export const SectionOverview: React.FC<SectionPreviewProps> = ({
     section,
     songTimeSignature,
     className,
     onSlotClick
 }) => {
     const { tempo, isLooping, toggleLoop } = useSongStore();
+    const { isLandscape, isMobile } = useMobileLayout();
     const chordColors = getWheelColors();
     const theme = SECTION_THEMES[section.type] || SECTION_THEMES.custom;
     const timeSignature = section.timeSignature || songTimeSignature;
@@ -55,8 +59,8 @@ export const SectionPreview: React.FC<SectionPreviewProps> = ({
     // Calculate scaling based on number of bars
     // Scale down to fit in a fixed container width (around 260px)
     const containerWidth = 252; // Match modal content width minus padding
-    const minBarWidth = 15; // Smaller to fit up to 16 bars
-    const maxBarWidth = 52;
+    const minBarWidth = isLandscape && isMobile ? 12 : 15; // Smaller min width in landscape
+    const maxBarWidth = isLandscape && isMobile ? 40 : 52;
 
     // Calculate bar width based on number of measures to fit them all
     const calculatedBarWidth = Math.floor(containerWidth / measureCount);
@@ -64,8 +68,8 @@ export const SectionPreview: React.FC<SectionPreviewProps> = ({
 
     // Determine if we should use compact mode (many bars)
     // With max 16 bars, use compact at 8+ and very compact at 12+
-    const isCompact = measureCount > 8;
-    const isVeryCompact = measureCount > 12;
+    const isCompact = measureCount > 8 || (isLandscape && isMobile && measureCount > 6);
+    const isVeryCompact = measureCount > 12 || (isLandscape && isMobile && measureCount > 10);
 
     // Stop playback
     const stopPlayback = () => {
@@ -174,7 +178,7 @@ export const SectionPreview: React.FC<SectionPreviewProps> = ({
 
                 {/* Measures Grid */}
                 <div
-                    className="pl-2 pr-3 py-2 overflow-hidden"
+                    className={clsx("pl-2 pr-3 overflow-hidden", isLandscape && isMobile ? "py-1" : "py-2")}
                     style={{ maxHeight: isVeryCompact ? '80px' : isCompact ? '100px' : '120px' }}
                 >
                     <div
@@ -196,8 +200,8 @@ export const SectionPreview: React.FC<SectionPreviewProps> = ({
                                         maxWidth: `${barWidth}px`
                                     }}
                                 >
-                                    {/* Bar number indicator */}
-                                    {!isVeryCompact && (
+                                    {/* Bar number indicator - Hide in landscape compact to save space */}
+                                    {!isVeryCompact && !(isLandscape && isMobile) && (
                                         <div className="h-3 flex items-center justify-between px-0.5">
                                             <span className={clsx(
                                                 "font-mono text-white/30",
@@ -222,7 +226,7 @@ export const SectionPreview: React.FC<SectionPreviewProps> = ({
                                     {/* Chord slots - always show all beats for playhead */}
                                     <div
                                         className="flex-1 rounded overflow-hidden flex gap-px"
-                                        style={{ minHeight: isVeryCompact ? '28px' : isCompact ? '36px' : '48px' }}
+                                        style={{ minHeight: isVeryCompact || (isLandscape && isMobile) ? '24px' : isCompact ? '36px' : '48px' }}
                                     >
                                         {measure.beats.map((beat) => {
                                             const hasChord = beat.chord && beat.chord.notes && beat.chord.notes.length > 0;
@@ -235,7 +239,7 @@ export const SectionPreview: React.FC<SectionPreviewProps> = ({
                                             // Scale font size based on slot count and compactness
                                             const slotCount = measure.beats.length;
                                             let fontSize = '9px';
-                                            if (isVeryCompact) {
+                                            if (isVeryCompact || (isLandscape && isMobile)) {
                                                 fontSize = slotCount > 2 ? '5px' : '6px';
                                             } else if (isCompact) {
                                                 fontSize = slotCount > 2 ? '6px' : '7px';
@@ -300,7 +304,7 @@ export const SectionPreview: React.FC<SectionPreviewProps> = ({
                                                         <span className={clsx(
                                                             "transition-colors duration-150",
                                                             isCurrentlyPlaying ? "text-white/60" : "text-white/10",
-                                                            isCompact ? "text-[6px]" : "text-[8px]"
+                                                            isCompact || (isLandscape && isMobile) ? "text-[6px]" : "text-[8px]"
                                                         )}>–</span>
                                                     </div>
                                                 );
@@ -314,14 +318,18 @@ export const SectionPreview: React.FC<SectionPreviewProps> = ({
                 </div>
 
                 {/* Footer info */}
-                <div className="px-2 py-1.5 bg-black/20 border-t border-white/5 flex items-center gap-2">
+                <div className={clsx(
+                    "bg-black/20 border-t border-white/5 flex items-center gap-2",
+                    isLandscape && isMobile ? "px-2 py-1" : "px-2 py-1.5"
+                )}>
                     <div className="flex items-center gap-1">
                         {/* Play button */}
                         <button
                             onClick={playSectionOnce}
                             className={clsx(
-                                "w-6 h-6 rounded-full flex items-center justify-center transition-all",
+                                "rounded-full flex items-center justify-center transition-all",
                                 "hover:scale-110 active:scale-95",
+                                isLandscape && isMobile ? "w-5 h-5" : "w-6 h-6",
                                 isPlaying
                                     ? "bg-red-500/80 text-white"
                                     : "bg-accent-primary/20 text-accent-primary hover:bg-accent-primary/30"
@@ -338,8 +346,9 @@ export const SectionPreview: React.FC<SectionPreviewProps> = ({
                                 toggleLoop();
                             }}
                             className={clsx(
-                                "w-6 h-6 rounded-full flex items-center justify-center transition-all",
+                                "rounded-full flex items-center justify-center transition-all",
                                 "hover:scale-110 active:scale-95",
+                                isLandscape && isMobile ? "w-5 h-5" : "w-6 h-6",
                                 isLooping
                                     ? "bg-accent-primary text-white shadow-lg shadow-accent-primary/20"
                                     : "bg-white/5 text-white/30 hover:bg-white/10 hover:text-white/50"

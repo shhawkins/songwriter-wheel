@@ -488,7 +488,7 @@ export const useSongStore = create<SongState>()(
             songMapVisible: false,
             songInfoModalVisible: false,
             instrumentManagerModalVisible: false,
-            instrumentManagerInitialView: 'list',
+            instrumentManagerInitialView: 'list' as 'list' | 'create',
             collapsedSections: {},
             chordPanelGuitarExpanded: false,  // Collapsed by default on mobile
             chordPanelScrollTarget: null as SongState['chordPanelScrollTarget'],
@@ -1017,107 +1017,39 @@ export const useSongStore = create<SongState>()(
                 };
             }),
             moveSelection: (active, target, mode = 'move') => {
-                let moved = false;
-                set((state) => {
-                    const slots = flattenSlots(state.currentSong.sections);
-                    const activeIdx = findSlotIndex(state.currentSong.sections, active);
-                    const targetIdx = findSlotIndex(state.currentSong.sections, target);
+                const state = get();
+                const slots = flattenSlots(state.currentSong.sections);
+                const activeIdx = findSlotIndex(state.currentSong.sections, active);
+                const targetIdx = findSlotIndex(state.currentSong.sections, target);
 
-                    if (activeIdx === -1 || targetIdx === -1) return {};
+                if (activeIdx === -1 || targetIdx === -1) return false;
 
-                    const selectionList = state.selectedSlots.length ? state.selectedSlots : [active];
-                    const indexedSelection = selectionList
-                        .map((slot) => {
-                            const idx = slots.findIndex(
-                                (s) => s.sectionId === slot.sectionId && s.slotId === slot.slotId
-                            );
-                            return idx >= 0 ? { idx, slot: slots[idx] } : null;
-                        })
-                        .filter((item): item is { idx: number; slot: SelectionSlot & { chord: Chord | null } } => Boolean(item))
-                        .sort((a, b) => a.idx - b.idx);
-
-                    if (!indexedSelection.length) return {};
-
-                    const offset = targetIdx - activeIdx;
-                    const destinationIndices = indexedSelection.map(({ idx }) => idx + offset);
-
-                    if (destinationIndices.some((idx) => idx < 0 || idx >= slots.length)) {
-                        return {};
-                    }
-
-                    const destinationSlots = destinationIndices.map((idx) => slots[idx]);
-
-                    // Preserve swap behavior for single moves (existing UX)
-                    if (indexedSelection.length === 1 && mode === 'move') {
-                        const sourceSlot = indexedSelection[0].slot;
-                        const targetSlot = destinationSlots[0];
-                        const history = buildHistoryState(state);
-
-                        const newSections = state.currentSong.sections.map((section) => ({
-                            ...section,
-                            measures: section.measures.map((measure) => ({
-                                ...measure,
-                                beats: measure.beats.map((beat) => {
-                                    if (beat.id === sourceSlot.slotId && section.id === sourceSlot.sectionId) {
-                                        return { ...beat, chord: targetSlot.chord };
-                                    }
-                                    if (beat.id === targetSlot.slotId && section.id === targetSlot.sectionId) {
-                                        return { ...beat, chord: sourceSlot.chord };
-                                    }
-                                    return beat;
-                                }),
-                            })),
-                        }));
-
-                        moved = true;
-
-                        const anchorMatchesSource =
-                            state.selectionAnchor && slotKey(state.selectionAnchor) === slotKey(active);
-
-                        const updatedSelection = ensureSelectionStillExists(
-                            newSections,
-                            target.sectionId,
-                            target.slotId,
-                            [{ sectionId: targetSlot.sectionId, slotId: targetSlot.slotId }],
-                            anchorMatchesSource ? { sectionId: targetSlot.sectionId, slotId: targetSlot.slotId } : state.selectionAnchor
+                const selectionList = state.selectedSlots.length ? state.selectedSlots : [active];
+                const indexedSelection = selectionList
+                    .map((slot) => {
+                        const idx = slots.findIndex(
+                            (s) => s.sectionId === slot.sectionId && s.slotId === slot.slotId
                         );
+                        return idx >= 0 ? { idx, slot: slots[idx] } : null;
+                    })
+                    .filter((item): item is { idx: number; slot: SelectionSlot & { chord: Chord | null } } => Boolean(item))
+                    .sort((a, b) => a.idx - b.idx);
 
-                        const primarySlot = updatedSelection.selectedSectionId && updatedSelection.selectedSlotId
-                            ? { sectionId: updatedSelection.selectedSectionId, slotId: updatedSelection.selectedSlotId }
-                            : null;
+                if (!indexedSelection.length) return false;
 
-                        const chord = findChordForSlot(newSections, primarySlot);
+                const offset = targetIdx - activeIdx;
+                const destinationIndices = indexedSelection.map(({ idx }) => idx + offset);
 
-                        return {
-                            ...history,
-                            currentSong: { ...state.currentSong, sections: newSections },
-                            selectedSectionId: updatedSelection.selectedSectionId,
-                            selectedSlotId: updatedSelection.selectedSlotId,
-                            selectedSlots: updatedSelection.selectedSlots,
-                            selectionAnchor: updatedSelection.selectionAnchor,
-                            selectedChord: chord ?? null,
-                        };
-                    }
+                if (destinationIndices.some((idx) => idx < 0 || idx >= slots.length)) {
+                    return false;
+                }
 
-                    const destAssignments = new Map<string, Chord | null>();
-                    indexedSelection.forEach((item, i) => {
-                        destAssignments.set(
-                            slotKey(destinationSlots[i]),
-                            item.slot.chord ?? null
-                        );
-                    });
+                const destinationSlots = destinationIndices.map((idx) => slots[idx]);
 
-                    const sourcesToClear = new Set<string>();
-                    if (mode === 'move') {
-                        indexedSelection.forEach((item, i) => {
-                            const sourceKey = slotKey(item.slot);
-                            const destKey = slotKey(destinationSlots[i]);
-                            if (sourceKey !== destKey) {
-                                sourcesToClear.add(sourceKey);
-                            }
-                        });
-                    }
-
+                // Preserve swap behavior for single moves (existing UX)
+                if (indexedSelection.length === 1 && mode === 'move') {
+                    const sourceSlot = indexedSelection[0].slot;
+                    const targetSlot = destinationSlots[0];
                     const history = buildHistoryState(state);
 
                     const newSections = state.currentSong.sections.map((section) => ({
@@ -1125,35 +1057,26 @@ export const useSongStore = create<SongState>()(
                         measures: section.measures.map((measure) => ({
                             ...measure,
                             beats: measure.beats.map((beat) => {
-                                const key = slotKey({ sectionId: section.id, slotId: beat.id });
-
-                                if (destAssignments.has(key)) {
-                                    return { ...beat, chord: destAssignments.get(key) ?? null };
+                                if (beat.id === sourceSlot.slotId && section.id === sourceSlot.sectionId) {
+                                    return { ...beat, chord: targetSlot.chord };
                                 }
-
-                                if (sourcesToClear.has(key)) {
-                                    return { ...beat, chord: null };
+                                if (beat.id === targetSlot.slotId && section.id === targetSlot.sectionId) {
+                                    return { ...beat, chord: sourceSlot.chord };
                                 }
-
                                 return beat;
                             }),
                         })),
                     }));
 
-                    moved = true;
-
-                    const anchorKey = slotKey(state.selectionAnchor);
-                    const anchorUpdate = indexedSelection.find((item) => slotKey(item.slot) === anchorKey);
-                    const newAnchor = anchorUpdate
-                        ? { sectionId: destinationSlots[indexedSelection.indexOf(anchorUpdate)].sectionId, slotId: destinationSlots[indexedSelection.indexOf(anchorUpdate)].slotId }
-                        : state.selectionAnchor;
+                    const anchorMatchesSource =
+                        state.selectionAnchor && slotKey(state.selectionAnchor) === slotKey(active);
 
                     const updatedSelection = ensureSelectionStillExists(
                         newSections,
                         target.sectionId,
                         target.slotId,
-                        destinationSlots.map((slot) => ({ sectionId: slot.sectionId, slotId: slot.slotId })),
-                        newAnchor ?? null
+                        [{ sectionId: targetSlot.sectionId, slotId: targetSlot.slotId }],
+                        anchorMatchesSource ? { sectionId: targetSlot.sectionId, slotId: targetSlot.slotId } : state.selectionAnchor
                     );
 
                     const primarySlot = updatedSelection.selectedSectionId && updatedSelection.selectedSlotId
@@ -1162,7 +1085,7 @@ export const useSongStore = create<SongState>()(
 
                     const chord = findChordForSlot(newSections, primarySlot);
 
-                    return {
+                    set({
                         ...history,
                         currentSong: { ...state.currentSong, sections: newSections },
                         selectedSectionId: updatedSelection.selectedSectionId,
@@ -1170,28 +1093,99 @@ export const useSongStore = create<SongState>()(
                         selectedSlots: updatedSelection.selectedSlots,
                         selectionAnchor: updatedSelection.selectionAnchor,
                         selectedChord: chord ?? null,
-                    };
+                    });
+
+                    return true;
+                }
+
+                const destAssignments = new Map<string, Chord | null>();
+                indexedSelection.forEach((item, i) => {
+                    destAssignments.set(
+                        slotKey(destinationSlots[i]),
+                        item.slot.chord ?? null
+                    );
                 });
-                return moved;
+
+                const sourcesToClear = new Set<string>();
+                if (mode === 'move') {
+                    indexedSelection.forEach((item, i) => {
+                        const sourceKey = slotKey(item.slot);
+                        const destKey = slotKey(destinationSlots[i]);
+                        if (sourceKey !== destKey) {
+                            sourcesToClear.add(sourceKey);
+                        }
+                    });
+                }
+
+                const history = buildHistoryState(state);
+
+                const newSections = state.currentSong.sections.map((section) => ({
+                    ...section,
+                    measures: section.measures.map((measure) => ({
+                        ...measure,
+                        beats: measure.beats.map((beat) => {
+                            const key = slotKey({ sectionId: section.id, slotId: beat.id });
+
+                            if (destAssignments.has(key)) {
+                                return { ...beat, chord: destAssignments.get(key) ?? null };
+                            }
+
+                            if (sourcesToClear.has(key)) {
+                                return { ...beat, chord: null };
+                            }
+
+                            return beat;
+                        }),
+                    })),
+                }));
+
+                const anchorKey = slotKey(state.selectionAnchor);
+                const anchorUpdate = indexedSelection.find((item) => slotKey(item.slot) === anchorKey);
+                const newAnchor = anchorUpdate
+                    ? { sectionId: destinationSlots[indexedSelection.indexOf(anchorUpdate)].sectionId, slotId: destinationSlots[indexedSelection.indexOf(anchorUpdate)].slotId }
+                    : state.selectionAnchor;
+
+                const updatedSelection = ensureSelectionStillExists(
+                    newSections,
+                    target.sectionId,
+                    target.slotId,
+                    destinationSlots.map((slot) => ({ sectionId: slot.sectionId, slotId: slot.slotId })),
+                    newAnchor ?? null
+                );
+
+                const primarySlot = updatedSelection.selectedSectionId && updatedSelection.selectedSlotId
+                    ? { sectionId: updatedSelection.selectedSectionId, slotId: updatedSelection.selectedSlotId }
+                    : null;
+
+                const chord = findChordForSlot(newSections, primarySlot);
+
+                set({
+                    ...history,
+                    currentSong: { ...state.currentSong, sections: newSections },
+                    selectedSectionId: updatedSelection.selectedSectionId,
+                    selectedSlotId: updatedSelection.selectedSlotId,
+                    selectedSlots: updatedSelection.selectedSlots,
+                    selectionAnchor: updatedSelection.selectionAnchor,
+                    selectedChord: chord ?? null,
+                });
+
+                return true;
             },
             selectNextSlotAfter: (sectionId, slotId) => {
-                let advanced = false;
-                set((state) => {
-                    const next = findNextSlot(state.currentSong.sections, sectionId, slotId);
-                    if (!next) return {};
+                const state = get();
+                const next = findNextSlot(state.currentSong.sections, sectionId, slotId);
 
-                    // When auto-advancing, keep the currently selected chord so users can
-                    // rapidly add the same chord to multiple slots (don't switch to slot's chord)
-                    advanced = true;
-                    return {
-                        selectedSectionId: next.sectionId,
-                        selectedSlotId: next.slotId,
-                        // Keep selectedChord as-is for rapid entry workflow
-                        selectedSlots: [{ sectionId: next.sectionId, slotId: next.slotId }],
-                        selectionAnchor: { sectionId: next.sectionId, slotId: next.slotId }
-                    };
+                if (!next) return false;
+
+                set({
+                    selectedSectionId: next.sectionId,
+                    selectedSlotId: next.slotId,
+                    // Keep selectedChord as-is for rapid entry workflow
+                    selectedSlots: [{ sectionId: next.sectionId, slotId: next.slotId }],
+                    selectionAnchor: { sectionId: next.sectionId, slotId: next.slotId }
                 });
-                return advanced;
+
+                return true;
             },
 
             setTempo: (tempo) => set((state) => {
@@ -1436,7 +1430,7 @@ export const useSongStore = create<SongState>()(
             }),
 
             getSuggestedSectionType: () => {
-                const state = useSongStore.getState();
+                const state = get();
                 return suggestNextSectionType(state.currentSong.sections);
             },
 

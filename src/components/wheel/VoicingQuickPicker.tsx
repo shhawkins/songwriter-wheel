@@ -73,6 +73,8 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
     const isDraggingModal = useRef(false);
     const dragOffset = useRef({ x: 0, y: 0 });
     const rafRef = useRef<number | null>(null);
+    const dragStartPos = useRef<{ x: number; y: number } | null>(null);
+    const hasDragged = useRef(false);
 
     const {
         chordInversion,
@@ -184,10 +186,14 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
         e.stopPropagation();
 
         isDraggingModal.current = true;
+        hasDragged.current = false;
         setIsDraggingVoicingPicker(true);
         const rect = modalRef.current.getBoundingClientRect();
         const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
         const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+
+        // Store start position for tap detection
+        dragStartPos.current = { x: clientX, y: clientY };
 
         dragOffset.current = {
             x: clientX - rect.left,
@@ -219,6 +225,15 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
             const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
             const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
 
+            // Check if we've moved enough to consider this a drag (not a tap)
+            if (dragStartPos.current && !hasDragged.current) {
+                const deltaX = Math.abs(clientX - dragStartPos.current.x);
+                const deltaY = Math.abs(clientY - dragStartPos.current.y);
+                if (deltaX > 10 || deltaY > 10) {
+                    hasDragged.current = true;
+                }
+            }
+
             rafRef.current = requestAnimationFrame(() => {
                 if (!isDraggingModal.current || !modalRef.current) return;
 
@@ -233,9 +248,17 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
 
         const handleUp = () => {
             if (isDraggingModal.current && modalRef.current) {
-                // Save final position to React state to persist it
-                const rect = modalRef.current.getBoundingClientRect();
-                setModalPosition({ x: rect.left, y: rect.top });
+                // Check if this was a tap (minimal movement) or a drag
+                const wasTap = !hasDragged.current;
+
+                if (wasTap) {
+                    // Tap detected - close the modal
+                    onClose();
+                } else {
+                    // Drag detected - save final position to React state to persist it
+                    const rect = modalRef.current.getBoundingClientRect();
+                    setModalPosition({ x: rect.left, y: rect.top });
+                }
 
                 // Cleanup performance optimizations
                 modalRef.current.style.willChange = 'auto';
@@ -244,6 +267,8 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
                 document.body.classList.remove('dragging-modal');
             }
             isDraggingModal.current = false;
+            hasDragged.current = false;
+            dragStartPos.current = null;
             setIsDraggingVoicingPicker(false);
             if (rafRef.current) {
                 cancelAnimationFrame(rafRef.current);

@@ -269,11 +269,8 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
         }
     }, [getAngleFromCenter, wheelRotation, isMobile, zoomScale]);
 
-    // Touch drag for mobile
-    const handleTouchStartForDrag = useCallback((e: React.TouchEvent) => {
-        if (e.touches.length !== 1) return; // Only single touch for drag
-
-        const touch = e.touches[0];
+    // Touch drag for mobile - accepts specific touch object to support multi-touch
+    const handleTouchStartForDrag = useCallback((touch: React.Touch) => {
         dragStartPos.current = { x: touch.clientX, y: touch.clientY };
         hasMoved.current = false;
 
@@ -293,10 +290,9 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
         }
     }, [getAngleFromCenter, wheelRotation]);
 
-    const handleTouchMoveForDrag = useCallback((e: React.TouchEvent) => {
-        if (e.touches.length !== 1 || !dragStartPos.current || isDraggingVoicingPicker) return;
+    const handleTouchMoveForDrag = useCallback((e: React.TouchEvent, touch: React.Touch) => {
+        if (!dragStartPos.current || isDraggingVoicingPicker) return;
 
-        const touch = e.touches[0];
         const dx = touch.clientX - dragStartPos.current.x;
         const dy = touch.clientY - dragStartPos.current.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
@@ -440,31 +436,42 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
         }
     }, [isPanning, handlePanMove, handlePanEnd]);
 
-    const getTouchCenter = (touches: React.TouchList) => ({
-        x: (touches[0].clientX + touches[1].clientX) / 2,
-        y: (touches[0].clientY + touches[1].clientY) / 2
-    });
+
 
     // Handle touch events for pinch zoom - improved for iOS
     const handleTouchStart = useCallback((e: React.TouchEvent) => {
-        if (e.touches.length === 2) {
+        const wheelTouches = Array.from(e.touches).filter(touch => {
+            const target = touch.target as HTMLElement;
+            return !target.closest('.piano-keyboard') && !target.closest('.chord-details-drawer');
+        });
+
+        if (wheelTouches.length === 2) {
             // Prevent default to stop iOS from interfering with pinch
             e.preventDefault();
-            const dx = e.touches[0].clientX - e.touches[1].clientX;
-            const dy = e.touches[0].clientY - e.touches[1].clientY;
+            const dx = wheelTouches[0].clientX - wheelTouches[1].clientX;
+            const dy = wheelTouches[0].clientY - wheelTouches[1].clientY;
             lastTouchDistance.current = Math.sqrt(dx * dx + dy * dy);
-            lastPanCenter.current = getTouchCenter(e.touches);
+
+            lastPanCenter.current = {
+                x: (wheelTouches[0].clientX + wheelTouches[1].clientX) / 2,
+                y: (wheelTouches[0].clientY + wheelTouches[1].clientY) / 2
+            };
         }
     }, []);
 
     const handleTouchMove = useCallback((e: React.TouchEvent) => {
-        if (e.touches.length === 2 && lastTouchDistance.current !== null) {
+        const wheelTouches = Array.from(e.touches).filter(touch => {
+            const target = touch.target as HTMLElement;
+            return !target.closest('.piano-keyboard') && !target.closest('.chord-details-drawer');
+        });
+
+        if (wheelTouches.length === 2 && lastTouchDistance.current !== null) {
             // Prevent default scrolling and zooming
             e.preventDefault();
             e.stopPropagation();
 
-            const dx = e.touches[0].clientX - e.touches[1].clientX;
-            const dy = e.touches[0].clientY - e.touches[1].clientY;
+            const dx = wheelTouches[0].clientX - wheelTouches[1].clientX;
+            const dy = wheelTouches[0].clientY - wheelTouches[1].clientY;
             const distance = Math.sqrt(dx * dx + dy * dy);
 
             const scaleDelta = distance / lastTouchDistance.current;
@@ -473,7 +480,11 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
             const newScale = Math.max(1, Math.min(2.5, zoomScale * scaleDelta));
             const newOriginY = newScale > 1.3 ? 38 : 50;
 
-            const center = getTouchCenter(e.touches);
+            const center = {
+                x: (wheelTouches[0].clientX + wheelTouches[1].clientX) / 2,
+                y: (wheelTouches[0].clientY + wheelTouches[1].clientY) / 2
+            };
+
             if (lastPanCenter.current) {
                 const deltaX = center.x - lastPanCenter.current.x;
                 const deltaY = center.y - lastPanCenter.current.y;
@@ -734,27 +745,42 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
         return rootMatch && qualityMatch;
     };
 
+    // Filter touches to only include those on the wheel/app but NOT on keyboard or details drawer
+    const getWheelTouches = (e: React.TouchEvent) => {
+        return Array.from(e.touches).filter(touch => {
+            const target = touch.target as HTMLElement;
+            return !target.closest('.piano-keyboard') && !target.closest('.chord-details-drawer');
+        });
+    };
+
     // Combined touch handler for both pinch-zoom and drag
     const handleCombinedTouchStart = useCallback((e: React.TouchEvent) => {
-        if (e.touches.length === 2) {
+        const wheelTouches = getWheelTouches(e);
+        if (wheelTouches.length === 2) {
             handleTouchStart(e); // Pinch zoom
-        } else if (e.touches.length === 1) {
-            handleTouchStartForDrag(e); // Drag
+        } else if (wheelTouches.length === 1) {
+            handleTouchStartForDrag(wheelTouches[0]); // Drag
         }
     }, [handleTouchStart, handleTouchStartForDrag]);
 
     const handleCombinedTouchMove = useCallback((e: React.TouchEvent) => {
-        if (e.touches.length === 2) {
+        const wheelTouches = getWheelTouches(e);
+        if (wheelTouches.length === 2) {
             handleTouchMove(e); // Pinch zoom
-        } else if (e.touches.length === 1) {
-            handleTouchMoveForDrag(e); // Drag
+        } else if (wheelTouches.length === 1) {
+            handleTouchMoveForDrag(e, wheelTouches[0]); // Drag
         }
     }, [handleTouchMove, handleTouchMoveForDrag]);
 
     const handleCombinedTouchEnd = useCallback((e: React.TouchEvent) => {
         dragStartPos.current = null;
         hasMoved.current = false;
-        handleTouchEnd(e); // Reset pinch zoom
+
+        // Even for end, we check if we still have relevant touches
+        const wheelTouches = getWheelTouches(e);
+        if (wheelTouches.length < 2) {
+            handleTouchEnd(e); // Reset pinch zoom
+        }
     }, [handleTouchEnd]);
 
     const [tooltipState, setTooltipState] = useState<{ text: string, x: number, y: number } | null>(null);

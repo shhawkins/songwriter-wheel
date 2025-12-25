@@ -4,7 +4,7 @@ import { Copy, Eraser, Trash2, X, ChevronLeft, ChevronRight, ArrowLeft, ArrowRig
 import clsx from 'clsx';
 import type { Section } from '../../types';
 import { NoteIcon, getNoteType, getStepOptions } from './NoteValueSelector';
-import { SectionPreview } from './SectionPreview';
+import { SectionOverview } from './SectionOverview';
 import { SongTimeline } from './SongTimeline';
 import { useSongStore } from '../../store/useSongStore';
 
@@ -278,198 +278,212 @@ export const SectionOptionsPopup: React.FC<SectionOptionsPopupProps> = ({
                 </div>
 
                 {/* Content */}
-                <div className="p-4 space-y-4">
-                    {/* Time Signature & Bars */}
-                    <div className="grid grid-cols-2 gap-4">
-                        {/* Time Signature */}
-                        <div className="space-y-1.5">
-                            <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">
-                                Time Sig
-                            </label>
-                            <div className="relative">
-                                <select
-                                    value={signatureValue}
-                                    onChange={(e) => onTimeSignatureChange(e.target.value)}
-                                    className="w-full h-8 bg-bg-tertiary text-text-primary text-xs font-bold rounded-lg 
-                                               px-3 border border-border-subtle 
-                                               focus:outline-none focus:ring-1 focus:ring-accent-primary/50
-                                               appearance-none cursor-pointer"
-                                    style={{
-                                        backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%239ca3af\' stroke-width=\'2\'%3E%3Cpath d=\'M6 9l6 6 6-6\'/%3E%3C/svg%3E")',
-                                        backgroundRepeat: 'no-repeat',
-                                        backgroundPosition: 'right 8px center',
-                                        paddingRight: '24px'
-                                    }}
-                                >
-                                    {TIME_SIGNATURE_OPTIONS.map(([top, bottom]) => (
-                                        <option key={`${top}/${bottom}`} value={`${top}/${bottom}`} className="bg-bg-secondary">
-                                            {top}/{bottom}
-                                        </option>
-                                    ))}
-                                </select>
+                <div className={clsx(
+                    "p-4",
+                    // In landscape mobile, we want a tighter layout (columns)
+                    window.innerHeight < 500 && window.innerWidth > window.innerHeight ? "grid grid-cols-2 gap-4 pb-2" : "space-y-4"
+                )}>
+                    {/* Left Column in Landscape (Controls) */}
+                    <div className={clsx(
+                        window.innerHeight < 500 && window.innerWidth > window.innerHeight ? "space-y-3" : "space-y-4"
+                    )}>
+                        {/* Time Signature & Bars */}
+                        <div className="grid grid-cols-2 gap-4">
+                            {/* Time Signature */}
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">
+                                    Time Sig
+                                </label>
+                                <div className="relative">
+                                    <select
+                                        value={signatureValue}
+                                        onChange={(e) => onTimeSignatureChange(e.target.value)}
+                                        className="w-full h-8 bg-bg-tertiary text-text-primary text-xs font-bold rounded-lg 
+                                                px-3 border border-border-subtle 
+                                                focus:outline-none focus:ring-1 focus:ring-accent-primary/50
+                                                appearance-none cursor-pointer"
+                                        style={{
+                                            backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%239ca3af\' stroke-width=\'2\'%3E%3Cpath d=\'M6 9l6 6 6-6\'/%3E%3C/svg%3E")',
+                                            backgroundRepeat: 'no-repeat',
+                                            backgroundPosition: 'right 8px center',
+                                            paddingRight: '24px'
+                                        }}
+                                    >
+                                        {TIME_SIGNATURE_OPTIONS.map(([top, bottom]) => (
+                                            <option key={`${top}/${bottom}`} value={`${top}/${bottom}`} className="bg-bg-secondary">
+                                                {top}/{bottom}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* Bars */}
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">
+                                    Length
+                                </label>
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        onClick={() => onBarsChange(Math.max(1, measureCount - 1))}
+                                        disabled={measureCount <= 1}
+                                        className="h-8 w-8 flex items-center justify-center rounded-lg
+                                                bg-bg-tertiary border border-border-subtle
+                                                text-text-muted hover:text-text-primary hover:bg-bg-secondary
+                                                disabled:opacity-30 disabled:cursor-not-allowed
+                                                transition-all text-base font-bold active:scale-95"
+                                    >
+                                        −
+                                    </button>
+                                    <span className="flex-1 text-center text-sm font-bold text-text-primary tabular-nums">
+                                        {measureCount}
+                                    </span>
+                                    <button
+                                        onClick={() => onBarsChange(Math.min(32, measureCount + 1))}
+                                        disabled={measureCount >= 32}
+                                        className="h-8 w-8 flex items-center justify-center rounded-lg
+                                                bg-bg-tertiary border border-border-subtle
+                                                text-text-muted hover:text-text-primary hover:bg-bg-secondary
+                                                disabled:opacity-30 disabled:cursor-not-allowed
+                                                transition-all text-base font-bold active:scale-95"
+                                    >
+                                        +
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
-                        {/* Bars */}
-                        <div className="space-y-1.5">
-                            <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">
-                                Length
-                            </label>
-                            <div className="flex items-center gap-1">
-                                <button
-                                    onClick={() => onBarsChange(Math.max(1, measureCount - 1))}
-                                    disabled={measureCount <= 1}
-                                    className="h-8 w-8 flex items-center justify-center rounded-lg
-                                               bg-bg-tertiary border border-border-subtle
-                                               text-text-muted hover:text-text-primary hover:bg-bg-secondary
-                                               disabled:opacity-30 disabled:cursor-not-allowed
-                                               transition-all text-base font-bold active:scale-95"
-                                >
-                                    −
-                                </button>
-                                <span className="flex-1 text-center text-sm font-bold text-text-primary tabular-nums">
-                                    {measureCount}
-                                </span>
-                                <button
-                                    onClick={() => onBarsChange(Math.min(32, measureCount + 1))}
-                                    disabled={measureCount >= 32}
-                                    className="h-8 w-8 flex items-center justify-center rounded-lg
-                                               bg-bg-tertiary border border-border-subtle
-                                               text-text-muted hover:text-text-primary hover:bg-bg-secondary
-                                               disabled:opacity-30 disabled:cursor-not-allowed
-                                               transition-all text-base font-bold active:scale-95"
-                                >
-                                    +
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                        {/* Step Count (Note Values) */}
+                        {onStepCountChange && (
+                            <div className="space-y-1.5">
+                                <label className="block text-center text-[10px] font-bold text-text-muted uppercase tracking-wider">
+                                    Steps Per Bar
+                                </label>
+                                <div className="flex items-center gap-1.5 justify-center">
+                                    {stepOptions.map(steps => {
+                                        const noteType = getNoteType(steps, sectionTimeSignature);
+                                        const isSelected = steps === currentStepCount;
 
-                    {/* Step Count (Note Values) */}
-                    {onStepCountChange && (
-                        <div className="space-y-1.5">
-                            <label className="block text-center text-[10px] font-bold text-text-muted uppercase tracking-wider">
-                                Steps Per Bar
-                            </label>
-                            <div className="flex items-center gap-1.5 justify-center">
-                                {stepOptions.map(steps => {
-                                    const noteType = getNoteType(steps, sectionTimeSignature);
-                                    const isSelected = steps === currentStepCount;
-
-                                    return (
-                                        <button
-                                            key={steps}
-                                            onClick={() => onStepCountChange(steps)}
-                                            className={clsx(
-                                                "flex items-center justify-center rounded-lg transition-all",
-                                                "w-11 h-11 active:scale-95",
-                                                isSelected
-                                                    ? "bg-accent-primary text-white shadow-lg border-2 border-accent-primary"
-                                                    : "bg-bg-tertiary border border-border-subtle text-text-muted hover:text-text-primary hover:bg-bg-secondary"
-                                            )}
-                                            title={`${steps} step${steps > 1 ? 's' : ''} per measure`}
-                                        >
-                                            <NoteIcon type={noteType} size={24} />
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Section Preview Visual */}
-                    <SectionPreview
-                        section={section}
-                        songTimeSignature={songTimeSignature}
-                        className="pt-1"
-                        onSlotClick={onSlotClick}
-                    />
-
-                    {/* Action Buttons */}
-                    <div className="space-y-2 pt-2">
-                        {/* Move Section Row */}
-                        {onMoveUp && onMoveDown && (
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={() => {
-                                        onMoveUp();
-                                    }}
-                                    disabled={!hasPrev}
-                                    className={clsx(
-                                        "flex-1 flex items-center justify-center gap-1.5",
-                                        "px-2 py-2 rounded-lg",
-                                        "transition-all text-xs font-bold active:scale-95",
-                                        hasPrev
-                                            ? "bg-blue-500/10 border border-blue-500/30 text-blue-400 hover:bg-blue-500/20"
-                                            : "bg-bg-tertiary border border-border-subtle text-text-muted opacity-40 cursor-not-allowed"
-                                    )}
-                                    title="Move section earlier in song"
-                                >
-                                    <ArrowLeft size={14} />
-                                    Move Left
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        onMoveDown();
-                                    }}
-                                    disabled={!hasNext}
-                                    className={clsx(
-                                        "flex-1 flex items-center justify-center gap-1.5",
-                                        "px-2 py-2 rounded-lg",
-                                        "transition-all text-xs font-bold active:scale-95",
-                                        hasNext
-                                            ? "bg-blue-500/10 border border-blue-500/30 text-blue-400 hover:bg-blue-500/20"
-                                            : "bg-bg-tertiary border border-border-subtle text-text-muted opacity-40 cursor-not-allowed"
-                                    )}
-                                    title="Move section later in song"
-                                >
-                                    <ArrowRight size={14} />
-                                    Move Right
-                                </button>
+                                        return (
+                                            <button
+                                                key={steps}
+                                                onClick={() => onStepCountChange(steps)}
+                                                className={clsx(
+                                                    "flex items-center justify-center rounded-lg transition-all",
+                                                    "w-11 h-11 active:scale-95",
+                                                    isSelected
+                                                        ? "bg-accent-primary text-white shadow-lg border-2 border-accent-primary"
+                                                        : "bg-bg-tertiary border border-border-subtle text-text-muted hover:text-text-primary hover:bg-bg-secondary"
+                                                )}
+                                                title={`${steps} step${steps > 1 ? 's' : ''} per measure`}
+                                            >
+                                                <NoteIcon type={noteType} size={24} />
+                                            </button>
+                                        );
+                                    })}
+                                </div>
                             </div>
                         )}
+                    </div>
 
-                        {/* Other Actions Row */}
-                        <div className="grid grid-cols-3 gap-2">
-                            <button
-                                onClick={() => {
-                                    onCopy();
-                                }}
-                                className="flex items-center justify-center gap-1.5
-                                           px-2 py-2.5 rounded-lg
-                                           bg-accent-primary/10 border border-accent-primary/30
-                                           text-accent-primary hover:bg-accent-primary/20
-                                           transition-all text-xs font-bold active:scale-95"
-                            >
-                                <Copy size={14} />
-                                Duplicate
-                            </button>
-                            <button
-                                onClick={() => {
-                                    onClear();
-                                }}
-                                className="flex items-center justify-center gap-1.5
-                                           px-2 py-2.5 rounded-lg
-                                           bg-yellow-500/10 border border-yellow-500/30
-                                           text-yellow-400 hover:bg-yellow-500/20
-                                           transition-all text-xs font-bold active:scale-95"
-                            >
-                                <Eraser size={14} />
-                                Clear
-                            </button>
-                            <button
-                                onClick={() => {
-                                    onDelete();
-                                }}
-                                className="flex items-center justify-center gap-1.5
-                                           px-2 py-2.5 rounded-lg
-                                           bg-red-500/10 border border-red-500/30
-                                           text-red-400 hover:bg-red-500/20
-                                           transition-all text-xs font-bold active:scale-95"
-                            >
-                                <Trash2 size={14} />
-                                Remove
-                            </button>
+                    {/* Right Column in Landscape (Preview & Actions) */}
+                    <div className={clsx(
+                        window.innerHeight < 500 && window.innerWidth > window.innerHeight ? "space-y-3" : "space-y-4"
+                    )}>
+                        {/* Section Preview Visual */}
+                        <SectionOverview
+                            section={section}
+                            songTimeSignature={songTimeSignature}
+                            className={clsx("pt-1", window.innerHeight < 500 && window.innerWidth > window.innerHeight ? "" : "")}
+                            onSlotClick={onSlotClick}
+                        />
+
+                        {/* Action Buttons */}
+                        <div className="space-y-2 pt-2">
+                            {/* Move Section Row */}
+                            {onMoveUp && onMoveDown && (
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => {
+                                            onMoveUp();
+                                        }}
+                                        disabled={!hasPrev}
+                                        className={clsx(
+                                            "flex-1 flex items-center justify-center gap-1.5",
+                                            "px-2 py-2 rounded-lg",
+                                            "transition-all text-xs font-bold active:scale-95",
+                                            hasPrev
+                                                ? "bg-blue-500/10 border border-blue-500/30 text-blue-400 hover:bg-blue-500/20"
+                                                : "bg-bg-tertiary border border-border-subtle text-text-muted opacity-40 cursor-not-allowed"
+                                        )}
+                                        title="Move section earlier in song"
+                                    >
+                                        <ArrowLeft size={14} />
+                                        Move Left
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            onMoveDown();
+                                        }}
+                                        disabled={!hasNext}
+                                        className={clsx(
+                                            "flex-1 flex items-center justify-center gap-1.5",
+                                            "px-2 py-2 rounded-lg",
+                                            "transition-all text-xs font-bold active:scale-95",
+                                            hasNext
+                                                ? "bg-blue-500/10 border border-blue-500/30 text-blue-400 hover:bg-blue-500/20"
+                                                : "bg-bg-tertiary border border-border-subtle text-text-muted opacity-40 cursor-not-allowed"
+                                        )}
+                                        title="Move section later in song"
+                                    >
+                                        <ArrowRight size={14} />
+                                        Move Right
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Other Actions Row */}
+                            <div className="grid grid-cols-3 gap-2">
+                                <button
+                                    onClick={() => {
+                                        onCopy();
+                                    }}
+                                    className="flex items-center justify-center gap-1.5
+                                            px-2 py-2.5 rounded-lg
+                                            bg-accent-primary/10 border border-accent-primary/30
+                                            text-accent-primary hover:bg-accent-primary/20
+                                            transition-all text-xs font-bold active:scale-95"
+                                >
+                                    <Copy size={14} />
+                                    Duplicate
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        onClear();
+                                    }}
+                                    className="flex items-center justify-center gap-1.5
+                                            px-2 py-2.5 rounded-lg
+                                            bg-yellow-500/10 border border-yellow-500/30
+                                            text-yellow-400 hover:bg-yellow-500/20
+                                            transition-all text-xs font-bold active:scale-95"
+                                >
+                                    <Eraser size={14} />
+                                    Clear
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        onDelete();
+                                    }}
+                                    className="flex items-center justify-center gap-1.5
+                                            px-2 py-2.5 rounded-lg
+                                            bg-red-500/10 border border-red-500/30
+                                            text-red-400 hover:bg-red-500/20
+                                            transition-all text-xs font-bold active:scale-95"
+                                >
+                                    <Trash2 size={14} />
+                                    Remove
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
