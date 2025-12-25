@@ -248,7 +248,9 @@ export const InstrumentControls: React.FC = () => {
         tremoloDepth,
         setTremoloDepth,
         phaserMix,
-        setPhaserMix
+        setPhaserMix,
+        filterMix,
+        setFilterMix
     } = useSongStore();
 
     // Instrument options for cycling (same list as VoiceSelector)
@@ -347,7 +349,12 @@ export const InstrumentControls: React.FC = () => {
             }
             setInitialized(true);
         }
-    }, [instrumentControlsModalVisible, initialized, instrumentControlsPosition, voicingPickerState.isOpen, isCompact]);
+    }, [instrumentControlsModalVisible, initialized, instrumentControlsPosition, voicingPickerState.isOpen, isCompact, isMobile]);
+
+    // Reset initialization on orientation change to trigger re-calculation/clamping
+    useEffect(() => {
+        setInitialized(false);
+    }, [isCompact, isMobile]);
 
     // Reset initialization when modal closes so it reopens fresh?
     // Actually, we want to KEEP the position state alive if possible, or just rely on 'instrumentControlsPosition'
@@ -470,8 +477,9 @@ export const InstrumentControls: React.FC = () => {
                 <Knob label="Phaser" value={phaserMix} defaultValue={0} min={0} max={1} onChange={setPhaserMix} formatValue={(v) => `${Math.round(v * 100)}%`} icon={<Disc3 />} compact />
             </div>
 
-            {/* Row 2: Reverb, Delay+Feedback, Chorus, Vibrato */}
+            {/* Row 2: Reverb, Delay+Feedback, Chorus, Vibrato, Filter */}
             <div className="flex items-center justify-center gap-1">
+                <Knob label="Filter" value={filterMix} defaultValue={0} min={0} max={1} onChange={setFilterMix} formatValue={(v) => `${Math.round(v * 100)}%`} icon={<Waves />} compact />
                 <Knob label="Reverb" value={reverbMix} defaultValue={0.15} min={0} max={1} onChange={setReverbMix} formatValue={(v) => `${Math.round(v * 100)}%`} icon={<Waves />} compact />
 
                 {/* Delay Group */}
@@ -524,6 +532,7 @@ export const InstrumentControls: React.FC = () => {
 
             {/* Knobs Row 2 - Spatial/Modulation */}
             <div className={clsx("flex items-center px-2 relative z-10 justify-center mt-4", isMobile ? "gap-1.5" : "gap-4")}>
+                <Knob label="Filter" value={filterMix} defaultValue={0} min={0} max={1} onChange={setFilterMix} formatValue={(v) => `${Math.round(v * 100)}%`} icon={<Waves />} compact={isMobile} />
                 <Knob label="Reverb" value={reverbMix} defaultValue={0.15} min={0} max={1} onChange={setReverbMix} formatValue={(v) => `${Math.round(v * 100)}%`} icon={<Waves />} compact={isMobile} />
 
                 {/* Delay Group */}

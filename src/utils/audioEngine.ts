@@ -260,7 +260,8 @@ let currentPitchShift = 0; // Octaves or Semitones
 let currentDelayFeedback = 0.3;
 let currentTremoloDepth = 0;
 let currentPhaserMix = 0;
-// Chain: Instrument -> PitchShift -> Vibrato -> Tremolo -> Phaser -> Distortion -> EQ3 -> Gain -> Chorus -> Delay -> Reverb -> Limiter -> Destination
+let currentFilterMix = 0;
+// Chain: Instrument -> PitchShift -> Vibrato -> Tremolo -> AutoFilter -> Phaser -> Distortion -> EQ3 -> Gain -> Chorus -> Delay -> Reverb -> Limiter -> Destination
 let masterEQ: Tone.EQ3 | null = null;
 let masterGain: Tone.Gain | null = null;
 let masterReverb: Tone.Reverb | null = null;
@@ -269,6 +270,7 @@ let masterDelay: Tone.PingPongDelay | null = null;
 let masterDistortion: Tone.Distortion | null = null;
 let masterVibrato: Tone.Vibrato | null = null;
 let masterTremolo: Tone.Tremolo | null = null;
+let masterAutoFilter: Tone.AutoFilter | null = null;
 let masterPhaser: Tone.Phaser | null = null;
 let masterPitchShift: Tone.PitchShift | null = null;
 let effectsChainInitialized = false;
@@ -347,13 +349,25 @@ const initMasterEffectsChain = async () => {
         }).connect(masterDistortion);
     }
 
-    // Create Tremolo (connects to Phaser)
+    // Create AutoFilter (connects to Phaser)
+    if (!masterAutoFilter) {
+        masterAutoFilter = new Tone.AutoFilter({
+            frequency: 1,
+            baseFrequency: 200,
+            octaves: 2.6,
+            depth: 0.7,
+            wet: currentFilterMix
+        }).connect(masterPhaser);
+        masterAutoFilter.start();
+    }
+
+    // Create Tremolo (connects to AutoFilter)
     if (!masterTremolo) {
         masterTremolo = new Tone.Tremolo({
             frequency: 4, // Hz
             depth: currentTremoloDepth,
             wet: currentTremoloDepth > 0 ? 1 : 0
-        }).connect(masterPhaser);
+        }).connect(masterAutoFilter);
         masterTremolo.start();
     }
 
@@ -474,6 +488,18 @@ export const setDistortionAmount = async (amount: number) => {
     if (masterDistortion) {
         masterDistortion.distortion = currentDistortionAmount;
         masterDistortion.wet.rampTo(currentDistortionAmount > 0 ? 0.5 : 0, 0.1);
+    }
+};
+
+/**
+ * Set the auto-filter mix.
+ * @param mix - Mix (0 to 1)
+ */
+export const setFilterMix = async (mix: number) => {
+    await initMasterEffectsChain();
+    currentFilterMix = Math.max(0, Math.min(1, mix));
+    if (masterAutoFilter) {
+        masterAutoFilter.wet.rampTo(currentFilterMix, 0.1);
     }
 };
 

@@ -168,6 +168,7 @@ interface SongState {
     delayFeedback: number;
     tremoloDepth: number;
     phaserMix: number;
+    filterMix: number;
     pitchShift: number; // Semitones (usually octaves in UI)
     isMuted: boolean;
     customInstruments: CustomInstrument[];
@@ -203,6 +204,7 @@ interface SongState {
     setDelayFeedback: (amount: number) => void;
     setTremoloDepth: (amount: number) => void;
     setPhaserMix: (amount: number) => void;
+    setFilterMix: (amount: number) => void;
     setPitchShift: (shift: number) => void;
     resetInstrumentControls: () => void;
     toggleSectionCollapsed: (sectionId: string) => void;
@@ -551,6 +553,7 @@ export const useSongStore = create<SongState>()(
             delayFeedback: 0.3,   // Default 30% feedback
             tremoloDepth: 0,      // Default no tremolo
             phaserMix: 0,         // Default no phaser
+            filterMix: 0,         // Default no auto-filter
             vibratoDepth: 0,
             distortionAmount: 0,
             pitchShift: 0,
@@ -1260,6 +1263,7 @@ export const useSongStore = create<SongState>()(
             setDelayFeedback: (amount) => set({ delayFeedback: amount }),
             setTremoloDepth: (amount) => set({ tremoloDepth: amount }),
             setPhaserMix: (amount) => set({ phaserMix: amount }),
+            setFilterMix: (amount) => set({ filterMix: amount }),
             setPitchShift: (shift) => set({ pitchShift: shift }),
             resetInstrumentControls: () => set({
                 instrumentGain: 1.0,
@@ -1269,6 +1273,7 @@ export const useSongStore = create<SongState>()(
                 delayFeedback: 0.3,
                 tremoloDepth: 0,
                 phaserMix: 0,
+                filterMix: 0,
                 reverbMix: 0.15,
                 delayMix: 0,
                 chorusMix: 0,

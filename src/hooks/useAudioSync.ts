@@ -27,6 +27,7 @@ import {
     setDelayFeedback as setAudioDelayFeedback,
     setTremoloDepth as setAudioTremoloDepth,
     setPhaserMix as setAudioPhaserMix,
+    setFilterMix as setAudioFilterMix,
     setPitchShift as setAudioPitchShift,
     preloadAudio
 } from '../utils/audioEngine';
@@ -49,6 +50,7 @@ export const useAudioSync = () => {
         delayFeedback,
         tremoloDepth,
         phaserMix,
+        filterMix,
         pitchShift
     } = useSongStore();
 
@@ -126,6 +128,11 @@ export const useAudioSync = () => {
     useEffect(() => {
         setAudioPhaserMix(phaserMix);
     }, [phaserMix]);
+
+    // Sync filter mix
+    useEffect(() => {
+        setAudioFilterMix(filterMix);
+    }, [filterMix]);
 
     // Preload audio on mount
     useEffect(() => {
