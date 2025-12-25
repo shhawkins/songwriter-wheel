@@ -7,6 +7,7 @@ import { NoteIcon, getNoteType, getStepOptions } from './NoteValueSelector';
 import { SectionOverview } from './SectionOverview';
 import { SongTimeline } from './SongTimeline';
 import { useSongStore } from '../../store/useSongStore';
+import { useMobileLayout } from '../../hooks/useIsMobile';
 
 interface SectionOptionsPopupProps {
     section: Section;
@@ -83,6 +84,7 @@ export const SectionOptionsPopup: React.FC<SectionOptionsPopupProps> = ({
 }) => {
     const popupRef = useRef<HTMLDivElement>(null);
     const { currentSong, reorderSections, addSuggestedSection, toggleSongMap } = useSongStore();
+    const { isMobile, isLandscape } = useMobileLayout();
     const sectionTimeSignature = section.timeSignature || songTimeSignature;
     const signatureValue = `${sectionTimeSignature[0]}/${sectionTimeSignature[1]}`;
     const measureCount = section.measures.length;
@@ -178,8 +180,8 @@ export const SectionOptionsPopup: React.FC<SectionOptionsPopupProps> = ({
                            animate-in fade-in zoom-in-95 duration-200"
                 style={{
                     minWidth: '260px',
-                    maxWidth: '300px',
-                    width: '90vw'
+                    maxWidth: isMobile && isLandscape ? '540px' : '300px',
+                    width: isMobile && isLandscape ? '85vw' : '90vw'
                 }}
             >
                 {/* Header */}
@@ -281,11 +283,11 @@ export const SectionOptionsPopup: React.FC<SectionOptionsPopupProps> = ({
                 <div className={clsx(
                     "p-4",
                     // In landscape mobile, we want a tighter layout (columns)
-                    window.innerHeight < 500 && window.innerWidth > window.innerHeight ? "grid grid-cols-2 gap-4 pb-2" : "space-y-4"
+                    isMobile && isLandscape ? "grid grid-cols-2 gap-4 pb-2 items-start" : "space-y-4"
                 )}>
                     {/* Left Column in Landscape (Controls) */}
                     <div className={clsx(
-                        window.innerHeight < 500 && window.innerWidth > window.innerHeight ? "space-y-3" : "space-y-4"
+                        isMobile && isLandscape ? "space-y-3" : "space-y-4"
                     )}>
                         {/* Time Signature & Bars */}
                         <div className="grid grid-cols-2 gap-4">
@@ -388,13 +390,13 @@ export const SectionOptionsPopup: React.FC<SectionOptionsPopupProps> = ({
 
                     {/* Right Column in Landscape (Preview & Actions) */}
                     <div className={clsx(
-                        window.innerHeight < 500 && window.innerWidth > window.innerHeight ? "space-y-3" : "space-y-4"
+                        isMobile && isLandscape ? "space-y-3 min-w-0" : "space-y-4"
                     )}>
                         {/* Section Preview Visual */}
                         <SectionOverview
                             section={section}
                             songTimeSignature={songTimeSignature}
-                            className={clsx("pt-1", window.innerHeight < 500 && window.innerWidth > window.innerHeight ? "" : "")}
+                            className={clsx("pt-1", isMobile && isLandscape ? "" : "")}
                             onSlotClick={onSlotClick}
                         />
 
