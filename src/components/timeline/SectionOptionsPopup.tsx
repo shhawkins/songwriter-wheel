@@ -138,7 +138,7 @@ export const SectionOptionsPopup: React.FC<SectionOptionsPopupProps> = ({
                     )}
                     style={{
                         // Position to the left of modal: center - half modal width - gap - button width
-                        left: 'calc(50% - min(150px, 45vw) - 52px)'
+                        left: `calc(50% - ${isMobile && isLandscape ? 'min(270px, 42.5vw)' : 'min(150px, 45vw)'} - ${isMobile && isLandscape ? '44px' : '52px'})`
                     }}
                     title="Previous Section"
                 >
@@ -162,7 +162,7 @@ export const SectionOptionsPopup: React.FC<SectionOptionsPopupProps> = ({
                     )}
                     style={{
                         // Position to the right of modal: center + half modal width + gap
-                        right: 'calc(50% - min(150px, 45vw) - 52px)'
+                        right: `calc(50% - ${isMobile && isLandscape ? 'min(270px, 42.5vw)' : 'min(150px, 45vw)'} - ${isMobile && isLandscape ? '44px' : '52px'})`
                     }}
                     title="Next Section"
                 >
