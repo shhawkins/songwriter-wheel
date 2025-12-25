@@ -31,6 +31,10 @@ Built around the classic **Chord Wheel** concept — a circle of fifths on the i
 - **Staff notation** — View chords in standard musical notation
 - **Inversions** — Hear and explore different chord inversions
 
+<p align="center">
+  <img src="docs/screenshots/mobile-instrument-controls.png" alt="Instrument Controls with Effects" width="300" />
+</p>
+
 ### 🎼 Song Creation
 - **Build chord progressions** — Easily create progressions by tapping chords on the wheel
 - **Loop, listen, & brainstorm** — Cycle a section with different instruments while ideas percolate
