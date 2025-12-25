@@ -56,7 +56,7 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
     const instrumentOptions: { value: InstrumentType, label: string }[] = [
         { value: 'piano', label: 'Piano' },
         { value: 'guitar-jazzmaster', label: 'Jazzmaster' },
-        { value: 'acoustic-archtop', label: 'Acoustic Archtop' },
+        { value: 'acoustic-archtop', label: 'Archtop' },
         { value: 'nylon-string', label: 'Nylon String' },
         { value: 'ocarina', label: 'Ocarina' },
         { value: 'harmonica', label: 'Harmonica' },
