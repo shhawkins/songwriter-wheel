@@ -19,11 +19,11 @@ export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
 }) => {
     const whiteKeys = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
 
-    // Glissando state
+    // Multi-touch glissando state - track each pointer separately
     const containerRef = useRef<HTMLDivElement>(null);
-    const isGlissandoActive = useRef(false);
-    const lastPlayedNoteKey = useRef<string | null>(null);
-    const [activeKey, setActiveKey] = useState<string | null>(null);
+    const activePointers = useRef<Set<number>>(new Set()); // Track active pointer IDs
+    const lastPlayedByPointer = useRef<Map<number, string>>(new Map()); // Last note per pointer
+    const [activeKeys, setActiveKeys] = useState<Set<string>>(new Set()); // Visual feedback for all active keys
 
     // Convert note name to pitch class (0-11) for accurate comparison
     const noteToPitchClass = (note: string): number => {
@@ -64,17 +64,42 @@ export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
         return noteToPitchClass(note) === bassPitchClass;
     };
 
-    // Glissando: play note if it's different from the last one played in this drag
-    const playNoteInGlissando = useCallback((note: string, keyOctave: number) => {
+    // Play note if it's different from the last one played by this pointer
+    const playNoteForPointer = useCallback((pointerId: number, note: string, keyOctave: number) => {
         const noteKey = `${note}-${keyOctave}`;
-        if (lastPlayedNoteKey.current !== noteKey) {
-            lastPlayedNoteKey.current = noteKey;
-            setActiveKey(noteKey);
+        const lastNote = lastPlayedByPointer.current.get(pointerId);
+
+        if (lastNote !== noteKey) {
+            lastPlayedByPointer.current.set(pointerId, noteKey);
+            // Update visual feedback - add this key to active set
+            setActiveKeys(prev => {
+                const newSet = new Set(prev);
+                // Remove old key for this pointer if exists
+                if (lastNote) newSet.delete(lastNote);
+                newSet.add(noteKey);
+                return newSet;
+            });
             if (onNotePlay) {
                 onNotePlay(note, keyOctave);
             }
         }
     }, [onNotePlay]);
+
+    // Clean up a pointer when it's released
+    const cleanupPointer = useCallback((pointerId: number) => {
+        const lastNote = lastPlayedByPointer.current.get(pointerId);
+        activePointers.current.delete(pointerId);
+        lastPlayedByPointer.current.delete(pointerId);
+
+        // Remove visual feedback for this pointer's note
+        if (lastNote) {
+            setActiveKeys(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(lastNote);
+                return newSet;
+            });
+        }
+    }, []);
 
     // Get note info from a point on the keyboard
     const getNoteFromPoint = useCallback((clientX: number, clientY: number): { note: string; octave: number } | null => {
@@ -137,42 +162,40 @@ export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
         return null;
     }, [octave, whiteKeys]);
 
-    // Handle pointer/touch events for glissando
+    // Handle pointer/touch events for glissando - NO pointer capture for multi-touch support
     const handlePointerDown = useCallback((e: React.PointerEvent) => {
-        isGlissandoActive.current = true;
-        lastPlayedNoteKey.current = null;
+        // Track this pointer
+        activePointers.current.add(e.pointerId);
 
         const noteInfo = getNoteFromPoint(e.clientX, e.clientY);
         if (noteInfo) {
-            playNoteInGlissando(noteInfo.note, noteInfo.octave);
+            playNoteForPointer(e.pointerId, noteInfo.note, noteInfo.octave);
         }
 
-        // Capture pointer for smooth dragging
-        (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
-    }, [getNoteFromPoint, playNoteInGlissando]);
+        // DO NOT capture pointer - this blocks multi-touch on other elements
+        // The pointer will naturally stay associated with this element while in bounds
+    }, [getNoteFromPoint, playNoteForPointer]);
 
     const handlePointerMove = useCallback((e: React.PointerEvent) => {
-        if (!isGlissandoActive.current) return;
+        // Only process if this pointer is one we're tracking
+        if (!activePointers.current.has(e.pointerId)) return;
 
         const noteInfo = getNoteFromPoint(e.clientX, e.clientY);
         if (noteInfo) {
-            playNoteInGlissando(noteInfo.note, noteInfo.octave);
+            playNoteForPointer(e.pointerId, noteInfo.note, noteInfo.octave);
         }
-    }, [getNoteFromPoint, playNoteInGlissando]);
+    }, [getNoteFromPoint, playNoteForPointer]);
 
-    const handlePointerUp = useCallback(() => {
-        isGlissandoActive.current = false;
-        lastPlayedNoteKey.current = null;
-        setActiveKey(null);
-    }, []);
+    const handlePointerUp = useCallback((e: React.PointerEvent) => {
+        cleanupPointer(e.pointerId);
+    }, [cleanupPointer]);
 
-    const handlePointerLeave = useCallback(() => {
-        if (isGlissandoActive.current) {
-            isGlissandoActive.current = false;
-            lastPlayedNoteKey.current = null;
-            setActiveKey(null);
+    const handlePointerLeave = useCallback((e: React.PointerEvent) => {
+        // Clean up this specific pointer when it leaves
+        if (activePointers.current.has(e.pointerId)) {
+            cleanupPointer(e.pointerId);
         }
-    }, []);
+    }, [cleanupPointer]);
 
     const renderWhiteKeys = () => {
         const keys: React.ReactNode[] = [];
@@ -185,7 +208,7 @@ export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
                 const isRoot = getIsRoot(note);
                 const isBass = getIsBass(note);
                 const noteKey = `${note}-${keyOctave}`;
-                const isActive = activeKey === noteKey;
+                const isActive = activeKeys.has(noteKey);
 
                 keys.push(
                     <div
@@ -267,7 +290,7 @@ export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
                 const isBass = getIsBass(note);
                 const leftPos = octaveOffset + offset;
                 const noteKey = `${note}-${keyOctave}`;
-                const isActive = activeKey === noteKey;
+                const isActive = activeKeys.has(noteKey);
 
                 keys.push(
                     <div
@@ -335,7 +358,7 @@ export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
     return (
         <div
             ref={containerRef}
-            className="relative w-full rounded-lg select-none overflow-hidden touch-none"
+            className="piano-keyboard relative w-full rounded-lg select-none overflow-hidden touch-none"
             style={{
                 height: '80px',
                 minHeight: '80px',

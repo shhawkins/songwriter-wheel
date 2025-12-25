@@ -132,12 +132,21 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
     useEffect(() => {
         if (!isOpen) return;
         const handleClickOutside = (e: MouseEvent | TouchEvent) => {
-            // Exceptions for click-outside: don't close if clicking the timeline toggle, wheel areas,
-            // or the voice selector menu portal (which is outside the modal in DOM)
+            // Exceptions for click-outside: don't close if clicking on areas where
+            // the user may be simultaneously interacting (e.g., playing piano while picking chords)
             const target = e.target as HTMLElement;
             if (!target || !(target instanceof Element)) return;
 
+            // Allow simultaneous interactions with these elements without closing the picker:
+            // - Piano keyboard (for playing notes while picking chords)
+            // - Chord wheel (for selecting different chords)
+            // - Chord details drawer (for viewing/selecting voicings)
+            // - Timeline controls
+            // - Voice selector menu
             if (
+                target.closest('.piano-keyboard') ||
+                target.closest('[data-chord-wheel]') ||
+                target.closest('.chord-details-drawer') ||
                 target.closest('.timeline-toggle') ||
                 target.closest('.mobile-timeline-drawer') ||
                 target.closest('.voice-selector-menu')
@@ -185,6 +194,13 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
             y: clientY - rect.top
         };
 
+        // Performance optimizations for drag
+        if (modalRef.current) {
+            modalRef.current.style.willChange = 'transform';
+            // Temporarily disable transitions during drag to prevent fighting with JS
+            modalRef.current.style.transition = 'none';
+        }
+
         // Add class to body to disable text selection globally during drag
         document.body.classList.add('dragging-modal');
     };
@@ -195,7 +211,7 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
         const handleMove = (e: MouseEvent | TouchEvent) => {
             if (!isDraggingModal.current || !modalRef.current) return;
 
-            // Prevent wheel from moving
+            // Prevent wheel from moving and page scrolling
             if (e.cancelable) e.preventDefault();
 
             if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -204,24 +220,27 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
             const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
 
             rafRef.current = requestAnimationFrame(() => {
+                if (!isDraggingModal.current || !modalRef.current) return;
+
                 const x = clientX - dragOffset.current.x;
                 const y = clientY - dragOffset.current.y;
 
-                // Use translate3d for GPU acceleration (smoother on iOS)
-                if (modalRef.current) {
-                    modalRef.current.style.transform = `translate3d(${x}px, ${y}px, 0)`;
-                    modalRef.current.style.left = '0';
-                    modalRef.current.style.top = '0';
-                    modalRef.current.style.bottom = 'auto';
-                }
-                rafRef.current = null;
+                // Use translate3d for GPU acceleration
+                modalRef.current.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+                // Removed redundant left/top/bottom setting for performance
             });
         };
+
         const handleUp = () => {
             if (isDraggingModal.current && modalRef.current) {
                 // Save final position to React state to persist it
                 const rect = modalRef.current.getBoundingClientRect();
                 setModalPosition({ x: rect.left, y: rect.top });
+
+                // Cleanup performance optimizations
+                modalRef.current.style.willChange = 'auto';
+                modalRef.current.style.transition = ''; // Restore transitions
+
                 document.body.classList.remove('dragging-modal');
             }
             isDraggingModal.current = false;
@@ -231,6 +250,7 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
                 rafRef.current = null;
             }
         };
+
         document.addEventListener('mousemove', handleMove, { passive: false });
         document.addEventListener('mouseup', handleUp);
         document.addEventListener('touchmove', handleMove, { passive: false });
@@ -405,14 +425,18 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
                 transform: modalPosition
                     ? `translate3d(${modalPosition.x}px, ${modalPosition.y}px, 0)`
                     : (isLandscapeMobile
-                        ? `translate3d(12px, calc(100vh - 320px), 0)`
+                        ? `translate3d(max(env(safe-area-inset-left), 16px), calc(100vh - 340px), 0)` // Lower it slightly, keep left
                         : (portraitWithPanel
                             ? `translate3d(12px, calc(100vh - 450px), 0)`
                             : (timelineVisible
                                 ? `translate3d(12px, calc(100vh - 480px), 0)`
                                 : `translate3d(12px, calc(100vh - 400px), 0)`))),
-                maxWidth: isMobile ? 'calc(100vw - 24px)' : '520px',
-                width: isMobile ? 'calc(100vw - 24px)' : '520px'
+                maxWidth: isMobile
+                    ? (isLandscape ? '480px' : 'calc(100vw - 24px)')
+                    : '520px',
+                width: isMobile
+                    ? (isLandscape ? '480px' : 'calc(100vw - 24px)')
+                    : '520px'
             }}
         >
             {/* ROW 1: VOICINGS & QUICK ACTIONS */}

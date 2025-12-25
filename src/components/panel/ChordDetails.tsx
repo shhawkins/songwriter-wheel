@@ -651,7 +651,7 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
 
     return (
         <div
-            className={`${isLandscapeExpanded
+            className={`chord-details-drawer ${isLandscapeExpanded
                 ? "h-full w-full flex flex-col bg-bg-secondary overflow-hidden"
                 : isLandscapePanel
                     ? "h-full w-full flex flex-col bg-bg-secondary overflow-hidden"
