@@ -487,7 +487,7 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
                         <MoveRight size={16} className={clsx("transition-transform", autoAdvance ? "scale-110" : "scale-90 opacity-50")} />
                         <div className={clsx(
                             "w-1 h-1 rounded-full mt-1 transition-all",
-                            autoAdvance ? "bg-white scale-100" : "bg-text-tertiary scale-50 opacity-0"
+                            autoAdvance ? "bg-white scale-100" : "bg-text-tertiary scale-75 opacity-50"
                         )} />
                     </button>
 

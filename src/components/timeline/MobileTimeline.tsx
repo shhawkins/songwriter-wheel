@@ -377,7 +377,7 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
         // Delay to ensure the drawer animation completes and DOM is fully rendered
         const timeoutId = setTimeout(() => {
             if (scrollRef.current) {
-                const selectedElement = scrollRef.current.querySelector(`[data - slot - id= "${selectedSlotId}"]`);
+                const selectedElement = scrollRef.current.querySelector(`[data-slot-id="${selectedSlotId}"]`);
                 if (selectedElement) {
                     selectedElement.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
                 }

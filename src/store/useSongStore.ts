@@ -413,21 +413,24 @@ const reselectFromSong = (
 };
 
 const findNextSlot = (sections: Section[], sectionId: string, slotId: string) => {
-    let foundCurrent = false;
+    // Find the current section
+    const currentSection = sections.find(s => s.id === sectionId);
+    if (!currentSection) return null;
 
-    for (const section of sections) {
-        for (const measure of section.measures) {
-            for (const beat of measure.beats) {
-                if (foundCurrent) {
-                    return { sectionId: section.id, slotId: beat.id };
-                }
-                if (section.id === sectionId && beat.id === slotId) {
-                    foundCurrent = true;
-                }
+    // Only search within the current section (don't cross to next section)
+    let foundCurrent = false;
+    for (const measure of currentSection.measures) {
+        for (const beat of measure.beats) {
+            if (foundCurrent) {
+                return { sectionId: currentSection.id, slotId: beat.id };
+            }
+            if (beat.id === slotId) {
+                foundCurrent = true;
             }
         }
     }
 
+    // If we're at the last slot of the section, don't advance
     return null;
 };
 

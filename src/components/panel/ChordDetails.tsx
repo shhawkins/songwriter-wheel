@@ -450,9 +450,17 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
 
         addChordToSlot(newChord, selectedSectionId, selectedSlotId);
 
-        // Keep the added chord selected (don't auto-advance; only double-tap on wheel advances)
+        // Always update selection to the added chord first
         setSelectedSlot(selectedSectionId, selectedSlotId);
         setSelectedChord(newChord);
+
+        // Then auto-advance to next slot if enabled
+        if (autoAdvance) {
+            selectNextSlotAfter(selectedSectionId, selectedSlotId);
+        }
+
+        // Keep preview variant in sync
+        setPreviewVariant(variant);
     };
 
     // Handler for clicking on guitar chord or music staff - plays the currently displayed chord
@@ -491,12 +499,13 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
 
         addChordToSlot(newChord, selectedSectionId, selectedSlotId);
 
-        // Auto-advance if enabled, otherwise keep current slot selected
+        // Always update selection to the added chord first
+        setSelectedSlot(selectedSectionId, selectedSlotId);
+        setSelectedChord(newChord);
+
+        // Then auto-advance to next slot if enabled
         if (autoAdvance) {
             selectNextSlotAfter(selectedSectionId, selectedSlotId);
-        } else {
-            setSelectedSlot(selectedSectionId, selectedSlotId);
-            setSelectedChord(newChord);
         }
     }, [chord, previewVariant, chordInversion, selectedSectionId, selectedSlotId, addChordToSlot, setSelectedSlot, setSelectedChord, timelineVisible, openTimeline, autoAdvance, selectNextSlotAfter]);
 
@@ -830,8 +839,8 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
                                     }`}
                                 title={autoAdvance ? "Auto-advance ON - moves to next slot after adding" : "Auto-advance OFF"}
                             >
-                                <MoveRight size={14} className={autoAdvance ? "scale-110" : "scale-90 opacity-50"} />
-                                <div className={`w-1 h-1 rounded-full transition-all ${autoAdvance ? "bg-white scale-100" : "bg-text-tertiary scale-50 opacity-0"}`} />
+                                <MoveRight size={14} className={autoAdvance ? "scale-110" : "scale-90 opacity-40"} />
+                                <div className={`w-1.5 h-1.5 rounded-full transition-all ${autoAdvance ? "bg-white scale-100" : "bg-white/40 scale-75"}`} />
                             </button>
                         )}
                         {/* Add to Timeline button */}
