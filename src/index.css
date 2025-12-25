@@ -99,16 +99,25 @@ body {
   -webkit-touch-callout: none;
 }
 
-/* Fix Supabase Auth UI inputs not being interactive due to global touch-action: none */
-/* These selectors target the auth modal's input fields */
+/* Fix Supabase Auth UI inputs */
 input[type="email"],
 input[type="password"],
-input[type="text"],
-button[type="submit"] {
+input[type="text"] {
   user-select: text !important;
   -webkit-user-select: text !important;
   pointer-events: auto !important;
-  touch-action: auto !important;
+  touch-action: manipulation !important;
+}
+
+/* Fix buttons (including Google Sign In) and links */
+button,
+a,
+[role="button"] {
+  pointer-events: auto !important;
+  touch-action: manipulation !important;
+  cursor: pointer !important;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 #root {
@@ -226,19 +235,19 @@ button[type="submit"] {
   }
 }
 
-/* Reset WebKit button appearance to prevent iOS styling quirks */
+/* Reset WebKit button appearance */
 button {
   -webkit-appearance: none;
   -moz-appearance: none;
   appearance: none;
+  touch-action: manipulation;
 }
 
-/* Active state feedback for touch */
+/* Active state feedback for touch - OPACITY ONLY to prevent layout shifts canceling clicks */
 button:active,
 .touch-feedback:active {
-  transform: scale(0.97);
-  opacity: 0.9;
-  transition: transform 0.1s ease, opacity 0.1s ease;
+  opacity: 0.7;
+  transition: opacity 0.1s ease;
 }
 
 /* Ensure focus/active states don't override border-radius */

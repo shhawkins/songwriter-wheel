@@ -82,7 +82,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     if (!isOpen || !mounted) return null;
 
     return createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" style={{ pointerEvents: 'auto', touchAction: 'auto' }}>
+        <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" style={{ pointerEvents: 'auto', touchAction: 'auto' }}>
             <div className="relative w-full max-w-md bg-stone-900 border border-stone-800 rounded-xl shadow-2xl overflow-hidden animate-scale-in" style={{ pointerEvents: 'auto', touchAction: 'auto' }}>
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b border-stone-800 bg-stone-900/50">

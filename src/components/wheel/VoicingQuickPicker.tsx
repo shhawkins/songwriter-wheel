@@ -183,6 +183,8 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
     };
 
     useEffect(() => {
+        if (!isOpen) return;
+
         const handleMove = (e: MouseEvent | TouchEvent) => {
             if (!isDraggingModal.current || !modalRef.current) return;
 
@@ -235,7 +237,7 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
             document.body.classList.remove('dragging-modal');
             setIsDraggingVoicingPicker(false);
         };
-    }, []);
+    }, [isOpen]);
 
     const inKeyChords = useMemo(() => {
         const diatonic = getDiatonicChords(selectedKey);
