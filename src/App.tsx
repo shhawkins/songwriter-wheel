@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import { ChordWheel } from './components/wheel/ChordWheel';
 import { MobileTimeline } from './components/timeline/MobileTimeline';
 import { ChordDetails } from './components/panel/ChordDetails';
@@ -2020,6 +2021,9 @@ function App() {
 
       {/* First-time Onboarding Tooltip */}
       <OnboardingTooltip onOpenHelp={() => setShowHelp(true)} />
+
+      {/* Vercel Analytics */}
+      <Analytics />
     </div>
   );
 }
