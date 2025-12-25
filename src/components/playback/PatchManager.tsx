@@ -58,16 +58,28 @@ export const PatchManager: React.FC<PatchManagerProps> = ({ onClose }) => {
         }
     };
 
+    const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
+
     const handleDelete = async (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
-        if (confirm('Are you sure you want to delete this patch?')) {
+        if (confirmingDeleteId === id) {
+            // Already confirming, execute delete
             setIsLoading(true);
             try {
                 await deleteUserPatch(id);
+                setConfirmingDeleteId(null);
             } finally {
                 setIsLoading(false);
             }
+        } else {
+            // Show confirm state
+            setConfirmingDeleteId(id);
         }
+    };
+
+    const cancelDelete = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setConfirmingDeleteId(null);
     };
 
     const handleApply = (patch: InstrumentPatch) => {
@@ -104,24 +116,49 @@ export const PatchManager: React.FC<PatchManagerProps> = ({ onClose }) => {
                             userPatches.map(patch => (
                                 <div
                                     key={patch.id}
-                                    onClick={() => handleApply(patch)}
-                                    className="group flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/5 hover:border-accent-primary/50 hover:bg-white/10 transition-all cursor-pointer active:scale-[0.98]"
+                                    onClick={() => confirmingDeleteId !== patch.id && handleApply(patch)}
+                                    className={`group flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer active:scale-[0.98] ${confirmingDeleteId === patch.id
+                                            ? 'bg-red-500/10 border-red-500/30'
+                                            : 'bg-white/5 border-white/5 hover:border-accent-primary/50 hover:bg-white/10'
+                                        }`}
                                 >
                                     <div className="flex flex-col">
-                                        <span className="text-sm font-medium text-text-primary group-hover:text-accent-primary transition-colors">
-                                            {patch.name}
+                                        <span className={`text-sm font-medium transition-colors ${confirmingDeleteId === patch.id
+                                                ? 'text-red-400'
+                                                : 'text-text-primary group-hover:text-accent-primary'
+                                            }`}>
+                                            {confirmingDeleteId === patch.id ? `Delete "${patch.name}"?` : patch.name}
                                         </span>
-                                        <span className="text-[10px] text-text-tertiary">
-                                            {new Date(patch.createdAt).toLocaleDateString()}
-                                        </span>
+                                        {confirmingDeleteId !== patch.id && (
+                                            <span className="text-[10px] text-text-tertiary">
+                                                {new Date(patch.createdAt).toLocaleDateString()}
+                                            </span>
+                                        )}
                                     </div>
-                                    <button
-                                        onClick={(e) => handleDelete(patch.id, e)}
-                                        className="p-2 text-text-muted hover:text-red-400 hover:bg-white/10 rounded-full transition-colors opacity-0 group-hover:opacity-100"
-                                        title="Delete Patch"
-                                    >
-                                        <Trash2 size={14} />
-                                    </button>
+                                    {confirmingDeleteId === patch.id ? (
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={cancelDelete}
+                                                className="px-3 py-1 text-xs text-text-muted hover:text-white bg-white/10 hover:bg-white/20 rounded-full transition-colors"
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button
+                                                onClick={(e) => handleDelete(patch.id, e)}
+                                                className="px-3 py-1 text-xs text-white bg-red-500 hover:bg-red-400 rounded-full transition-colors"
+                                            >
+                                                Delete
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <button
+                                            onClick={(e) => handleDelete(patch.id, e)}
+                                            className="p-2 text-text-muted hover:text-red-400 hover:bg-white/10 rounded-full transition-colors"
+                                            title="Delete Patch"
+                                        >
+                                            <Trash2 size={14} />
+                                        </button>
+                                    )}
                                 </div>
                             ))
                         )}
