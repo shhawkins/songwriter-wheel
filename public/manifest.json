@@ -1,0 +1,36 @@
+{
+    "name": "Songwriter Wheel",
+    "short_name": "Songwriter Wheel",
+    "description": "Interactive chord wheel for songwriters - explore chord progressions, voicings, and music theory",
+    "start_url": "/",
+    "scope": "/",
+    "display": "standalone",
+    "orientation": "any",
+    "background_color": "#16161d",
+    "theme_color": "#16161d",
+    "icons": [
+        {
+            "src": "/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/apple-touch-icon.png",
+            "sizes": "180x180",
+            "type": "image/png"
+        }
+    ],
+    "categories": [
+        "music",
+        "productivity",
+        "utilities"
+    ],
+    "lang": "en-US"
+}
