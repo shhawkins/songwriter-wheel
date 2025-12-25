@@ -93,10 +93,28 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
     const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
     const handleTouchStart = (e: React.TouchEvent) => {
-        touchStartRef.current = {
-            x: e.touches[0].clientX,
-            y: e.touches[0].clientY
-        };
+        // Find the touch that is actually on this element (the one that just started)
+        // We need to use the touch that targets this element, not touches on other elements like piano
+        // The most reliable way is to find a touch whose target is within the current element
+        const currentTarget = e.currentTarget as HTMLElement;
+        let relevantTouch: React.Touch | undefined;
+
+        for (let i = 0; i < e.touches.length; i++) {
+            const touch = e.touches[i];
+            const target = touch.target as HTMLElement;
+            // Check if the touch target is within the current target (the picker button)
+            if (currentTarget.contains(target)) {
+                relevantTouch = touch;
+                break;
+            }
+        }
+
+        if (relevantTouch) {
+            touchStartRef.current = {
+                x: relevantTouch.clientX,
+                y: relevantTouch.clientY
+            };
+        }
     };
 
     const handleTouchEnd = (e: React.TouchEvent, action: () => void) => {

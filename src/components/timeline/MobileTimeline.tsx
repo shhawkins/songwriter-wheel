@@ -12,12 +12,17 @@ import {
     DndContext,
     DragOverlay,
     closestCenter,
+    pointerWithin,
+    rectIntersection,
     KeyboardSensor,
     PointerSensor,
     TouchSensor,
     useSensor,
     useSensors,
     type DragEndEvent,
+    type DragMoveEvent,
+    type CollisionDetection,
+    MeasuringStrategy,
 } from '@dnd-kit/core';
 import {
     arrayMove,
@@ -123,7 +128,7 @@ const SortableSectionTab: React.FC<SortableSectionTabProps> = ({
                         border: '1px solid rgba(255,255,255,0.2)',
                     } : undefined)
                 }}
-                title={`${displayName} - Hold center to drag`}
+                title={`${displayName} - Hold to drag`}
             >
                 {isActive ? (
                     <span className="flex items-center gap-1 px-2 truncate pointer-events-none">
@@ -143,9 +148,8 @@ const SortableSectionTab: React.FC<SortableSectionTabProps> = ({
                 )}
             </button>
 
-            {/* Invisible drag handle - positioned in center, smaller than the pill */}
-            {/* This is the only area that responds to drag gestures */}
-            {/* Also handles clicks to ensure taps work even when hitting the drag area */}
+            {/* Drag handle - covers the entire element for easier touch */}
+            {/* Handles taps via onClick (passed through if not dragging) and drag via hold */}
             <div
                 {...attributes}
                 {...listeners}
@@ -157,11 +161,8 @@ const SortableSectionTab: React.FC<SortableSectionTabProps> = ({
                         onActivate();
                     }
                 }}
-                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 touch-none draggable-element cursor-grab active:cursor-grabbing"
+                className="absolute inset-0 touch-none draggable-element cursor-grab active:cursor-grabbing"
                 style={{
-                    // Small centered hit area for drag - about 60% of pill size
-                    width: isActive ? (isDesktop ? '60px' : '50px') : (isDesktop ? '24px' : '20px'),
-                    height: isDesktop ? '24px' : '20px',
                     WebkitTouchCallout: 'none',
                     WebkitUserSelect: 'none',
                 }}
@@ -251,6 +252,31 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
     const [activeDragId, setActiveDragId] = useState<string | null>(null);
     const [activeDragType, setActiveDragType] = useState<'section' | 'chord' | null>(null);
 
+    // Edge scroll state for custom auto-scroll behavior
+    const edgeScrollRef = useRef<number | null>(null);
+    const scrollDirectionRef = useRef<'left' | 'right' | null>(null);
+    const EDGE_THRESHOLD = 50; // pixels from edge to trigger scroll
+    const SCROLL_SPEED = 8; // pixels per frame
+
+    // Custom collision detection that works with manual scrolling
+    // Uses pointerWithin for accurate detection after scroll
+    const scrollAwareCollision: CollisionDetection = (args) => {
+        // First try pointerWithin - most accurate for touch
+        const pointerCollisions = pointerWithin(args);
+        if (pointerCollisions.length > 0) {
+            return pointerCollisions;
+        }
+
+        // Fallback to rectIntersection
+        const rectCollisions = rectIntersection(args);
+        if (rectCollisions.length > 0) {
+            return rectCollisions;
+        }
+
+        // Finally fall back to closestCenter
+        return closestCenter(args);
+    };
+
     // DnD sensors - Configured to coexist with horizontal scrolling
     // Touch sensor uses delay + high tolerance so horizontal scroll gestures pass through
     const sensors = useSensors(
@@ -276,8 +302,71 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
         setActiveDragType(event.active.data.current?.type === 'chord' ? 'chord' : 'section');
     };
 
+    // Stop edge scrolling helper
+    const stopEdgeScroll = () => {
+        if (edgeScrollRef.current) {
+            cancelAnimationFrame(edgeScrollRef.current);
+            edgeScrollRef.current = null;
+        }
+        scrollDirectionRef.current = null;
+    };
+
+    // Start edge scrolling in a direction
+    const startEdgeScroll = (direction: 'left' | 'right') => {
+        if (scrollDirectionRef.current === direction) return; // Already scrolling this way
+
+        stopEdgeScroll();
+        scrollDirectionRef.current = direction;
+
+        const scroll = () => {
+            if (!scrollRef.current || !scrollDirectionRef.current) return;
+
+            const delta = scrollDirectionRef.current === 'left' ? -SCROLL_SPEED : SCROLL_SPEED;
+            scrollRef.current.scrollLeft += delta;
+
+            edgeScrollRef.current = requestAnimationFrame(scroll);
+        };
+
+        edgeScrollRef.current = requestAnimationFrame(scroll);
+    };
+
+    // Handle drag move - check if near edges and scroll
+    const handleDragMove = (event: DragMoveEvent) => {
+        if (!scrollRef.current) return;
+
+        // Check if this is a chord drag using event data (not state, which may be stale)
+        if (event.active.data.current?.type !== 'chord') return;
+
+        // Get the scroll container's bounds
+        const containerRect = scrollRef.current.getBoundingClientRect();
+
+        // Calculate current pointer position from the drag delta + initial rect
+        // The delta tells us how far the pointer has moved from the start
+        const initialRect = event.active.rect.current.initial;
+        if (!initialRect) return;
+
+        // Current position = initial center + delta
+        const currentX = initialRect.left + initialRect.width / 2 + event.delta.x;
+
+        // Check if near left edge
+        if (currentX < containerRect.left + EDGE_THRESHOLD) {
+            startEdgeScroll('left');
+        }
+        // Check if near right edge
+        else if (currentX > containerRect.right - EDGE_THRESHOLD) {
+            startEdgeScroll('right');
+        }
+        // Not near any edge - stop scrolling
+        else {
+            stopEdgeScroll();
+        }
+    };
+
     // Unified drag end handler
     const handleDragEnd = (event: DragEndEvent) => {
+        // Stop any edge scrolling
+        stopEdgeScroll();
+
         setActiveDragId(null);
         setActiveDragType(null);
         const { active, over } = event;
@@ -548,9 +637,16 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
         >
             <DndContext
                 sensors={sensors}
-                collisionDetection={closestCenter}
+                collisionDetection={scrollAwareCollision}
                 onDragStart={handleDragStart}
+                onDragMove={handleDragMove}
                 onDragEnd={handleDragEnd}
+                autoScroll={false}
+                measuring={{
+                    droppable: {
+                        strategy: MeasuringStrategy.Always,
+                    }
+                }}
             >
                 {/* Drag handle - title hidden when open to save vertical space */}
                 {!hideCloseButton && (
@@ -801,9 +897,12 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                         "flex-1",
                         isDesktop ? "px-3 pb-2 pt-3" : "px-1 pb-1 pt-3", // Extra top padding for delete badge
                         "min-h-0", // Ensure flex child shrinks/scrolls correctly
-                        isLandscape
-                            ? "overflow-y-auto overflow-x-hidden no-scrollbar select-none" // Landscape: vertical scroll, bars stacked
-                            : "overflow-x-auto overflow-y-hidden no-scrollbar select-none" // Portrait: horizontal scroll
+                        // Disable scrolling when dragging to prevent interference
+                        activeDragId
+                            ? "overflow-hidden select-none"
+                            : isLandscape
+                                ? "overflow-y-auto overflow-x-hidden no-scrollbar select-none" // Landscape: vertical scroll, bars stacked
+                                : "overflow-x-auto overflow-y-hidden no-scrollbar select-none" // Portrait: horizontal scroll
                     )}
                 >
                     {/* Multi-section visualization for landscape mode */}

@@ -141,37 +141,63 @@ export const WheelSegment: React.FC<WheelSegmentProps> = ({
     const glowOpacity = isHighlighted ? 1 : 0.95;
 
     // Handle touch events for mobile - detect single and double taps
+    // Filter touches to only count those on the wheel (not piano keyboard, etc.)
+    const getRelevantTouchCount = (e: React.TouchEvent) => {
+        return Array.from(e.touches).filter(touch => {
+            const target = touch.target as HTMLElement;
+            // Only count touches that are NOT on the piano keyboard or chord details drawer
+            return !target.closest('.piano-keyboard') && !target.closest('.chord-details-drawer');
+        }).length;
+    };
+
     const handleTouchStart = (e: React.TouchEvent) => {
         setIsTouching(true);
-        // If this is a multi-touch gesture (pinch zoom), mark it so we don't play on release
-        if (e.touches.length >= 2) {
+        const relevantTouches = getRelevantTouchCount(e);
+
+        // If there are 2+ touches on the wheel area, it's a pinch zoom - don't trigger chord
+        if (relevantTouches >= 2) {
             wasMultiTouchRef.current = true;
             touchStartPosRef.current = null;
             return;
         }
-        // Record touch start position to detect drags (only for single touches)
-        if (e.touches.length === 1 && !wasMultiTouchRef.current) {
-            touchStartPosRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-            hasDraggedRef.current = false;
+        // Record touch start position to detect drags (only for single touches on wheel)
+        if (relevantTouches === 1 && !wasMultiTouchRef.current) {
+            // Find the touch that's actually on this element
+            const myTouch = Array.from(e.touches).find(touch => {
+                const target = touch.target as HTMLElement;
+                return !target.closest('.piano-keyboard') && !target.closest('.chord-details-drawer');
+            });
+            if (myTouch) {
+                touchStartPosRef.current = { x: myTouch.clientX, y: myTouch.clientY };
+                hasDraggedRef.current = false;
+            }
         }
     };
 
     // Track touch movement to detect drags
     const handleTouchMove = (e: React.TouchEvent) => {
-        // Mark as multi-touch if additional fingers are added during the gesture
-        if (e.touches.length >= 2) {
+        const relevantTouches = getRelevantTouchCount(e);
+
+        // Mark as multi-touch if additional fingers are added on the wheel during the gesture
+        if (relevantTouches >= 2) {
             wasMultiTouchRef.current = true;
             hasDraggedRef.current = true; // Also mark as dragged to be safe
             return;
         }
-        if (touchStartPosRef.current && e.touches.length === 1 && !wasMultiTouchRef.current) {
-            const touch = e.touches[0];
-            const dx = touch.clientX - touchStartPosRef.current.x;
-            const dy = touch.clientY - touchStartPosRef.current.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            // If moved more than 15px, it's a drag not a tap
-            if (distance > 15) {
-                hasDraggedRef.current = true;
+        if (touchStartPosRef.current && relevantTouches === 1 && !wasMultiTouchRef.current) {
+            // Find the touch that's actually on this element
+            const myTouch = Array.from(e.touches).find(touch => {
+                const target = touch.target as HTMLElement;
+                return !target.closest('.piano-keyboard') && !target.closest('.chord-details-drawer');
+            });
+            if (myTouch) {
+                const dx = myTouch.clientX - touchStartPosRef.current.x;
+                const dy = myTouch.clientY - touchStartPosRef.current.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                // If moved more than 15px, it's a drag not a tap
+                if (distance > 15) {
+                    hasDraggedRef.current = true;
+                }
             }
         }
     };
