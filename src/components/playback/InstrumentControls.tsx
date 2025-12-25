@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useSongStore } from '../../store/useSongStore';
-import { X, Volume2, Music, Waves, Play } from 'lucide-react';
+import { X, Volume2, Music, Waves, Play, Radio, Disc3, PanelLeftOpen } from 'lucide-react';
 import { clsx } from 'clsx';
 import { playChord } from '../../utils/audioEngine';
 import { VoiceSelector } from './VoiceSelector';
@@ -145,6 +145,12 @@ export const InstrumentControls: React.FC = () => {
         setInstrumentGain,
         reverbMix,
         setReverbMix,
+        delayMix,
+        setDelayMix,
+        chorusMix,
+        setChorusMix,
+        stereoWidth,
+        setStereoWidth,
         selectedChord,
         chordInversion
     } = useSongStore();
@@ -289,6 +295,7 @@ export const InstrumentControls: React.FC = () => {
     return createPortal(
         <div
             ref={modalRef}
+            data-instrument-controls
             className={clsx(
                 "fixed z-50 flex flex-col items-center gap-4 p-4",
                 "bg-bg-elevated/80 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl"
@@ -331,14 +338,14 @@ export const InstrumentControls: React.FC = () => {
                 </div>
             </div>
 
-            {/* Knobs Row */}
+            {/* Knobs Row 1 - Primary Effects */}
             <div className="flex items-center gap-6 px-2 relative z-10">
-                {/* Gain - max 200% for louder output */}
+                {/* Gain - max 300% for really loud output */}
                 <Knob
                     label="Gain"
                     value={instrumentGain}
                     min={0}
-                    max={2.0}
+                    max={3.0}
                     onChange={setInstrumentGain}
                     formatValue={(v) => `${Math.round(v * 100)}%`}
                     icon={<Volume2 />}
@@ -364,6 +371,42 @@ export const InstrumentControls: React.FC = () => {
                     onChange={setReverbMix}
                     formatValue={(v) => `${Math.round(v * 100)}%`}
                     icon={<Waves />}
+                />
+            </div>
+
+            {/* Knobs Row 2 - Secondary Effects */}
+            <div className="flex items-center gap-6 px-2 relative z-10">
+                {/* Delay */}
+                <Knob
+                    label="Delay"
+                    value={delayMix}
+                    min={0}
+                    max={1}
+                    onChange={setDelayMix}
+                    formatValue={(v) => `${Math.round(v * 100)}%`}
+                    icon={<Radio />}
+                />
+
+                {/* Chorus */}
+                <Knob
+                    label="Chorus"
+                    value={chorusMix}
+                    min={0}
+                    max={1}
+                    onChange={setChorusMix}
+                    formatValue={(v) => `${Math.round(v * 100)}%`}
+                    icon={<Disc3 />}
+                />
+
+                {/* Stereo Width */}
+                <Knob
+                    label="Width"
+                    value={stereoWidth}
+                    min={0}
+                    max={1}
+                    onChange={setStereoWidth}
+                    formatValue={(v) => v < 0.3 ? 'Mono' : v > 0.7 ? 'Wide' : 'Normal'}
+                    icon={<PanelLeftOpen />}
                 />
             </div>
 

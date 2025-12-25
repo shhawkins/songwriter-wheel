@@ -245,20 +245,27 @@ export const installVisibilityHandler = (): void => {
 let masterLimiter: Tone.Limiter | null = null;
 
 // --- MASTER EFFECTS CHAIN ---
-// Signal path: instrument → EQ3 (tone) → Gain (volume) → Reverb → Limiter → Destination
+// Signal path: instrument → EQ3 (tone) → Gain (volume) → Chorus → Delay → StereoWidener → Reverb → Limiter → Destination
 let masterEQ: Tone.EQ3 | null = null;
 let masterGain: Tone.Gain | null = null;
 let masterReverb: Tone.Reverb | null = null;
+let masterChorus: Tone.Chorus | null = null;
+let masterDelay: Tone.PingPongDelay | null = null;
+let masterStereoWidener: Tone.StereoWidener | null = null;
 let effectsChainInitialized = false;
 
 // Current effect values (for UI sync)
 let currentToneValues = { treble: 0, bass: 0 };
 let currentVolumeGain = 0.75;
 let currentReverbMix = 0.15;
+let currentDelayMix = 0;
+let currentDelayTime = 0.25; // quarter note at 120bpm
+let currentChorusMix = 0;
+let currentStereoWidth = 0.5; // 0.5 = normal, 0 = mono, 1 = wide
 
 /**
  * Initialize the master effects chain.
- * Chain: EQ3 → Gain → Reverb → Limiter → Destination
+ * Chain: EQ3 → Gain → Chorus → Delay → StereoWidener → Reverb → Limiter → Destination
  */
 const initMasterEffectsChain = async () => {
     if (effectsChainInitialized) return;
@@ -270,19 +277,47 @@ const initMasterEffectsChain = async () => {
     }
 
     // Create reverb (connects to limiter)
+    // Use longer decay (4s) and higher predelay for more noticeable reverb at 100%
     if (!masterReverb) {
         masterReverb = new Tone.Reverb({
-            decay: 2.5,
+            decay: 4.0,           // Longer decay for lush reverb
             wet: currentReverbMix,
-            preDelay: 0.01
+            preDelay: 0.02        // Slight predelay for more natural sound
         }).connect(masterLimiter);
         // Wait for reverb IR to generate
         await masterReverb.ready;
     }
 
-    // Create gain (connects to reverb)
+    // Create stereo widener (connects to reverb)
+    if (!masterStereoWidener) {
+        masterStereoWidener = new Tone.StereoWidener({
+            width: currentStereoWidth
+        }).connect(masterReverb);
+    }
+
+    // Create ping pong delay (connects to stereo widener)
+    if (!masterDelay) {
+        masterDelay = new Tone.PingPongDelay({
+            delayTime: currentDelayTime,
+            feedback: 0.3,
+            wet: currentDelayMix
+        }).connect(masterStereoWidener);
+    }
+
+    // Create chorus (connects to delay)
+    if (!masterChorus) {
+        masterChorus = new Tone.Chorus({
+            frequency: 1.5,       // Slow modulation
+            delayTime: 3.5,       // ms
+            depth: 0.7,
+            wet: currentChorusMix
+        }).connect(masterDelay);
+        masterChorus.start();     // Chorus needs to be started
+    }
+
+    // Create gain (connects to chorus)
     if (!masterGain) {
-        masterGain = new Tone.Gain(currentVolumeGain).connect(masterReverb);
+        masterGain = new Tone.Gain(currentVolumeGain).connect(masterChorus);
     }
 
     // Create EQ3 for tone control (connects to gain)
@@ -297,21 +332,6 @@ const initMasterEffectsChain = async () => {
     }
 
     effectsChainInitialized = true;
-};
-
-/**
- * Get the master effects chain output node.
- * Instruments should connect to this instead of directly to destination.
- */
-const getMasterEffectsInput = async () => {
-    await initMasterEffectsChain();
-    // Return EQ3 as the input to the effects chain
-    return masterEQ!;
-};
-
-const ensureMasterLimiter = async () => {
-    await initMasterEffectsChain();
-    return masterLimiter!;
 };
 
 /**
@@ -334,7 +354,8 @@ export const setToneControl = async (treble: number, bass: number) => {
  */
 export const setMasterGain = async (gain: number) => {
     await initMasterEffectsChain();
-    currentVolumeGain = Math.max(0, Math.min(2.0, gain));
+    // Allow up to 3x gain for really loud output
+    currentVolumeGain = Math.max(0, Math.min(3.0, gain));
     if (masterGain) {
         masterGain.gain.rampTo(currentVolumeGain, 0.05);
     }
@@ -342,6 +363,7 @@ export const setMasterGain = async (gain: number) => {
 
 /**
  * Set the reverb wet/dry mix.
+ * Note: decay is set at initialization (4s) for rich reverb at 100%
  * @param mix - Wet/dry mix (0 = dry, 1 = fully wet)
  */
 export const setReverbMix = async (mix: number) => {
@@ -353,12 +375,64 @@ export const setReverbMix = async (mix: number) => {
 };
 
 /**
+ * Set the delay effect wet/dry mix.
+ * @param mix - Wet/dry mix (0 = no delay, 1 = full delay effect)
+ */
+export const setDelayMix = async (mix: number) => {
+    await initMasterEffectsChain();
+    currentDelayMix = Math.max(0, Math.min(1, mix));
+    if (masterDelay) {
+        masterDelay.wet.rampTo(currentDelayMix, 0.05);
+    }
+};
+
+/**
+ * Set the delay time.
+ * @param time - Delay time in seconds (0.05 to 1.0)
+ */
+export const setDelayTime = async (time: number) => {
+    await initMasterEffectsChain();
+    currentDelayTime = Math.max(0.05, Math.min(1.0, time));
+    if (masterDelay) {
+        masterDelay.delayTime.rampTo(currentDelayTime, 0.1);
+    }
+};
+
+/**
+ * Set the chorus effect wet/dry mix.
+ * @param mix - Wet/dry mix (0 = no chorus, 1 = full chorus)
+ */
+export const setChorusMix = async (mix: number) => {
+    await initMasterEffectsChain();
+    currentChorusMix = Math.max(0, Math.min(1, mix));
+    if (masterChorus) {
+        masterChorus.wet.rampTo(currentChorusMix, 0.05);
+    }
+};
+
+/**
+ * Set the stereo width.
+ * @param width - Stereo width (0 = mono, 0.5 = normal, 1 = extra wide)
+ */
+export const setStereoWidth = async (width: number) => {
+    await initMasterEffectsChain();
+    currentStereoWidth = Math.max(0, Math.min(1, width));
+    if (masterStereoWidener) {
+        masterStereoWidener.width.rampTo(currentStereoWidth, 0.05);
+    }
+};
+
+/**
  * Get current effect values for UI sync
  */
 export const getEffectValues = () => ({
     tone: currentToneValues,
     volume: currentVolumeGain,
-    reverb: currentReverbMix
+    reverb: currentReverbMix,
+    delay: currentDelayMix,
+    delayTime: currentDelayTime,
+    chorus: currentChorusMix,
+    stereoWidth: currentStereoWidth
 });
 
 const createCustomSampler = (instrument: CustomInstrument) => {

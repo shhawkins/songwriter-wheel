@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { clsx } from 'clsx';
 import { useSongStore } from '../../store/useSongStore';
 import { Play, Pause, SkipBack, SkipForward, Repeat, Volume2, VolumeX, Loader2, Music } from 'lucide-react';
-import { playSong, pauseSong, skipToSection, scheduleSong, setTempo as setAudioTempo, toggleLoopMode, setInstrument as setAudioInstrument, unlockAudioForIOS, setToneControl as setAudioTone, setMasterGain as setAudioMasterGain, setReverbMix as setAudioReverbMix } from '../../utils/audioEngine';
+import { playSong, pauseSong, skipToSection, scheduleSong, setTempo as setAudioTempo, toggleLoopMode, setInstrument as setAudioInstrument, unlockAudioForIOS, setToneControl as setAudioTone, setMasterGain as setAudioMasterGain, setReverbMix as setAudioReverbMix, setDelayMix as setAudioDelayMix, setChorusMix as setAudioChorusMix, setStereoWidth as setAudioStereoWidth } from '../../utils/audioEngine';
 import { VoiceSelector } from './VoiceSelector';
 
 import { useMobileLayout } from '../../hooks/useIsMobile';
@@ -18,6 +18,9 @@ export const PlaybackControls: React.FC = () => {
         toneControl,
         instrumentGain,
         reverbMix,
+        delayMix,
+        chorusMix,
+        stereoWidth,
         setVolume,
         instrument,
         isMuted,
@@ -73,6 +76,19 @@ export const PlaybackControls: React.FC = () => {
     useEffect(() => {
         setAudioReverbMix(reverbMix);
     }, [reverbMix]);
+
+    // Sync new effect controls
+    useEffect(() => {
+        setAudioDelayMix(delayMix);
+    }, [delayMix]);
+
+    useEffect(() => {
+        setAudioChorusMix(chorusMix);
+    }, [chorusMix]);
+
+    useEffect(() => {
+        setAudioStereoWidth(stereoWidth);
+    }, [stereoWidth]);
 
     // Preload audio on mount
     useEffect(() => {

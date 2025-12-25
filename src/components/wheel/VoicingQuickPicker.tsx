@@ -168,13 +168,15 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
             // - Chord details drawer (for viewing/selecting voicings)
             // - Timeline controls
             // - Voice selector menu
+            // - Instrument controls modal (for adjusting audio settings)
             if (
                 target.closest('.piano-keyboard') ||
                 target.closest('[data-chord-wheel]') ||
                 target.closest('.chord-details-drawer') ||
                 target.closest('.timeline-toggle') ||
                 target.closest('.mobile-timeline-drawer') ||
-                target.closest('.voice-selector-menu')
+                target.closest('.voice-selector-menu') ||
+                target.closest('[data-instrument-controls]')
             ) return;
 
             if (modalRef.current && !modalRef.current.contains(target)) onClose();
