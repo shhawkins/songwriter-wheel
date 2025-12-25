@@ -242,6 +242,9 @@ function App() {
   // Ref to hold a song that needs to be saved after a successful login (e.g. rename flow)
   const pendingSaveSongRef = useRef<any>(null);
 
+  // Ref to hold a patch name that needs to be saved after login
+  const pendingPatchNameRef = useRef<string | null>(null);
+
   const [notification, setNotification] = useState<{
     message: string;
     action?: { label: string; onClick: () => void };
@@ -303,8 +306,19 @@ function App() {
 
         saveToCloud(songToSave).then(() => {
           setNotification({ message: `"${songToSave.title}" has been saved!` });
-          // Auto-dismiss after 3 seconds
-          setTimeout(() => setNotification(null), 3000);
+        });
+      }
+
+      // If we have a pending patch save, execute it now
+      if (pendingPatchNameRef.current) {
+        const patchName = pendingPatchNameRef.current;
+        pendingPatchNameRef.current = null;
+
+        useSongStore.getState().saveUserPatch(patchName).then(() => {
+          setNotification({ message: `Patch "${patchName}" has been saved!` });
+        }).catch((err: any) => {
+          console.error('Failed to save pending patch:', err);
+          setNotification({ message: `⚠️ Failed to save patch. Please try again.` });
         });
       }
 
@@ -324,6 +338,11 @@ function App() {
   // Listen for custom auth toast events
   useEffect(() => {
     const handleAuthToast = (e: any) => {
+      // Store pending patch name if provided
+      if (e.detail.pendingPatchName) {
+        pendingPatchNameRef.current = e.detail.pendingPatchName;
+      }
+
       setNotification({
         message: e.detail.message || 'Sign in or create a free account to save songs & create custom instruments!',
         action: {
@@ -1950,7 +1969,7 @@ function App() {
 
       {/* Toast Notification */}
       {notification && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[2000] px-6 py-3 bg-stone-800/95 backdrop-blur-md border border-stone-700 text-white text-sm font-medium rounded-2xl shadow-2xl animate-in fade-in slide-in-from-top-4 duration-300 flex items-center gap-4 w-max max-w-[90vw] min-w-[280px]">
+        <div className="fixed top-28 left-1/2 -translate-x-1/2 z-[2000] px-6 py-3 bg-stone-800/95 backdrop-blur-md border border-stone-700 text-white text-sm font-medium rounded-2xl shadow-2xl animate-in fade-in slide-in-from-top-4 duration-300 flex items-center gap-4 w-max max-w-[90vw] min-w-[280px]">
           <div className="flex items-start gap-3 flex-1">
             <div className="w-2 h-2 rounded-full bg-green-500 mt-1.5 shrink-0" />
             <div className="whitespace-pre-wrap leading-relaxed break-words flex-1">

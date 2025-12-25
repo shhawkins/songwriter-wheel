@@ -33,18 +33,26 @@ export const PatchManager: React.FC<PatchManagerProps> = ({ onClose }) => {
             await saveUserPatch(newPatchName);
             setView('list');
             setNewPatchName('');
+            setIsLoading(false);
         } catch (error: any) {
             console.error(error);
             if (error.message === 'NOT_AUTHENTICATED') {
                 window.dispatchEvent(new CustomEvent('show-auth-toast', {
                     detail: {
-                        message: 'You must be signed in to save custom patches.'
+                        message: 'Sign in to save your patch.',
+                        pendingPatchName: newPatchName.trim()
                     }
                 }));
                 // Go back to list view so they can try again after signing in
                 setView('list');
+                setNewPatchName('');
             } else {
-                alert('Failed to save patch. Please try again.');
+                // Use toast for other errors too
+                window.dispatchEvent(new CustomEvent('show-auth-error', {
+                    detail: {
+                        message: 'Failed to save patch. Please try again.'
+                    }
+                }));
             }
             setIsLoading(false);
         }
@@ -69,7 +77,7 @@ export const PatchManager: React.FC<PatchManagerProps> = ({ onClose }) => {
     };
 
     return (
-        <div className="absolute inset-x-0 top-12 bottom-0 z-50 bg-bg-elevated/95 backdrop-blur-xl border-t border-white/10 flex flex-col p-4 animate-in slide-in-from-bottom-5">
+        <div className="absolute inset-0 z-50 bg-bg-elevated/98 backdrop-blur-xl flex flex-col p-4 pt-3 animate-in fade-in duration-150">
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-bold uppercase tracking-wider text-text-secondary">
