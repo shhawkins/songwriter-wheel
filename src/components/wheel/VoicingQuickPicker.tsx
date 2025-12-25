@@ -549,17 +549,6 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
                 <div className="w-px h-8 bg-white/10 shrink-0 mx-1" />
 
                 <div className="flex items-center gap-1 shrink-0 h-full">
-                    {onOpenDetails && (
-                        <button
-                            onClick={(e) => { e.stopPropagation(); onOpenDetails(); onClose(); }}
-                            onTouchStart={handleTouchStart}
-                            onTouchEnd={(e) => { e.stopPropagation(); handleTouchEnd(e, () => { onOpenDetails(); onClose(); }); }}
-                            className={clsx("flex items-center justify-center rounded-xl text-text-tertiary hover:text-text-primary hover:bg-bg-tertiary transition-colors outline-none", isLandscapeMobile ? "w-8 h-full" : "w-10 h-full")}
-                        >
-                            <Info size={18} />
-                        </button>
-                    )}
-
                     {/* Auto-Advance Toggle - Vertically stacked icon/dot */}
                     <button
                         onClick={(e) => { e.stopPropagation(); toggleAutoAdvance(); resetFadeTimer(); }}
@@ -661,23 +650,34 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
             </div>
 
             {/* ROW 3: INVERSION & INSTRUMENT */}
-            <div className={clsx("flex items-center justify-between gap-3 border-t border-white/5 w-full shrink-0", isLandscapeMobile ? "h-10 pt-1" : "h-11 pt-2")}>
-                <div className="flex items-center bg-bg-tertiary/60 border border-white/10 rounded-xl px-1 h-full flex-1 shadow-inner overflow-hidden">
+            <div className={clsx("flex items-center justify-between gap-1.5 border-t border-white/5 w-full shrink-0", isLandscapeMobile ? "h-10 pt-1" : "h-11 pt-2")}>
+                {onOpenDetails && (
+                    <button
+                        onClick={(e) => { e.stopPropagation(); onOpenDetails(); onClose(); }}
+                        onTouchStart={handleTouchStart}
+                        onTouchEnd={(e) => { e.stopPropagation(); handleTouchEnd(e, () => { onOpenDetails(); onClose(); }); }}
+                        className={clsx("flex items-center justify-center rounded-xl text-text-tertiary hover:text-text-primary hover:bg-bg-tertiary transition-colors outline-none shrink-0", isLandscapeMobile ? "w-7 h-full" : "w-8 h-full")}
+                    >
+                        <Info size={16} />
+                    </button>
+                )}
+
+                <div className="flex items-center bg-bg-tertiary/60 border border-white/10 rounded-xl px-0.5 h-full flex-1 shadow-inner overflow-hidden">
                     <button
                         onClick={(e) => { e.stopPropagation(); handleInversionChange('down'); }}
                         onTouchStart={handleTouchStart}
                         onTouchEnd={(e) => { e.stopPropagation(); handleTouchEnd(e, () => handleInversionChange('down')); }}
                         disabled={chordInversion <= 0}
-                        className="w-10 h-full flex items-center justify-center text-text-muted hover:text-accent-primary transition-colors disabled:opacity-20 active:bg-white/5 outline-none"
+                        className="w-7 h-full flex items-center justify-center text-text-muted hover:text-accent-primary transition-colors disabled:opacity-20 active:bg-white/5 outline-none"
                     >
-                        <ChevronLeft size={18} />
+                        <ChevronLeft size={16} />
                     </button>
 
-                    <div className="flex flex-col items-center justify-center flex-1 px-2 pointer-events-none min-w-[60px]">
-                        <span className="text-[10px] font-black text-accent-primary uppercase tracking-tighter leading-none">
+                    <div className="flex flex-col items-center justify-center flex-1 px-1 pointer-events-none min-w-[50px]">
+                        <span className="text-[9px] font-black text-accent-primary uppercase tracking-tighter leading-none">
                             {getInversionName(chordInversion)}
                         </span>
-                        <span className="text-[7px] text-text-muted font-bold uppercase tracking-[0.2em] mt-0.5">
+                        <span className="text-[7px] text-text-muted font-bold uppercase tracking-[0.1em] mt-0.5 scale-90">
                             INVERSION
                         </span>
                     </div>
@@ -690,9 +690,9 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
                             const q = currentQuality || selectedQuality || voicings[0]?.quality || 'major';
                             return chordInversion >= getMaxInversion(getChordNotes(chordRoot, q));
                         })()}
-                        className="w-10 h-full flex items-center justify-center text-text-muted hover:text-accent-primary transition-colors disabled:opacity-20 active:bg-white/5 outline-none"
+                        className="w-7 h-full flex items-center justify-center text-text-muted hover:text-accent-primary transition-colors disabled:opacity-20 active:bg-white/5 outline-none"
                     >
-                        <ChevronRight size={18} />
+                        <ChevronRight size={16} />
                     </button>
                 </div>
 
