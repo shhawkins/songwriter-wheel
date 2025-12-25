@@ -1180,16 +1180,13 @@ export const useSongStore = create<SongState>()(
                     const next = findNextSlot(state.currentSong.sections, sectionId, slotId);
                     if (!next) return {};
 
-                    const nextChord = state.currentSong.sections
-                        .find((s) => s.id === next.sectionId)
-                        ?.measures.flatMap((m) => m.beats)
-                        .find((b) => b.id === next.slotId)?.chord ?? null;
-
+                    // When auto-advancing, keep the currently selected chord so users can
+                    // rapidly add the same chord to multiple slots (don't switch to slot's chord)
                     advanced = true;
                     return {
                         selectedSectionId: next.sectionId,
                         selectedSlotId: next.slotId,
-                        selectedChord: nextChord,
+                        // Keep selectedChord as-is for rapid entry workflow
                         selectedSlots: [{ sectionId: next.sectionId, slotId: next.slotId }],
                         selectionAnchor: { sectionId: next.sectionId, slotId: next.slotId }
                     };

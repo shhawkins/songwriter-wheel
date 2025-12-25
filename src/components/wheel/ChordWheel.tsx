@@ -155,18 +155,7 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
             const newState = useSongStore.getState();
             currentSectionId = newState.selectedSectionId;
             currentSlotId = newState.selectedSlotId;
-
-            // If still no slot, auto-select first slot of first section
-            if (!currentSectionId || !currentSlotId) {
-                const sections = newState.currentSong.sections;
-                if (sections.length > 0 && sections[0].measures[0]?.beats[0]) {
-                    currentSectionId = sections[0].id;
-                    currentSlotId = sections[0].measures[0].beats[0].id;
-                    useSongStore.getState().setSelectedSlot(currentSectionId, currentSlotId);
-                } else {
-                    return; // No sections/slots to add to
-                }
-            }
+            if (!currentSectionId || !currentSlotId) return;
         }
 
         addChordToSlot(newChord, currentSectionId, currentSlotId);
@@ -603,16 +592,9 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
             currentSectionId = state.selectedSectionId;
             currentSlotId = state.selectedSlotId;
 
-            // If still no slot selected (e.g., no sections), auto-select first slot
+            // If still no slot selected (e.g., no sections), just return
             if (!currentSectionId || !currentSlotId) {
-                const sections = state.currentSong.sections;
-                if (sections.length > 0 && sections[0].measures[0]?.beats[0]) {
-                    currentSectionId = sections[0].id;
-                    currentSlotId = sections[0].measures[0].beats[0].id;
-                    state.setSelectedSlot(currentSectionId, currentSlotId);
-                } else {
-                    return; // No sections/slots to add to
-                }
+                return;
             }
         }
 

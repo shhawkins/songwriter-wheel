@@ -338,7 +338,7 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                 // Also scroll the section tab into view with a slight delay for DOM updates
                 setTimeout(() => {
                     if (sectionTabsRef.current) {
-                        const sectionTab = sectionTabsRef.current.querySelector(`[data-section-id="${selectedSectionId}"]`);
+                        const sectionTab = sectionTabsRef.current.querySelector(`[data - section - id= "${selectedSectionId}"]`);
                         if (sectionTab) {
                             sectionTab.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
                         }
@@ -361,7 +361,7 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
     // Auto-scroll chord container to show playing slot
     useEffect(() => {
         if (playingSlotId && scrollRef.current) {
-            const playingElement = scrollRef.current.querySelector(`[data-slot-id="${playingSlotId}"]`);
+            const playingElement = scrollRef.current.querySelector(`[data - slot - id= "${playingSlotId}"]`);
             if (playingElement) {
                 playingElement.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
             }

@@ -151,6 +151,11 @@ const SortableSectionSegment: React.FC<SortableSectionSegmentProps> = ({
         isDragging,
     } = useSortable({ id: section.id });
 
+    const [isTapping, setIsTapping] = React.useState(false);
+    const interactionStartTime = useRef<number>(0);
+    const interactionStartPos = useRef<{ x: number; y: number } | null>(null);
+    const hasMoved = useRef<boolean>(false);
+
     const widthPercent = (section.measures.length / totalMeasures) * 100;
     const colors = TIMELINE_COLORS[section.type] || DEFAULT_COLORS;
     const label = getSectionLabel(section, allSections);
@@ -163,23 +168,42 @@ const SortableSectionSegment: React.FC<SortableSectionSegmentProps> = ({
         minWidth: '16px',
     };
 
-    // Track if we're dragging to prevent click on drag end
-    const wasDraggingRef = useRef(false);
+    // Handle both mouse and touch interactions uniformly
+    const handleInteractionStart = (clientX: number, clientY: number) => {
+        interactionStartTime.current = Date.now();
+        interactionStartPos.current = { x: clientX, y: clientY };
+        hasMoved.current = false;
+        setIsTapping(true);
+    };
 
-    // Update ref when dragging state changes
-    React.useEffect(() => {
-        if (isDragging) {
-            wasDraggingRef.current = true;
-        }
-    }, [isDragging]);
+    const handleInteractionMove = (clientX: number, clientY: number) => {
+        if (!interactionStartPos.current) return;
 
-    const handleClick = () => {
-        // If we just finished dragging, don't trigger click
-        if (wasDraggingRef.current) {
-            wasDraggingRef.current = false;
-            return;
+        const distance = Math.sqrt(
+            Math.pow(clientX - interactionStartPos.current.x, 2) +
+            Math.pow(clientY - interactionStartPos.current.y, 2)
+        );
+
+        if (distance > 5) {
+            hasMoved.current = true;
+            setIsTapping(false);
         }
-        onClick?.();
+    };
+
+    const handleInteractionEnd = (e: React.MouseEvent | React.TouchEvent) => {
+        const duration = Date.now() - interactionStartTime.current;
+
+        setIsTapping(false);
+
+        // Quick tap without movement = click
+        if (!hasMoved.current && duration < 250) {
+            e.preventDefault();
+            e.stopPropagation();
+            onClick?.();
+        }
+
+        interactionStartPos.current = null;
+        hasMoved.current = false;
     };
 
     return (
@@ -188,7 +212,18 @@ const SortableSectionSegment: React.FC<SortableSectionSegmentProps> = ({
             style={style}
             {...attributes}
             {...listeners}
-            onClick={handleClick}
+            onMouseDown={(e) => handleInteractionStart(e.clientX, e.clientY)}
+            onMouseMove={(e) => handleInteractionMove(e.clientX, e.clientY)}
+            onMouseUp={handleInteractionEnd}
+            onTouchStart={(e) => {
+                const touch = e.touches[0];
+                handleInteractionStart(touch.clientX, touch.clientY);
+            }}
+            onTouchMove={(e) => {
+                const touch = e.touches[0];
+                handleInteractionMove(touch.clientX, touch.clientY);
+            }}
+            onTouchEnd={handleInteractionEnd}
             className={clsx(
                 // Base styles
                 "relative h-full flex items-center justify-center overflow-hidden",
@@ -199,6 +234,8 @@ const SortableSectionSegment: React.FC<SortableSectionSegmentProps> = ({
                 // Active state
                 isActive && !isDragging && "ring-2 ring-white/50 ring-inset z-10",
                 !isActive && !isDragging && "opacity-80 hover:opacity-100",
+                // Tapping feedback
+                isTapping && !isDragging && "opacity-90 scale-[0.98]",
                 // Dragging state - make the placeholder subtle
                 isDragging && "opacity-20 z-0",
                 // Cursor

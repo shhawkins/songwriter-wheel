@@ -506,7 +506,7 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
                                     if (qualityToAdd) { onAddToTimeline(qualityToAdd); }
                                 });
                             }}
-                            className="w-10 h-full flex items-center justify-center rounded-xl bg-accent-primary/10 text-accent-primary hover:bg-accent-primary hover:text-white transition-all shadow-sm outline-none"
+                            className="w-10 h-full flex items-center justify-center rounded-xl bg-accent-primary/30 text-accent-primary hover:bg-accent-primary hover:text-white transition-all shadow-sm outline-none"
                         >
                             <Plus size={20} />
                         </button>
