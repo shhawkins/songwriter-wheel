@@ -33,6 +33,7 @@ const Knob: React.FC<KnobProps> = ({ value, min, max, defaultValue, onChange, la
     const startY = useRef<number>(0);
     const startValue = useRef<number>(0);
     const lastTapTime = useRef<number>(0);
+    const touchId = useRef<number | null>(null);
 
     const handleStart = (clientY: number) => {
         setIsDragging(true);
@@ -69,7 +70,9 @@ const Knob: React.FC<KnobProps> = ({ value, min, max, defaultValue, onChange, la
     const handleTouchStart = (e: React.TouchEvent) => {
         e.stopPropagation(); // Prevent modal drag
         if (!handleDoubleTap()) {
-            handleStart(e.touches[0].clientY);
+            const touch = e.changedTouches[0];
+            touchId.current = touch.identifier;
+            handleStart(touch.clientY);
         }
     };
 
@@ -77,8 +80,23 @@ const Knob: React.FC<KnobProps> = ({ value, min, max, defaultValue, onChange, la
         if (!isDragging) return;
 
         const handleMove = (e: MouseEvent | TouchEvent) => {
-            e.preventDefault();
-            const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+            let clientY: number;
+
+            if ('touches' in e) {
+                // Touch Event: Find the correct finger
+                if (touchId.current === null) return; // Should not happen
+                const touch = Array.from(e.touches).find(t => t.identifier === touchId.current);
+                if (!touch) return; // This finger is not active in this event?? OR maybe it lifted?
+                clientY = touch.clientY;
+            } else {
+                // Mouse Event
+                e.preventDefault(); // Prevent text selection etc
+                clientY = e.clientY;
+            }
+
+            // e.preventDefault(); // Moved inside to be safer, though typically needed for touch too to prevent scroll
+            if (e.cancelable) e.preventDefault();
+
             const deltaY = startY.current - clientY; // Up is positive
             const range = max - min;
             // Sensitivity: full range over 200px (or 150px for compact)
@@ -88,7 +106,14 @@ const Knob: React.FC<KnobProps> = ({ value, min, max, defaultValue, onChange, la
             onChange(newValue);
         };
 
-        const handleEnd = () => {
+        const handleEnd = (e: MouseEvent | TouchEvent) => {
+            // For touch, only end if OUR finger lifted
+            if ('touches' in e) {
+                const touch = Array.from(e.changedTouches).find(t => t.identifier === touchId.current);
+                if (!touch) return; // Not our finger ending
+                touchId.current = null;
+            }
+
             setIsDragging(false);
             document.body.style.cursor = '';
             document.body.classList.remove('dragging-knob');
@@ -98,12 +123,14 @@ const Knob: React.FC<KnobProps> = ({ value, min, max, defaultValue, onChange, la
         document.addEventListener('mouseup', handleEnd);
         document.addEventListener('touchmove', handleMove, { passive: false });
         document.addEventListener('touchend', handleEnd);
+        document.addEventListener('touchcancel', handleEnd);
 
         return () => {
             document.removeEventListener('mousemove', handleMove);
             document.removeEventListener('mouseup', handleEnd);
             document.removeEventListener('touchmove', handleMove);
             document.removeEventListener('touchend', handleEnd);
+            document.removeEventListener('touchcancel', handleEnd);
             document.body.style.cursor = '';
             document.body.classList.remove('dragging-knob');
         };
