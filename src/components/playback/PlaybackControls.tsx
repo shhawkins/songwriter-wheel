@@ -281,7 +281,7 @@ export const PlaybackControls: React.FC = () => {
             </div>
 
             {/* Safe Area Status Bar - uses bottom space visually without interactive elements */}
-            {isMobile && !isLandscape && (
+            {isMobile && (
                 <div
                     className="w-full bg-bg-elevated/50 flex justify-center items-start pt-[6px]"
                     style={{ height: 'env(safe-area-inset-bottom)', minHeight: 'env(safe-area-inset-bottom)' }}

@@ -1858,7 +1858,7 @@ function App() {
       {/* Footer: Playback - hidden in mobile immersive mode or when chord panel is open (unless scrolled to bottom), BUT always show when playing */}
       {(isPlaying || !(isMobile && !isLandscape && (mobileImmersive || (chordPanelVisible && !chordPanelScrolledToBottom)))) && (
         <div
-          className="shrink-0 z-50 relative bg-bg-elevated transition-all duration-300 pb-2"
+          className="shrink-0 z-50 relative bg-bg-elevated transition-all duration-300 pb-[max(8px,env(safe-area-inset-bottom))]"
         >
           <PlaybackControls />
         </div>
