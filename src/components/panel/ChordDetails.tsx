@@ -1014,7 +1014,7 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
                                             <div className={`flex-1 flex flex-col ${isNarrowPanel ? 'justify-start' : 'justify-between'} pl-1`}>
                                                 {getSuggestedVoicings().extensions.length > 0 ? (
                                                     <>
-                                                        <div className={`grid ${isCompactLandscape ? 'grid-cols-2' : isNarrowPanel ? 'grid-cols-1' : 'grid-cols-2'}`} style={{ gap: isCompactLandscape ? '4px' : isNarrowPanel ? '4px' : isMobile ? '6px' : '5px', marginBottom: isCompactLandscape ? '2px' : '4px', marginRight: isNarrowPanel ? '12px' : undefined }}>
+                                                        <div className={`grid ${isCompactLandscape ? 'grid-cols-1' : isNarrowPanel ? 'grid-cols-1' : 'grid-cols-2'}`} style={{ gap: isCompactLandscape ? '2px' : isNarrowPanel ? '4px' : isMobile ? '6px' : '5px', marginBottom: isCompactLandscape ? '2px' : '4px', marginRight: isNarrowPanel ? '12px' : undefined }}>
                                                             {getSuggestedVoicings().extensions.map((ext) => (
                                                                 <button
                                                                     key={ext}
