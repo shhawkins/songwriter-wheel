@@ -127,6 +127,7 @@ interface SongState {
     songInfoModalVisible: boolean; // Toggle Song Info Modal visibility
     instrumentManagerModalVisible: boolean; // Toggle Instrument Manager Modal visibility
     instrumentManagerInitialView: 'list' | 'create'; // Initial view for Instrument Manager Modal
+    instrumentControlsModalVisible: boolean; // Toggle Instrument Controls Modal
     collapsedSections: Record<string, boolean>; // Per-section collapsed UI state
 
     // Chord panel sections state (for portrait mode voicing picker logic)
@@ -156,6 +157,9 @@ interface SongState {
     tempo: number;
     volume: number;
     instrument: InstrumentType;
+    toneControl: { treble: number; bass: number };
+    instrumentGain: number;
+    reverbMix: number;
     isMuted: boolean;
     customInstruments: CustomInstrument[];
 
@@ -178,6 +182,10 @@ interface SongState {
     toggleSongMap: (force?: boolean) => void;
     toggleSongInfoModal: (force?: boolean) => void;
     toggleInstrumentManagerModal: (force?: boolean, view?: 'list' | 'create') => void;
+    toggleInstrumentControlsModal: (force?: boolean) => void;
+    setToneControl: (treble: number, bass: number) => void;
+    setInstrumentGain: (gain: number) => void;
+    setReverbMix: (mix: number) => void;
     toggleSectionCollapsed: (sectionId: string) => void;
     setChordPanelGuitarExpanded: (expanded: boolean) => void;
     setChordPanelVoicingsExpanded: (expanded: boolean) => void;
@@ -490,6 +498,7 @@ export const useSongStore = create<SongState>()(
             songInfoModalVisible: false,
             instrumentManagerModalVisible: false,
             instrumentManagerInitialView: 'list' as 'list' | 'create',
+            instrumentControlsModalVisible: false,
             collapsedSections: {},
             chordPanelGuitarExpanded: false,  // Collapsed by default on mobile
             chordPanelScrollTarget: null as SongState['chordPanelScrollTarget'],
@@ -514,6 +523,9 @@ export const useSongStore = create<SongState>()(
             tempo: 120,
             volume: 0.8,
             instrument: 'piano' as InstrumentType,
+            toneControl: { treble: 0, bass: 0 },
+            instrumentGain: 0.75, // Default ~75% gain
+            reverbMix: 0.15,      // Default 15% reverb
             isMuted: false,
             customInstruments: [] as CustomInstrument[],
             cloudSongs: [] as Song[],
@@ -1206,6 +1218,12 @@ export const useSongStore = create<SongState>()(
             setPlayingSlot: (sectionId, slotId) => set({ playingSectionId: sectionId, playingSlotId: slotId }),
             toggleLoop: () => set((state) => ({ isLooping: !state.isLooping })),
             toggleMute: () => set((state) => ({ isMuted: !state.isMuted })),
+            toggleInstrumentControlsModal: (force) => set((state) => ({
+                instrumentControlsModalVisible: force !== undefined ? force : !state.instrumentControlsModalVisible
+            })),
+            setToneControl: (treble, bass) => set({ toneControl: { treble, bass } }),
+            setInstrumentGain: (gain) => set({ instrumentGain: gain }),
+            setReverbMix: (mix) => set({ reverbMix: mix }),
 
             setTitle: (title) => set((state) => {
                 const history = buildHistoryState(state);

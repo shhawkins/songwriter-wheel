@@ -2,9 +2,10 @@ import React, { useEffect, useState, useRef } from 'react';
 import { clsx } from 'clsx';
 import { useSongStore } from '../../store/useSongStore';
 import { Play, Pause, SkipBack, SkipForward, Repeat, Volume2, VolumeX, Loader2, Music } from 'lucide-react';
-import { playSong, pauseSong, skipToSection, scheduleSong, setTempo as setAudioTempo, toggleLoopMode, setInstrument as setAudioInstrument, unlockAudioForIOS } from '../../utils/audioEngine';
+import { playSong, pauseSong, skipToSection, scheduleSong, setTempo as setAudioTempo, toggleLoopMode, setInstrument as setAudioInstrument, unlockAudioForIOS, setToneControl as setAudioTone, setMasterGain as setAudioMasterGain, setReverbMix as setAudioReverbMix } from '../../utils/audioEngine';
 import { VoiceSelector } from './VoiceSelector';
-import type { InstrumentType } from '../../types';
+import { InstrumentControls } from './InstrumentControls';
+
 import { useMobileLayout } from '../../hooks/useIsMobile';
 
 export const PlaybackControls: React.FC = () => {
@@ -14,9 +15,12 @@ export const PlaybackControls: React.FC = () => {
         tempo,
         volume,
         setTempo,
+        // Audio Controls
+        toneControl,
+        instrumentGain,
+        reverbMix,
         setVolume,
         instrument,
-        setInstrument,
         isMuted,
         toggleMute,
         toggleLoop,
@@ -57,6 +61,19 @@ export const PlaybackControls: React.FC = () => {
     useEffect(() => {
         toggleLoopMode();
     }, [isLooping, currentSong, playingSectionId, selectedSectionId]);
+
+    // Sync audio controls
+    useEffect(() => {
+        setAudioTone(toneControl.treble, toneControl.bass);
+    }, [toneControl]);
+
+    useEffect(() => {
+        setAudioMasterGain(instrumentGain);
+    }, [instrumentGain]);
+
+    useEffect(() => {
+        setAudioReverbMix(reverbMix);
+    }, [reverbMix]);
 
     // Preload audio on mount
     useEffect(() => {
@@ -319,6 +336,7 @@ export const PlaybackControls: React.FC = () => {
                     <div className="w-32 h-1 rounded-full bg-white/5" />
                 </div>
             )}
+            <InstrumentControls />
         </div>
     );
 };

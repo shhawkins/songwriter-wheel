@@ -10,7 +10,8 @@ import {
     ChevronDown,
     Plus,
     Check,
-    Wine
+    Wine,
+    Settings2
 } from 'lucide-react';
 import { useSongStore } from '../../store/useSongStore';
 import { playChord, setInstrument as setAudioInstrument } from '../../utils/audioEngine';
@@ -33,7 +34,8 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
         instrument,
         setInstrument,
         customInstruments,
-        toggleInstrumentManagerModal
+        toggleInstrumentManagerModal,
+        toggleInstrumentControlsModal
     } = useSongStore();
 
     const [showMenu, setShowMenu] = useState(false);
@@ -239,6 +241,26 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
                 {getInstrumentIcon(instrument)}
                 {showLabel && <span className="font-medium whitespace-nowrap">{currentLabel}</span>}
                 <ChevronDown size={variant === 'tiny' ? 10 : 12} className={clsx("transition-transform", showMenu && "rotate-180")} />
+
+                {/* Settings icon - integrated into dropdown button */}
+                <div
+                    className="border-l border-white/10 pl-1.5 ml-1"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        toggleInstrumentControlsModal();
+                    }}
+                    onTouchEnd={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        toggleInstrumentControlsModal();
+                    }}
+                >
+                    <Settings2
+                        size={variant === 'tiny' ? 12 : 14}
+                        className="opacity-60 hover:opacity-100 transition-opacity"
+                    />
+                </div>
             </button>
 
             {showMenu && createPortal(

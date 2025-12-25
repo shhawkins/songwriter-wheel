@@ -244,16 +244,122 @@ export const installVisibilityHandler = (): void => {
 // Global limiter to prevent clipping on master output
 let masterLimiter: Tone.Limiter | null = null;
 
-const ensureMasterLimiter = () => {
+// --- MASTER EFFECTS CHAIN ---
+// Signal path: instrument → EQ3 (tone) → Gain (volume) → Reverb → Limiter → Destination
+let masterEQ: Tone.EQ3 | null = null;
+let masterGain: Tone.Gain | null = null;
+let masterReverb: Tone.Reverb | null = null;
+let effectsChainInitialized = false;
+
+// Current effect values (for UI sync)
+let currentToneValues = { treble: 0, bass: 0 };
+let currentVolumeGain = 0.75;
+let currentReverbMix = 0.15;
+
+/**
+ * Initialize the master effects chain.
+ * Chain: EQ3 → Gain → Reverb → Limiter → Destination
+ */
+const initMasterEffectsChain = async () => {
+    if (effectsChainInitialized) return;
+
+    // Create limiter first (end of chain)
     if (!masterLimiter) {
-        // Insert a limiter between all audio and the final destination
-        // -3dB ceiling prevents clipping while maintaining loudness
         masterLimiter = new Tone.Limiter(-3).toDestination();
-        // Reduce master volume to give headroom
         Tone.Destination.volume.value = -6;
     }
-    return masterLimiter;
+
+    // Create reverb (connects to limiter)
+    if (!masterReverb) {
+        masterReverb = new Tone.Reverb({
+            decay: 2.5,
+            wet: currentReverbMix,
+            preDelay: 0.01
+        }).connect(masterLimiter);
+        // Wait for reverb IR to generate
+        await masterReverb.ready;
+    }
+
+    // Create gain (connects to reverb)
+    if (!masterGain) {
+        masterGain = new Tone.Gain(currentVolumeGain).connect(masterReverb);
+    }
+
+    // Create EQ3 for tone control (connects to gain)
+    if (!masterEQ) {
+        masterEQ = new Tone.EQ3({
+            low: currentToneValues.bass,
+            mid: 0,
+            high: currentToneValues.treble,
+            lowFrequency: 250,
+            highFrequency: 2500
+        }).connect(masterGain);
+    }
+
+    effectsChainInitialized = true;
 };
+
+/**
+ * Get the master effects chain output node.
+ * Instruments should connect to this instead of directly to destination.
+ */
+const getMasterEffectsInput = async () => {
+    await initMasterEffectsChain();
+    // Return EQ3 as the input to the effects chain
+    return masterEQ!;
+};
+
+const ensureMasterLimiter = async () => {
+    await initMasterEffectsChain();
+    return masterLimiter!;
+};
+
+/**
+ * Set the tone control (treble/bass) for all instruments.
+ * @param treble - Treble adjustment in dB (-12 to +12)
+ * @param bass - Bass adjustment in dB (-12 to +12)
+ */
+export const setToneControl = async (treble: number, bass: number) => {
+    await initMasterEffectsChain();
+    currentToneValues = { treble, bass };
+    if (masterEQ) {
+        masterEQ.high.value = treble;
+        masterEQ.low.value = bass;
+    }
+};
+
+/**
+ * Set the master gain/volume for all instruments.
+ * @param gain - Volume level (0 to 1)
+ */
+export const setMasterGain = async (gain: number) => {
+    await initMasterEffectsChain();
+    currentVolumeGain = Math.max(0, Math.min(1, gain));
+    if (masterGain) {
+        masterGain.gain.rampTo(currentVolumeGain, 0.05);
+    }
+};
+
+/**
+ * Set the reverb wet/dry mix.
+ * @param mix - Wet/dry mix (0 = dry, 1 = fully wet)
+ */
+export const setReverbMix = async (mix: number) => {
+    await initMasterEffectsChain();
+    currentReverbMix = Math.max(0, Math.min(1, mix));
+    if (masterReverb) {
+        masterReverb.wet.rampTo(currentReverbMix, 0.05);
+    }
+};
+
+/**
+ * Get current effect values for UI sync
+ */
+export const getEffectValues = () => ({
+    tone: currentToneValues,
+    volume: currentVolumeGain,
+    reverb: currentReverbMix
+});
 
 const createCustomSampler = (instrument: CustomInstrument) => {
     // If no samples, fallback or return null
@@ -261,11 +367,20 @@ const createCustomSampler = (instrument: CustomInstrument) => {
 
     try {
         // Create sampler exactly like piano - simple and proven to work
-        return new Tone.Sampler({
+        const sampler = new Tone.Sampler({
             urls: instrument.samples,
             release: 2,
             attack: 0.005,
-        }).connect(ensureMasterLimiter());
+        });
+
+        // Connect to effects chain if ready, otherwise destination (fallback)
+        if (masterEQ) {
+            sampler.connect(masterEQ);
+        } else {
+            sampler.toDestination();
+        }
+
+        return sampler;
     } catch (e) {
         console.error(`Failed to create custom sampler for ${instrument.name}`, e);
         return null;
@@ -312,6 +427,10 @@ export const initAudio = async () => {
     if (initPromise) return initPromise;
 
     initPromise = (async () => {
+        // Initialize Master Effects Chain first
+        await initMasterEffectsChain();
+        const chainInput = masterEQ || Tone.Destination;
+
         // Use a free soundfont URL or basic synth fallback
         // Salamander Grand Piano is a good free option often used with Tone.js
         const baseUrl = "https://tonejs.github.io/audio/salamander/";
@@ -338,11 +457,10 @@ export const initAudio = async () => {
             release: 1,
             attack: 0.05,
             baseUrl,
-        }).toDestination());
+        }).connect(chainInput));
 
         // Sampled guitars - same simple pattern as piano, all through master limiter
         const guitarBaseUrl = "/samples/";
-        const limiter = ensureMasterLimiter();
 
         safeCreate('guitar', () => new Tone.Sampler({
             urls: {
@@ -353,7 +471,7 @@ export const initAudio = async () => {
             release: 2,
             attack: 0.05,
             baseUrl: guitarBaseUrl,
-        }).connect(limiter));
+        }).connect(chainInput));
 
         safeCreate('guitar-jazzmaster', () => new Tone.Sampler({
             urls: {
@@ -364,7 +482,7 @@ export const initAudio = async () => {
             release: 2,
             attack: 0.05,
             baseUrl: guitarBaseUrl,
-        }).connect(limiter));
+        }).connect(chainInput));
 
 
 
@@ -389,7 +507,7 @@ export const initAudio = async () => {
                 sustain: 1,
                 release: 0.5
             }
-        }).toDestination());
+        }).connect(chainInput));
 
         safeCreate('synth', () => new Tone.PolySynth(Tone.FMSynth, {
             harmonicity: 3,
@@ -413,7 +531,7 @@ export const initAudio = async () => {
                 sustain: 1,
                 release: 0.5
             }
-        }).toDestination());
+        }).connect(chainInput));
 
         safeCreate('epiano', () => new Tone.PolySynth(Tone.AMSynth, {
             harmonicity: 2,
@@ -421,12 +539,12 @@ export const initAudio = async () => {
             envelope: { attack: 0.01, decay: 0.2, sustain: 0.7, release: 0.8 },
             modulation: { type: "sine" },
             modulationEnvelope: { attack: 0.2, decay: 0.1, sustain: 0.6, release: 0.6 }
-        }).toDestination());
+        }).connect(chainInput));
 
         safeCreate('strings', () => new Tone.PolySynth(Tone.Synth, {
             oscillator: { type: "sawtooth" },
             envelope: { attack: 0.2, decay: 0.2, sustain: 0.8, release: 1.2 }
-        }).toDestination());
+        }).connect(chainInput));
 
         safeCreate('pad', () => new Tone.PolySynth(Tone.FMSynth, {
             harmonicity: 1.5,
@@ -435,19 +553,19 @@ export const initAudio = async () => {
             envelope: { attack: 0.5, decay: 0.3, sustain: 0.9, release: 1.5 },
             modulation: { type: "triangle" },
             modulationEnvelope: { attack: 0.8, decay: 0.3, sustain: 0.8, release: 1.2 }
-        }).toDestination());
+        }).connect(chainInput));
 
         safeCreate('brass', () => new Tone.PolySynth(Tone.MonoSynth, {
             oscillator: { type: "square" },
             filter: { Q: 2, type: "lowpass", rolloff: -12 },
             envelope: { attack: 0.02, decay: 0.25, sustain: 0.6, release: 0.7 },
             filterEnvelope: { attack: 0.01, decay: 0.2, sustain: 0.8, release: 0.4, baseFrequency: 200, octaves: 2.5 }
-        }).toDestination());
+        }).connect(chainInput));
 
         safeCreate('marimba', () => new Tone.PolySynth(Tone.Synth, {
             oscillator: { type: "triangle" },
             envelope: { attack: 0.001, decay: 0.35, sustain: 0, release: 0.6 }
-        }).toDestination());
+        }).connect(chainInput));
 
         safeCreate('bell', () => new Tone.PolySynth(Tone.FMSynth, {
             harmonicity: 8,
@@ -456,19 +574,19 @@ export const initAudio = async () => {
             envelope: { attack: 0.01, decay: 1.2, sustain: 0, release: 1.2 },
             modulation: { type: "square" },
             modulationEnvelope: { attack: 0.01, decay: 0.5, sustain: 0, release: 1.2 }
-        }).toDestination());
+        }).connect(chainInput));
 
         safeCreate('lead', () => new Tone.PolySynth(Tone.Synth, {
             oscillator: { type: "sawtooth" },
             envelope: { attack: 0.005, decay: 0.15, sustain: 0.6, release: 0.35 }
-        }).toDestination());
+        }).connect(chainInput));
 
         safeCreate('bass', () => new Tone.PolySynth(Tone.MonoSynth, {
             oscillator: { type: "square" },
             filter: { type: "lowpass", rolloff: -24, Q: 2 },
             envelope: { attack: 0.01, decay: 0.2, sustain: 0.6, release: 0.4 },
             filterEnvelope: { attack: 0.001, decay: 0.15, sustain: 0.4, release: 0.2, baseFrequency: 80, octaves: 3 }
-        }).toDestination());
+        }).connect(chainInput));
 
 
         safeCreate('harmonica', () => new Tone.Sampler({
@@ -480,17 +598,12 @@ export const initAudio = async () => {
             release: 2,
             attack: 0.05,
             baseUrl: "/samples/",
-        }).connect(ensureMasterLimiter()));
+        }).connect(chainInput));
 
         safeCreate('choir', () => new Tone.PolySynth(Tone.Synth, {
             oscillator: { type: "sine" },
             envelope: { attack: 0.8, decay: 0.3, sustain: 0.9, release: 1.8 }
-        }).toDestination());
-
-        safeCreate('choir', () => new Tone.PolySynth(Tone.Synth, {
-            oscillator: { type: "sine" },
-            envelope: { attack: 0.8, decay: 0.3, sustain: 0.9, release: 1.8 }
-        }).toDestination());
+        }).connect(chainInput));
 
         safeCreate('ocarina', () => new Tone.Sampler({
             urls: {
@@ -501,7 +614,7 @@ export const initAudio = async () => {
             release: 2,
             attack: 0.05,
             baseUrl: "/samples/",
-        }).connect(ensureMasterLimiter()));
+        }).connect(chainInput));
 
         safeCreate('acoustic-archtop', () => new Tone.Sampler({
             urls: {
@@ -512,7 +625,7 @@ export const initAudio = async () => {
             release: 2,
             attack: 0.05,
             baseUrl: "/samples/",
-        }).connect(ensureMasterLimiter()));
+        }).connect(chainInput));
 
         safeCreate('nylon-string', () => new Tone.Sampler({
             urls: {
@@ -523,7 +636,7 @@ export const initAudio = async () => {
             release: 2,
             attack: 0.05,
             baseUrl: "/samples/",
-        }).connect(ensureMasterLimiter()));
+        }).connect(chainInput));
 
         safeCreate('melodica', () => new Tone.Sampler({
             urls: {
@@ -534,7 +647,7 @@ export const initAudio = async () => {
             release: 2,
             attack: 0.05,
             baseUrl: "/samples/",
-        }).connect(ensureMasterLimiter()));
+        }).connect(chainInput));
 
         safeCreate('wine-glass', () => new Tone.Sampler({
             urls: {
@@ -545,7 +658,7 @@ export const initAudio = async () => {
             release: 2,
             attack: 0.05,
             baseUrl: "/samples/",
-        }).connect(ensureMasterLimiter()));
+        }).connect(chainInput));
 
         // Load custom instruments
         reloadCustomInstruments();
