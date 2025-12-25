@@ -376,7 +376,7 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
             ref={modalRef}
             onWheel={(e) => e.stopPropagation()}
             className={clsx(
-                "fixed bg-bg-elevated/85 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl select-none",
+                "fixed bg-bg-elevated/65 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl select-none",
                 "flex flex-col p-3 gap-3",
                 "animate-in fade-in zoom-in-95 duration-200",
                 "min-w-[320px] touch-none"
@@ -487,7 +487,7 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
                         <MoveRight size={16} className={clsx("transition-transform", autoAdvance ? "scale-110" : "scale-90 opacity-50")} />
                         <div className={clsx(
                             "w-1 h-1 rounded-full mt-1 transition-all",
-                            autoAdvance ? "bg-white scale-100" : "bg-text-tertiary scale-75 opacity-50"
+                            autoAdvance ? "bg-white scale-100" : "bg-text-tertiary scale-75 opacity-70"
                         )} />
                     </button>
 

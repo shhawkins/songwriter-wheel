@@ -62,8 +62,7 @@ body {
   /* Prevent pull-to-refresh and overscroll bounce on iOS */
   overscroll-behavior: none;
 
-  /* Prevent all touch scrolling at the body level */
-  touch-action: none;
+  /* NOTE: DO NOT add touch-action: none here - it breaks input focus on iOS Safari */
 
   /* Improve touch scrolling on iOS */
   -webkit-overflow-scrolling: touch;
