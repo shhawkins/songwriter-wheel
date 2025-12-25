@@ -257,7 +257,7 @@ function App() {
       setNotification({ message: `🎉 Welcome to Songwriter Wheel!\nSigned up as ${user.email}` });
       justShowedPasswordUpdateRef.current = true;
     } else if (user?.email && !prevUserRef.current?.email && !justShowedPasswordUpdateRef.current) {
-      setNotification({ message: `Successfully signed in as ${user.email}` });
+      setNotification({ message: `Successfully signed in as\n${user.email}` });
     }
   }, [user, wasPasswordJustUpdated, isNewUser, clearPasswordUpdatedFlag, clearIsNewUserFlag]);
 
@@ -1936,10 +1936,12 @@ function App() {
 
       {/* Toast Notification */}
       {notification && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[2000] px-4 py-2 bg-stone-800 border border-stone-700 text-white text-sm font-medium rounded-full shadow-xl animate-in fade-in slide-in-from-top-4 duration-300 flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-500" />
-            {notification.message}
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[2000] px-6 py-3 bg-stone-800/95 backdrop-blur-md border border-stone-700 text-white text-sm font-medium rounded-2xl shadow-2xl animate-in fade-in slide-in-from-top-4 duration-300 flex items-center gap-4 max-w-[90vw]">
+          <div className="flex items-start gap-3">
+            <div className="w-2 h-2 rounded-full bg-green-500 mt-1.5 shrink-0" />
+            <div className="whitespace-pre-wrap leading-relaxed">
+              {notification.message}
+            </div>
           </div>
           {notification.action && (
             <button
