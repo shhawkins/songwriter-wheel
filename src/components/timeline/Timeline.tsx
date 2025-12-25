@@ -2,7 +2,7 @@ import React from 'react';
 import {
     DndContext,
     DragOverlay,
-    closestCenter,
+    rectIntersection,
     KeyboardSensor,
     PointerSensor,
     TouchSensor,
@@ -247,7 +247,7 @@ export const Timeline: React.FC<TimelineProps> = ({ height = 180, scale = 1 }) =
                     <Playhead scale={horizontalScale} chordSize={chordSize} />
                     <DndContext
                         sensors={sensors}
-                        collisionDetection={closestCenter}
+                        collisionDetection={rectIntersection}
                         onDragStart={handleDragStart}
                         onDragEnd={handleDragEnd}
                     >

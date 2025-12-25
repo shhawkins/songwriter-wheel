@@ -37,12 +37,12 @@ export const ChordSlot: React.FC<ChordSlotProps> = ({ slot, sectionId, measureId
     const mouseStartPos = useRef<{ x: number; y: number } | null>(null);
 
     const { isOver, setNodeRef: setDroppableRef } = useDroppable({
-        id: `slot - ${slot.id} `,
+        id: `slot-${slot.id}`,
         data: { type: 'slot', sectionId, slotId: slot.id }
     });
 
-    const { attributes, listeners, setNodeRef: setDraggableRef, transform, isDragging } = useDraggable({
-        id: `chord - ${slot.id} `,
+    const { attributes, listeners, setNodeRef: setDraggableRef, isDragging } = useDraggable({
+        id: `chord-${slot.id}`,
         data: { type: 'chord', chord: slot.chord, originSlotId: slot.id, originSectionId: sectionId },
         disabled: !slot.chord
     });
@@ -53,9 +53,11 @@ export const ChordSlot: React.FC<ChordSlotProps> = ({ slot, sectionId, measureId
 
     const isPlayingThisSlot = isGloballyPlaying && playingSectionId === sectionId && playingSlotId === slot.id;
 
-    const style = transform ? {
-        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-        zIndex: 999
+    // We use a DragOverlay in Timeline.tsx, so the original element should stay put as a ghost.
+    // We only need z-index and maybe an opacity shift.
+    const style = isDragging ? {
+        zIndex: 999,
+        opacity: 0.5
     } : undefined;
 
     const handleMouseDown = (e: React.MouseEvent) => {
@@ -240,8 +242,7 @@ export const ChordSlot: React.FC<ChordSlotProps> = ({ slot, sectionId, measureId
         const startDuration = slot.duration;
         const oneBeatWidth = resolvedWidth / startDuration; // Approximate width of 1.0 duration
 
-        const onMove = (moveEvent: PointerEvent) => {
-            const dx = moveEvent.clientX - startX;
+        const onMove = () => {
             // Snap to 0.25 (16th note) increments
             // One beat width * deltaDuration = dx
             // deltaDuration = dx / oneBeatWidth

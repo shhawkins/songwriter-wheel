@@ -275,7 +275,7 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
             if (slotId) {
                 // Return a collision with the specific slot ID
                 return [{
-                    id: `slot - ${slotId} `, // Matches the ID format in useDroppable
+                    id: `slot-${slotId}`, // Matches the ID format in useDroppable
                     data: { value: slotId }
                 }];
             }
