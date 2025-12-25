@@ -16,6 +16,7 @@ import {
     TouchSensor,
     useSensor,
     useSensors,
+    closestCenter,
     type DragEndEvent,
     type DragMoveEvent,
     type CollisionDetection,
@@ -29,6 +30,12 @@ import {
     useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { type Modifier } from '@dnd-kit/core';
+
+const restrictToHorizontalAxis: Modifier = ({ transform }) => ({
+    ...transform,
+    y: 0,
+});
 
 // Sortable section tab component for drag-and-drop reordering
 interface SortableSectionTabProps {
@@ -56,7 +63,10 @@ const SortableSectionTab: React.FC<SortableSectionTabProps> = ({
         transform,
         transition,
         isDragging,
-    } = useSortable({ id: section.id });
+    } = useSortable({
+        id: section.id,
+        data: { type: 'section' }
+    });
 
     const style = {
         transform: CSS.Transform.toString(transform),
@@ -161,6 +171,7 @@ const SortableSectionTab: React.FC<SortableSectionTabProps> = ({
                 style={{
                     WebkitTouchCallout: 'none',
                     WebkitUserSelect: 'none',
+                    touchAction: 'none'
                 }}
                 title="Hold to drag"
             />
@@ -251,18 +262,18 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
     // Edge scroll state for custom auto-scroll behavior
     const edgeScrollRef = useRef<number | null>(null);
     const scrollDirectionRef = useRef<'left' | 'right' | null>(null);
-    const dragStartScrollLeft = useRef<number>(0); // Scroll position when drag started
+    const dragStartScrollLeft = useRef<number>(0); // Scroll position when chord drag started
+    const sectionDragStartScrollLeft = useRef<number>(0); // Scroll position when section drag started
     const [scrollOffset, setScrollOffset] = useState(0); // Accumulated scroll during drag
     const EDGE_THRESHOLD = 50; // pixels from edge to trigger scroll
     const SCROLL_SPEED = 8; // pixels per frame
 
-    // Custom collision detection using native DOM hit-testing
+    // Custom collision detection using native DOM hit-testing for CHORDS
     // This bypasses dnd-kit's internal coordinate cache which can get out of sync during manual scrolling
-    const customCollisionDetection: CollisionDetection = ({ pointerCoordinates }) => {
+    const chordCollisionDetection: CollisionDetection = ({ pointerCoordinates }) => {
         if (!pointerCoordinates) return [];
 
         // Use native elementFromPoint to find what's actually under the finger on screen
-        // detailed hit test through the drag overlay (which has pointer-events: none)
         const element = document.elementFromPoint(pointerCoordinates.x, pointerCoordinates.y);
 
         if (!element) return [];
@@ -281,34 +292,20 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
             }
         }
 
-        // Fallback for reordering sections if we're not over a slot
-        // Check if we're over a section tab
-        const sectionTab = element.closest('[data-section-id]');
-        if (sectionTab) {
-            const sectionId = sectionTab.getAttribute('data-section-id');
-            if (sectionId) {
-                return [{
-                    id: sectionId,
-                    data: { value: sectionId }
-                }];
-            }
-        }
-
         return [];
     };
 
-    // DnD sensors - Configured to coexist with horizontal scrolling
-    // Touch sensor uses delay + high tolerance so horizontal scroll gestures pass through
-    const sensors = useSensors(
+    // Separate sensors for sections and chords to prevent cross-context interference
+    const sectionSensors = useSensors(
         useSensor(PointerSensor, {
             activationConstraint: {
-                distance: 15, // Require 15px movement before drag starts (allows scroll)
+                distance: 8,
             },
         }),
         useSensor(TouchSensor, {
             activationConstraint: {
-                delay: 400, // 400ms hold before drag starts on touch (prevents accidental drags)
-                tolerance: 25, // Allow 25px movement during the delay (lets scrolling happen)
+                delay: 150,
+                tolerance: 15,
             },
         }),
         useSensor(KeyboardSensor, {
@@ -316,16 +313,22 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
         })
     );
 
-    // Unified drag start handler
-    const handleDragStart = (event: any) => {
-        setActiveDragId(event.active.id);
-        setActiveDragType(event.active.data.current?.type === 'chord' ? 'chord' : 'section');
-        // Capture initial scroll position
-        if (scrollRef.current) {
-            dragStartScrollLeft.current = scrollRef.current.scrollLeft;
-        }
-        setScrollOffset(0);
-    };
+    const chordSensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 8,
+            },
+        }),
+        useSensor(TouchSensor, {
+            activationConstraint: {
+                delay: 150,
+                tolerance: 15,
+            },
+        }),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
 
     // Stop edge scrolling helper
     const stopEdgeScroll = () => {
@@ -337,20 +340,23 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
     };
 
     // Start edge scrolling in a direction
-    const startEdgeScroll = (direction: 'left' | 'right') => {
+    const startEdgeScroll = (direction: 'left' | 'right', type: 'chord' | 'section') => {
         if (scrollDirectionRef.current === direction) return; // Already scrolling this way
 
         stopEdgeScroll();
         scrollDirectionRef.current = direction;
 
         const scroll = () => {
-            if (!scrollRef.current || !scrollDirectionRef.current) return;
+            const container = type === 'chord' ? scrollRef.current : sectionTabsRef.current;
+            const startScroll = type === 'chord' ? dragStartScrollLeft.current : sectionDragStartScrollLeft.current;
+
+            if (!container || !scrollDirectionRef.current) return;
 
             const delta = scrollDirectionRef.current === 'left' ? -SCROLL_SPEED : SCROLL_SPEED;
-            scrollRef.current.scrollLeft += delta;
+            container.scrollLeft += delta;
 
             // Update scroll offset for drag preview
-            const currentOffset = scrollRef.current.scrollLeft - dragStartScrollLeft.current;
+            const currentOffset = container.scrollLeft - startScroll;
             setScrollOffset(currentOffset);
 
             edgeScrollRef.current = requestAnimationFrame(scroll);
@@ -359,88 +365,110 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
         edgeScrollRef.current = requestAnimationFrame(scroll);
     };
 
-    // Handle drag move - check if near edges and scroll
-    const handleDragMove = (event: DragMoveEvent) => {
-        if (!scrollRef.current) return;
+    // Section drag start handler
+    const handleSectionDragStart = (event: any) => {
+        setActiveDragId(event.active.id);
+        setActiveDragType('section');
+        if (sectionTabsRef.current) {
+            sectionDragStartScrollLeft.current = sectionTabsRef.current.scrollLeft;
+        }
+        setScrollOffset(0);
+    };
 
-        // Check if this is a chord drag using event data (not state, which may be stale)
+    // Chord drag start handler
+    const handleChordDragStart = (event: any) => {
+        setActiveDragId(event.active.id);
+        setActiveDragType('chord');
+        // Capture initial scroll position of chords area for auto-scroll calc
+        if (scrollRef.current) {
+            dragStartScrollLeft.current = scrollRef.current.scrollLeft;
+        }
+        setScrollOffset(0);
+    };
+
+    // Chord drag move handles edge scrolling
+    const handleChordDragMove = (event: DragMoveEvent) => {
+        if (!scrollRef.current) return;
         if (event.active.data.current?.type !== 'chord') return;
 
-        // Get the scroll container's bounds
         const containerRect = scrollRef.current.getBoundingClientRect();
-
-        // Calculate current pointer position from the drag delta + initial rect
-        // The delta tells us how far the pointer has moved from the start
         const initialRect = event.active.rect.current.initial;
         if (!initialRect) return;
 
-        // Current position = initial center + delta
         const currentX = initialRect.left + initialRect.width / 2 + event.delta.x;
 
-        // Check if near left edge
         if (currentX < containerRect.left + EDGE_THRESHOLD) {
-            startEdgeScroll('left');
-        }
-        // Check if near right edge
-        else if (currentX > containerRect.right - EDGE_THRESHOLD) {
-            startEdgeScroll('right');
-        }
-        // Not near any edge - stop scrolling
-        else {
+            startEdgeScroll('left', 'chord');
+        } else if (currentX > containerRect.right - EDGE_THRESHOLD) {
+            startEdgeScroll('right', 'chord');
+        } else {
             stopEdgeScroll();
         }
     };
 
-    // Unified drag end handler
-    const handleDragEnd = (event: DragEndEvent) => {
-        // Stop any edge scrolling
-        stopEdgeScroll();
+    // Section drag move handles edge scrolling
+    const handleSectionDragMove = (event: DragMoveEvent) => {
+        if (!sectionTabsRef.current) return;
+        if (event.active.data.current?.type !== 'section') return;
 
+        const containerRect = sectionTabsRef.current.getBoundingClientRect();
+        const initialRect = event.active.rect.current.initial;
+        if (!initialRect) return;
+
+        const currentX = initialRect.left + initialRect.width / 2 + event.delta.x;
+
+        if (currentX < containerRect.left + EDGE_THRESHOLD) {
+            startEdgeScroll('left', 'section');
+        } else if (currentX > containerRect.right - EDGE_THRESHOLD) {
+            startEdgeScroll('right', 'section');
+        } else {
+            stopEdgeScroll();
+        }
+    };
+
+    // Section drag end handler
+    const handleSectionDragEnd = (event: DragEndEvent) => {
+        stopEdgeScroll();
         setActiveDragId(null);
         setActiveDragType(null);
         const { active, over } = event;
 
-        if (!over) return;
+        if (over && active.id !== over.id) {
+            const oldIndex = currentSong.sections.findIndex((s) => s.id === active.id);
+            const newIndex = currentSong.sections.findIndex((s) => s.id === over.id);
 
-        // Handle SECTION reordering
-        if (active.data.current?.sortable?.index !== undefined || (active.id as string).includes('section-')) { // Sortable items usually have sortable data
-            if (active.id !== over.id) {
-                const oldIndex = currentSong.sections.findIndex((s) => s.id === active.id);
-                const newIndex = currentSong.sections.findIndex((s) => s.id === over.id);
+            if (oldIndex !== -1 && newIndex !== -1) {
+                const newSections = arrayMove(currentSong.sections, oldIndex, newIndex);
+                reorderSections(newSections);
+                setActiveSectionIndex(newIndex);
 
-                if (oldIndex !== -1 && newIndex !== -1) {
-                    const newSections = arrayMove(currentSong.sections, oldIndex, newIndex);
-                    reorderSections(newSections);
-                    setActiveSectionIndex(newIndex);
-
-                    const draggedSection = currentSong.sections[oldIndex];
-                    if (draggedSection && draggedSection.measures[0]?.beats[0]) {
-                        setSelectedSlot(draggedSection.id, draggedSection.measures[0].beats[0].id);
-                    }
+                // Auto-select the first slot of the moved section
+                const draggedSection = currentSong.sections[oldIndex];
+                if (draggedSection && draggedSection.measures[0]?.beats[0]) {
+                    setSelectedSlot(draggedSection.id, draggedSection.measures[0].beats[0].id);
                 }
             }
-            return;
         }
+    };
 
-        // Handle CHORD dragging
-        // Expected format: chord-{sectionId}-{slotId}
-        // or data.type = 'chord'
-        if (active.data.current?.type === 'chord' && over.data.current?.type === 'slot') {
+    // Chord drag end handler
+    const handleChordDragEnd = (event: DragEndEvent) => {
+        stopEdgeScroll();
+        setActiveDragId(null);
+        setActiveDragType(null);
+        const { active, over } = event;
+
+        if (active.data.current?.type === 'chord' && over?.data.current?.type === 'slot') {
             const fromSectionId = active.data.current.originSectionId;
             const fromSlotId = active.data.current.originSlotId;
             const toSectionId = over.data.current.sectionId;
             const toSlotId = over.data.current.slotId;
 
             if (fromSectionId && fromSlotId && toSectionId && toSlotId) {
-                // If dropped on itself, do nothing
                 if (fromSectionId === toSectionId && fromSlotId === toSlotId) return;
-
-                // Move (swap) chord
                 const state = useSongStore.getState();
                 state.moveChord(fromSectionId, fromSlotId, toSectionId, toSlotId);
-
-                // Play move sound?
-                playChord(selectedChord?.notes || []); // Or just feedback
+                playChord(selectedChord?.notes || []);
                 selectSlotOnly(toSectionId, toSlotId);
             }
         }
@@ -664,18 +692,14 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                 transition: swipeOffset === 0 ? 'all 0.2s ease-out' : 'none'
             }}
         >
+            {/* SECTION REORDERING CONTEXT */}
             <DndContext
-                sensors={sensors}
-                collisionDetection={customCollisionDetection}
-                onDragStart={handleDragStart}
-                onDragMove={handleDragMove}
-                onDragEnd={handleDragEnd}
+                sensors={sectionSensors}
+                collisionDetection={closestCenter}
+                onDragStart={handleSectionDragStart}
+                onDragMove={handleSectionDragMove}
+                onDragEnd={handleSectionDragEnd}
                 autoScroll={false}
-                measuring={{
-                    droppable: {
-                        strategy: MeasuringStrategy.Always,
-                    }
-                }}
             >
                 {/* Drag handle - title hidden when open to save vertical space */}
                 {!hideCloseButton && (
@@ -689,9 +713,10 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                     </div>
                 )}
 
-                {/* Section navigator - compact mode uses a simpler dropdown-style layout */}
+                {/* Section navigator */}
                 {isCompact ? (
                     <div className="flex items-center justify-between shrink-0 px-1 py-1">
+                        {/* ... existing compact Nav content ... */}
                         {/* Left Group: Map and Zoom (Green Area) */}
                         <div className="flex items-center gap-1.5 pl-0.5">
                             <button
@@ -918,6 +943,40 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                     </div>
                 )}
 
+                <DragOverlay dropAnimation={null} modifiers={[restrictToHorizontalAxis]}>
+                    {activeDragId && activeDragType === 'section' && (() => {
+                        const section = currentSong.sections.find(s => s.id === activeDragId);
+                        if (!section) return null;
+                        return (
+                            <div
+                                className="opacity-80 scale-105"
+                                style={{ transform: `translateX(${scrollOffset}px)` }}
+                            >
+                                <SortableSectionTab
+                                    section={section}
+                                    allSections={currentSong.sections}
+                                    isActive={true}
+                                    isDesktop={isDesktop}
+                                    onActivate={() => { }}
+                                    onEdit={() => { }}
+                                    onDelete={() => { }}
+                                />
+                            </div>
+                        );
+                    })()}
+                </DragOverlay>
+            </DndContext>
+
+            {/* CHORD MOVING CONTEXT */}
+            <DndContext
+                sensors={chordSensors}
+                collisionDetection={chordCollisionDetection}
+                onDragStart={handleChordDragStart}
+                onDragMove={handleChordDragMove}
+                onDragEnd={handleChordDragEnd}
+                autoScroll={false}
+                measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
+            >
                 {/* Chord slots for active section */}
                 {/* Landscape: one bar per row, filling width. Portrait: horizontal scroll */}
                 <div
@@ -1050,171 +1109,148 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                     ))}
                 </div>
                 {/* Options Popup */}
-                {editingSectionId && (() => {
-                    const currentEditIndex = currentSong.sections.findIndex(s => s.id === editingSectionId);
-                    const hasPrev = currentEditIndex > 0;
-                    const hasNext = currentEditIndex < currentSong.sections.length - 1;
+                {
+                    editingSectionId && (() => {
+                        const currentEditIndex = currentSong.sections.findIndex(s => s.id === editingSectionId);
+                        const hasPrev = currentEditIndex > 0;
+                        const hasNext = currentEditIndex < currentSong.sections.length - 1;
 
-                    return (
-                        <SectionOptionsPopup
-                            section={currentSong.sections.find(s => s.id === editingSectionId)!}
-                            isOpen={true}
-                            onClose={() => setEditingSectionId(null)}
-                            onTimeSignatureChange={(val) => {
-                                const [top, bottom] = val.split('/').map(n => parseInt(n, 10));
-                                if (top && bottom && editingSectionId) setSectionTimeSignature(editingSectionId, [top, bottom]);
-                            }}
-                            onBarsChange={(val) => {
-                                if (editingSectionId) setSectionMeasures(editingSectionId, val);
-                            }}
-                            onStepCountChange={(steps) => {
-                                if (editingSectionId) setSectionSubdivision(editingSectionId, steps);
-                            }}
-                            onNameChange={(name, type) => {
-                                if (editingSectionId) updateSection(editingSectionId, { name, type });
-                            }}
-                            onCopy={() => {
-                                if (editingSectionId) {
-                                    duplicateSection(editingSectionId);
+                        return (
+                            <SectionOptionsPopup
+                                section={currentSong.sections.find(s => s.id === editingSectionId)!}
+                                isOpen={true}
+                                onClose={() => setEditingSectionId(null)}
+                                onTimeSignatureChange={(val) => {
+                                    const [top, bottom] = val.split('/').map(n => parseInt(n, 10));
+                                    if (top && bottom && editingSectionId) setSectionTimeSignature(editingSectionId, [top, bottom]);
+                                }}
+                                onBarsChange={(val) => {
+                                    if (editingSectionId) setSectionMeasures(editingSectionId, val);
+                                }}
+                                onStepCountChange={(steps) => {
+                                    if (editingSectionId) setSectionSubdivision(editingSectionId, steps);
+                                }}
+                                onNameChange={(name, type) => {
+                                    if (editingSectionId) updateSection(editingSectionId, { name, type });
+                                }}
+                                onCopy={() => {
+                                    if (editingSectionId) {
+                                        duplicateSection(editingSectionId);
 
-                                    // Auto switch to the new section (next one)
-                                    setTimeout(() => {
-                                        const state = useSongStore.getState();
-                                        const newSections = state.currentSong.sections;
-                                        const nextIndex = currentEditIndex + 1;
+                                        // Auto switch to the new section (next one)
+                                        setTimeout(() => {
+                                            const state = useSongStore.getState();
+                                            const newSections = state.currentSong.sections;
+                                            const nextIndex = currentEditIndex + 1;
 
-                                        if (nextIndex < newSections.length) {
-                                            const newSection = newSections[nextIndex];
-                                            setEditingSectionId(newSection.id);
+                                            if (nextIndex < newSections.length) {
+                                                const newSection = newSections[nextIndex];
+                                                setEditingSectionId(newSection.id);
+                                                setActiveSectionIndex(nextIndex);
+                                            }
+                                        }, 50);
+                                    }
+                                }}
+                                onClear={() => {
+                                    if (editingSectionId) clearSection(editingSectionId);
+                                }}
+                                onDelete={() => {
+                                    if (editingSectionId) {
+                                        // Find a fallback section to switch to (prefer next, then previous)
+                                        const currentIndex = currentSong.sections.findIndex(s => s.id === editingSectionId);
+                                        let fallbackId: string | null = null;
+
+                                        if (currentSong.sections.length > 1) {
+                                            if (currentIndex < currentSong.sections.length - 1) {
+                                                fallbackId = currentSong.sections[currentIndex + 1].id;
+                                            } else {
+                                                fallbackId = currentSong.sections[currentIndex - 1].id;
+                                            }
+                                        }
+
+                                        removeSection(editingSectionId);
+                                        setEditingSectionId(fallbackId);
+
+                                        // Update active tab index if we switched
+                                        if (fallbackId) {
+                                            // Note: we can't search the *new* list yet as we're in the handler before render
+                                            // But we know the ID. When the component re-renders, it will use the ID correctly.
+                                            // For activeSectionIndex state (which is local), we can approximate or just rely on the fallback logic in effects.
+                                            // Actually, let's just update it based on the old list logic for smoother transition
+                                            const nextIndex = currentIndex < currentSong.sections.length - 1 ? currentIndex : Math.max(0, currentIndex - 1);
                                             setActiveSectionIndex(nextIndex);
                                         }
-                                    }, 50);
-                                }
-                            }}
-                            onClear={() => {
-                                if (editingSectionId) clearSection(editingSectionId);
-                            }}
-                            onDelete={() => {
-                                if (editingSectionId) {
-                                    // Find a fallback section to switch to (prefer next, then previous)
-                                    const currentIndex = currentSong.sections.findIndex(s => s.id === editingSectionId);
-                                    let fallbackId: string | null = null;
-
-                                    if (currentSong.sections.length > 1) {
-                                        if (currentIndex < currentSong.sections.length - 1) {
-                                            fallbackId = currentSong.sections[currentIndex + 1].id;
-                                        } else {
-                                            fallbackId = currentSong.sections[currentIndex - 1].id;
-                                        }
                                     }
-
-                                    removeSection(editingSectionId);
-                                    setEditingSectionId(fallbackId);
-
-                                    // Update active tab index if we switched
-                                    if (fallbackId) {
-                                        // Note: we can't search the *new* list yet as we're in the handler before render
-                                        // But we know the ID. When the component re-renders, it will use the ID correctly.
-                                        // For activeSectionIndex state (which is local), we can approximate or just rely on the fallback logic in effects.
-                                        // Actually, let's just update it based on the old list logic for smoother transition
-                                        const nextIndex = currentIndex < currentSong.sections.length - 1 ? currentIndex : Math.max(0, currentIndex - 1);
-                                        setActiveSectionIndex(nextIndex);
+                                }}
+                                songTimeSignature={songTimeSignature || [4, 4]}
+                                // Navigation props
+                                onNavigatePrev={() => {
+                                    if (hasPrev) {
+                                        const newSection = currentSong.sections[currentEditIndex - 1];
+                                        setEditingSectionId(newSection.id);
+                                        setActiveSectionIndex(currentEditIndex - 1);
                                     }
-                                }
-                            }}
-                            songTimeSignature={songTimeSignature || [4, 4]}
-                            // Navigation props
-                            onNavigatePrev={() => {
-                                if (hasPrev) {
-                                    const newSection = currentSong.sections[currentEditIndex - 1];
-                                    setEditingSectionId(newSection.id);
-                                    setActiveSectionIndex(currentEditIndex - 1);
-                                }
-                            }}
-                            onNavigateNext={() => {
-                                if (hasNext) {
-                                    const newSection = currentSong.sections[currentEditIndex + 1];
-                                    setEditingSectionId(newSection.id);
-                                    setActiveSectionIndex(currentEditIndex + 1);
-                                }
-                            }}
-                            hasPrev={hasPrev}
-                            hasNext={hasNext}
-                            sectionIndex={currentEditIndex}
-                            totalSections={currentSong.sections.length}
-                            onSlotClick={(beatId) => {
-                                // Close the modal
-                                setEditingSectionId(null);
-                                // Ensure we're viewing the correct section
-                                setActiveSectionIndex(currentEditIndex);
-                                // Select the clicked slot (this triggers auto-scroll via useEffect)
-                                selectSlotOnly(editingSectionId, beatId);
-                            }}
-                            onNavigateToSection={(sectionId) => {
-                                // Navigate to clicked section directly
-                                const newIndex = currentSong.sections.findIndex(s => s.id === sectionId);
-                                if (newIndex !== -1) {
-                                    setEditingSectionId(sectionId);
-                                    setActiveSectionIndex(newIndex);
-                                }
-                            }}
-                            onMoveUp={() => {
-                                if (hasPrev && editingSectionId) {
-                                    const newSections = [...currentSong.sections];
-                                    const temp = newSections[currentEditIndex];
-                                    newSections[currentEditIndex] = newSections[currentEditIndex - 1];
-                                    newSections[currentEditIndex - 1] = temp;
-                                    reorderSections(newSections);
-                                    // Update the active section index to follow the moved section
-                                    setActiveSectionIndex(currentEditIndex - 1);
-                                    // Keep modal open (id hasn't changed, but index has, render will update)
-                                }
-                            }}
-                            onMoveDown={() => {
-                                if (hasNext && editingSectionId) {
-                                    const newSections = [...currentSong.sections];
-                                    const temp = newSections[currentEditIndex];
-                                    newSections[currentEditIndex] = newSections[currentEditIndex + 1];
-                                    newSections[currentEditIndex + 1] = temp;
-                                    reorderSections(newSections);
-                                    // Update the active section index to follow the moved section
-                                    setActiveSectionIndex(currentEditIndex + 1);
-                                    // Keep modal open
-                                }
-                            }}
-                        />
-                    );
-                })()}
-
-
-                {/* Drag Overlay for visual feedback */}
-                <DragOverlay
-                    dropAnimation={null}
-                    style={{
-                        // Apply scroll offset so preview moves with the content during edge scrolling
-                        transform: `translateX(${scrollOffset}px)`,
-                    }}
-                >
-                    {activeDragId && activeDragType === 'section' && (() => {
-                        const section = currentSong.sections.find(s => s.id === activeDragId);
-                        if (!section) return null;
-                        return (
-                            <div className="opacity-80 scale-105">
-                                <SortableSectionTab
-                                    section={section}
-                                    allSections={currentSong.sections}
-                                    isActive={true}
-                                    isDesktop={isDesktop}
-                                    onActivate={() => { }}
-                                    onEdit={() => { }}
-                                    onDelete={() => { }}
-                                />
-                            </div>
+                                }}
+                                onNavigateNext={() => {
+                                    if (hasNext) {
+                                        const newSection = currentSong.sections[currentEditIndex + 1];
+                                        setEditingSectionId(newSection.id);
+                                        setActiveSectionIndex(currentEditIndex + 1);
+                                    }
+                                }}
+                                hasPrev={hasPrev}
+                                hasNext={hasNext}
+                                sectionIndex={currentEditIndex}
+                                totalSections={currentSong.sections.length}
+                                onSlotClick={(beatId) => {
+                                    // Close the modal
+                                    setEditingSectionId(null);
+                                    // Ensure we're viewing the correct section
+                                    setActiveSectionIndex(currentEditIndex);
+                                    // Select the clicked slot (this triggers auto-scroll via useEffect)
+                                    selectSlotOnly(editingSectionId, beatId);
+                                }}
+                                onNavigateToSection={(sectionId) => {
+                                    // Navigate to clicked section directly
+                                    const newIndex = currentSong.sections.findIndex(s => s.id === sectionId);
+                                    if (newIndex !== -1) {
+                                        setEditingSectionId(sectionId);
+                                        setActiveSectionIndex(newIndex);
+                                    }
+                                }}
+                                onMoveUp={() => {
+                                    if (hasPrev && editingSectionId) {
+                                        const newSections = [...currentSong.sections];
+                                        const temp = newSections[currentEditIndex];
+                                        newSections[currentEditIndex] = newSections[currentEditIndex - 1];
+                                        newSections[currentEditIndex - 1] = temp;
+                                        reorderSections(newSections);
+                                        // Update the active section index to follow the moved section
+                                        setActiveSectionIndex(currentEditIndex - 1);
+                                        // Keep modal open (id hasn't changed, but index has, render will update)
+                                    }
+                                }}
+                                onMoveDown={() => {
+                                    if (hasNext && editingSectionId) {
+                                        const newSections = [...currentSong.sections];
+                                        const temp = newSections[currentEditIndex];
+                                        newSections[currentEditIndex] = newSections[currentEditIndex + 1];
+                                        newSections[currentEditIndex + 1] = temp;
+                                        reorderSections(newSections);
+                                        // Update the active section index to follow the moved section
+                                        setActiveSectionIndex(currentEditIndex + 1);
+                                        // Keep modal open
+                                    }
+                                }}
+                            />
                         );
-                    })()}
+                    })()
+                }
+
+
+                {/* Drag Overlay for CHORDS */}
+                <DragOverlay dropAnimation={null}>
                     {activeDragId && activeDragType === 'chord' && (() => {
-                        // For chord dragging, we need to find the chord data
-                        // activeDragId is chord-{slotId}
                         const slotId = activeDragId.toString().replace('chord-', '');
                         let foundChord = null;
                         let foundSectionId = '';
@@ -1233,7 +1269,10 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                         if (!foundChord) return null;
 
                         return (
-                            <div className="opacity-90 scale-110 pointer-events-none">
+                            <div
+                                className="opacity-90 scale-110 pointer-events-none"
+                                style={{ transform: `translateX(${scrollOffset}px)` }}
+                            >
                                 <ChordSlot
                                     slot={{ id: slotId, chord: foundChord, duration: 1 }}
                                     sectionId={foundSectionId}
@@ -1243,7 +1282,7 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                         );
                     })()}
                 </DragOverlay>
-            </DndContext>
-        </div>
+            </DndContext >
+        </div >
     );
 };
