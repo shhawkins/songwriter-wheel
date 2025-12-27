@@ -1,12 +1,23 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Song, Section, InstrumentType, Measure, CustomInstrument, InstrumentPatch } from '../types';
+import type { Song, Section, InstrumentType, Measure } from '../types';
 import { CIRCLE_OF_FIFTHS, type Chord } from '../utils/musicTheory';
 import { v4 as uuidv4 } from 'uuid';
-import { supabase } from '../lib/supabase';
+import { v4 as uuidv4 } from 'uuid';
+import { createPlaybackSlice, type PlaybackSlice } from './slices/playbackSlice';
+import { createInstrumentSlice, type InstrumentSlice } from './slices/instrumentSlice';
+import { createSelectionSlice, type SelectionSlice } from './slices/selectionSlice';
+import { createCloudSlice, type CloudSlice } from './slices/cloudSlice';
+import {
+    createEmptyMeasure,
+    ensureSelectionStillExists,
+    reselectFromSong,
+    beatsFromSignature
+} from '../utils/selectionUtils';
+import { buildHistoryState, cloneSong, HISTORY_LIMIT } from '../utils/historyUtils';
 
 
-type SelectionSlot = { sectionId: string; slotId: string };
+
 
 /**
  * Intelligent section name suggestion algorithm.
@@ -108,14 +119,8 @@ function suggestNextSectionType(sections: Section[]): Section['type'] {
     return 'verse';
 }
 
-interface SongState {
-    // Song data
-    currentSong: Song;
-    historyPast: Song[];
-    historyFuture: Song[];
-    canUndo: boolean;
-    canRedo: boolean;
 
+interface SongState extends PlaybackSlice, InstrumentSlice, SelectionSlice, CloudSlice {
     // Wheel state
     selectedKey: string;
     wheelRotation: number;        // Cumulative rotation (not reset at 360°)
@@ -140,51 +145,26 @@ interface SongState {
     isKeyLocked: boolean;
     toggleKeyLock: () => void;
 
-    // Selection state
-    selectedChord: Chord | null;
-    selectedSectionId: string | null;
-    selectedSlotId: string | null;
-    selectedSlots: SelectionSlot[];
-    selectionAnchor: SelectionSlot | null;
-    chordPanelScrollTarget: 'voicings' | 'guitar' | 'scales' | 'theory' | null;
-    voicingPickerState: {
-        isOpen: boolean;
-        chord: Chord | null;
-        voicingSuggestion: string;
-        baseQuality: string;
-    };
+    // Core State (Restoring missing properties)
+    currentSong: Song;
+    historyPast: Song[];
+    historyFuture: Song[];
+    canUndo: boolean;
+    canRedo: boolean;
 
-    // Playback state
-    isPlaying: boolean;
-    playingSectionId: string | null;
-    playingSlotId: string | null;
-    isLooping: boolean;
+
+
+    // Playback state (moved to PlaybackSlice)
+    // isPlaying, playingSectionId, playingSlotId, isLooping, volume, isMuted are inherited
+
     tempo: number;
-    volume: number;
-    instrument: InstrumentType;
-    tone: number;
-    instrumentGain: number;
-    reverbMix: number;
-    delayMix: number;
-    chorusMix: number;
-    vibratoDepth: number;
-    distortionAmount: number;
-    delayFeedback: number;
-    tremoloDepth: number;
-    phaserMix: number;
-    filterMix: number;
-    pitchShift: number; // Semitones (usually octaves in UI)
-    isMuted: boolean;
-    customInstruments: CustomInstrument[];
-    userPatches: InstrumentPatch[];
+    // volume: number; // Inherited
+
 
     chordInversion: number;
     setChordInversion: (inversion: number) => void;
-    setChordPanelScrollTarget: (target: 'voicings' | 'guitar' | 'scales' | 'theory' | null) => void;
     autoAdvance: boolean;
     toggleAutoAdvance: () => void;
-    isDraggingVoicingPicker: boolean;
-    setIsDraggingVoicingPicker: (isDragging: boolean) => void;
 
     // Actions
     setKey: (key: string, options?: { skipRotation?: boolean }) => void;
@@ -199,61 +179,20 @@ interface SongState {
     toggleInstrumentManagerModal: (force?: boolean, view?: 'list' | 'create') => void;
     toggleInstrumentControlsModal: (force?: boolean) => void;
     setInstrumentControlsPosition: (position: { x: number; y: number } | null) => void;
-    setTone: (val: number) => void;
-    setInstrumentGain: (gain: number) => void;
-    setReverbMix: (mix: number) => void;
-    setDelayMix: (mix: number) => void;
-    setChorusMix: (mix: number) => void;
-    setVibratoDepth: (depth: number) => void;
-    setDistortionAmount: (amount: number) => void;
-    setDelayFeedback: (amount: number) => void;
-    setTremoloDepth: (amount: number) => void;
-    setPhaserMix: (amount: number) => void;
-    setFilterMix: (amount: number) => void;
-    setPitchShift: (shift: number) => void;
     resetInstrumentControls: () => void;
     toggleSectionCollapsed: (sectionId: string) => void;
     setChordPanelGuitarExpanded: (expanded: boolean) => void;
     setChordPanelVoicingsExpanded: (expanded: boolean) => void;
     pulseChordPanel: () => void;  // Trigger attention animation on chord panel
-    openVoicingPicker: (config: {
-        chord: Chord | null;
-        inversion: number;
-        voicingSuggestion?: string;
-        baseQuality?: string;
-    }) => void;
-    setVoicingPickerState: (state: Partial<SongState['voicingPickerState']>) => void;
-    closeVoicingPicker: () => void;
 
     // Patch Actions
-    fetchUserPatches: () => Promise<void>;
-    saveUserPatch: (name: string) => Promise<void>;
-    deleteUserPatch: (id: string) => Promise<void>;
-    applyPatch: (patch: InstrumentPatch) => void;
 
-    setSelectedChord: (chord: Chord | null) => void;
-    setSelectedSlot: (sectionId: string | null, slotId: string | null) => void;
-    selectSlotOnly: (sectionId: string | null, slotId: string | null) => void; // Selects slot without changing global chord
-    setSelectedSlots: (slots: SelectionSlot[]) => void;
-    toggleSlotSelection: (sectionId: string, slotId: string) => void;
-    selectRangeTo: (sectionId: string, slotId: string) => void;
-    moveSelection: (
-        active: SelectionSlot,
-        target: SelectionSlot,
-        mode?: 'move' | 'copy'
-    ) => boolean;
-    selectNextSlotAfter: (sectionId: string, slotId: string) => boolean;
+
+
 
     setTempo: (tempo: number) => void;
-    setVolume: (volume: number) => void;
+    // setVolume, setIsPlaying, setPlayingSlot, toggleLoop, toggleMute are inherited
     setInstrument: (instrument: InstrumentType) => void;
-    setIsPlaying: (isPlaying: boolean) => void;
-    setPlayingSlot: (sectionId: string | null, slotId: string | null) => void;
-    toggleLoop: () => void;
-    toggleMute: () => void;
-    addCustomInstrument: (instrument: CustomInstrument) => void;
-    removeCustomInstrument: (id: string) => Promise<void>;
-    deleteInstrumentFromCloud: (id: string) => Promise<void>;
 
     // Song Actions
     setTitle: (title: string) => void;
@@ -286,15 +225,8 @@ interface SongState {
     undo: () => void;
     redo: () => void;
 
-    // Cloud
-    cloudSongs: Song[];
-    isLoadingCloud: boolean;
-    loadCloudSongs: () => Promise<void>;
-    saveToCloud: (song: Song) => Promise<void>;
-    deleteFromCloud: (id: string) => Promise<void>;
-    saveInstrumentToCloud: (instrument: CustomInstrument) => Promise<void>;
-    fetchUserInstruments: () => Promise<CustomInstrument[]>;
-    uploadSample: (file: Blob, folder: string, filename: string) => Promise<string | null>;
+    // Cloud (Inherited from CloudSlice)
+
     resetState: () => void;
 }
 
@@ -302,178 +234,11 @@ interface SongState {
 
 const DEFAULT_TIME_SIGNATURE: [number, number] = [4, 4];
 
-const beatsFromSignature = (signature: [number, number] = DEFAULT_TIME_SIGNATURE) => {
-    const [top, bottom] = signature;
-    if (!top || !bottom) return 4;
-    return top * (4 / bottom);
-};
 
-const createEmptyMeasure = (signature: [number, number]) => {
-    const duration = beatsFromSignature(signature);
-    return {
-        id: uuidv4(),
-        beats: [{ id: uuidv4(), chord: null, duration }],
-    };
-};
 
-const slotKey = (slot: SelectionSlot | null | undefined) =>
-    slot ? `${slot.sectionId}:${slot.slotId}` : '';
 
-const flattenSlots = (sections: Section[]) => {
-    const slots: Array<SelectionSlot & { chord: Chord | null }> = [];
 
-    sections.forEach((section) => {
-        section.measures.forEach((measure) => {
-            measure.beats.forEach((beat) => {
-                slots.push({
-                    sectionId: section.id,
-                    slotId: beat.id,
-                    chord: beat.chord ?? null,
-                });
-            });
-        });
-    });
 
-    return slots;
-};
-
-const findChordForSlot = (sections: Section[], slot: SelectionSlot | null) => {
-    if (!slot) return null;
-
-    for (const section of sections) {
-        if (section.id !== slot.sectionId) continue;
-        for (const measure of section.measures) {
-            for (const beat of measure.beats) {
-                if (beat.id === slot.slotId) {
-                    return beat.chord ?? null;
-                }
-            }
-        }
-    }
-
-    return null;
-};
-
-const findSlotIndex = (sections: Section[], target: SelectionSlot | null) => {
-    if (!target) return -1;
-    const slots = flattenSlots(sections);
-    return slots.findIndex(
-        (slot) => slot.sectionId === target.sectionId && slot.slotId === target.slotId
-    );
-};
-
-const getSlotsInRange = (sections: Section[], anchor: SelectionSlot, target: SelectionSlot) => {
-    const slots = flattenSlots(sections);
-    const anchorIdx = slots.findIndex(
-        (slot) => slot.sectionId === anchor.sectionId && slot.slotId === anchor.slotId
-    );
-    const targetIdx = slots.findIndex(
-        (slot) => slot.sectionId === target.sectionId && slot.slotId === target.slotId
-    );
-
-    if (anchorIdx === -1 || targetIdx === -1) return [];
-
-    const [start, end] = anchorIdx <= targetIdx ? [anchorIdx, targetIdx] : [targetIdx, anchorIdx];
-    return slots.slice(start, end + 1).map(({ sectionId, slotId }) => ({ sectionId, slotId }));
-};
-
-const slotExists = (sections: Section[], slot: SelectionSlot | null) => {
-    if (!slot) return false;
-
-    return sections.some(
-        (section) =>
-            section.id === slot.sectionId &&
-            section.measures.some((measure) => measure.beats.some((beat) => beat.id === slot.slotId))
-    );
-};
-
-const ensureSelectionStillExists = (
-    sections: Section[],
-    selectedSectionId: string | null,
-    selectedSlotId: string | null,
-    selectedSlots: SelectionSlot[],
-    selectionAnchor: SelectionSlot | null
-) => {
-    const primarySlot = selectedSectionId && selectedSlotId
-        ? { sectionId: selectedSectionId, slotId: selectedSlotId }
-        : null;
-
-    const filteredSlots = selectedSlots.filter((slot) => slotExists(sections, slot));
-    const primaryStillValid = slotExists(sections, primarySlot);
-
-    const fallback = filteredSlots[filteredSlots.length - 1] || (primaryStillValid ? primarySlot : null);
-    const anchorStillValid = selectionAnchor && slotExists(sections, selectionAnchor);
-
-    return {
-        selectedSectionId: fallback?.sectionId ?? null,
-        selectedSlotId: fallback?.slotId ?? null,
-        selectedSlots: filteredSlots,
-        selectionAnchor: anchorStillValid ? selectionAnchor : (filteredSlots[0] ?? fallback ?? null)
-    };
-};
-
-const HISTORY_LIMIT = 100;
-
-const cloneSong = (song: Song): Song => {
-    if (typeof structuredClone === 'function') {
-        return structuredClone(song);
-    }
-    return JSON.parse(JSON.stringify(song));
-};
-
-const buildHistoryState = (state: SongState) => {
-    const snapshot = cloneSong(state.currentSong);
-    const updatedPast = [...state.historyPast, snapshot].slice(-HISTORY_LIMIT);
-    return {
-        historyPast: updatedPast,
-        historyFuture: [],
-        canUndo: updatedPast.length > 0,
-        canRedo: false
-    };
-};
-
-const reselectFromSong = (
-    song: Song,
-    sectionId: string | null,
-    slotId: string | null,
-    selectedSlots: SelectionSlot[],
-    selectionAnchor: SelectionSlot | null
-) => {
-    const selection = ensureSelectionStillExists(
-        song.sections,
-        sectionId,
-        slotId,
-        selectedSlots,
-        selectionAnchor
-    );
-    const primary = selection.selectedSectionId && selection.selectedSlotId
-        ? { sectionId: selection.selectedSectionId, slotId: selection.selectedSlotId }
-        : null;
-    const selectedChord = primary ? findChordForSlot(song.sections, primary) : null;
-    return { ...selection, selectedChord };
-};
-
-const findNextSlot = (sections: Section[], sectionId: string, slotId: string) => {
-    // Find the current section
-    const currentSection = sections.find(s => s.id === sectionId);
-    if (!currentSection) return null;
-
-    // Only search within the current section (don't cross to next section)
-    let foundCurrent = false;
-    for (const measure of currentSection.measures) {
-        for (const beat of measure.beats) {
-            if (foundCurrent) {
-                return { sectionId: currentSection.id, slotId: beat.id };
-            }
-            if (beat.id === slotId) {
-                foundCurrent = true;
-            }
-        }
-    }
-
-    // If we're at the last slot of the section, don't advance
-    return null;
-};
 
 const DEFAULT_SONG: Song = {
     id: 'default',
@@ -514,7 +279,12 @@ const DEFAULT_C_CHORD: Chord = {
 
 export const useSongStore = create<SongState>()(
     persist(
-        (set, get) => ({
+        (set, get, api) => ({
+            ...createPlaybackSlice(set, get, api),
+            ...createInstrumentSlice(set, get, api),
+            ...createSelectionSlice(set, get, api),
+            ...createCloudSlice(set, get, api),
+
             currentSong: DEFAULT_SONG,
             historyPast: [] as Song[],
             historyFuture: [] as Song[],
@@ -534,52 +304,25 @@ export const useSongStore = create<SongState>()(
             instrumentControlsPosition: null, // null = centered, otherwise {x, y}
             collapsedSections: {},
             chordPanelGuitarExpanded: false,  // Collapsed by default on mobile
-            chordPanelScrollTarget: null as SongState['chordPanelScrollTarget'],
-            chordPanelVoicingsExpanded: false, // Collapsed by default
-            chordPanelAttention: false,  // Attention animation trigger
-            voicingPickerState: {
-                isOpen: false,
-                chord: null as Chord | null,
-                voicingSuggestion: '',
-                baseQuality: ''
-            },
+            chordPanelVoicingsExpanded: false,
+            chordPanelAttention: false,
             isKeyLocked: false,
             toggleKeyLock: () => set((state) => ({ isKeyLocked: !state.isKeyLocked })),
 
-            selectedChord: DEFAULT_C_CHORD as Chord | null,
-            selectedSectionId: null as string | null,
-            selectedSlotId: null as string | null,
-            selectedSlots: [] as SelectionSlot[],
-            selectionAnchor: null as SelectionSlot | null,
-            isDraggingVoicingPicker: false,
-            isPlaying: false,
-            playingSectionId: null as string | null,
-            playingSlotId: null as string | null,
-            isLooping: false,
+            // isPlaying, playingSectionId, playingSlotId, isLooping removed (in slice)
             tempo: 120,
-            volume: 0.8,
-            instrument: 'piano' as InstrumentType,
-            tone: 0,
-            instrumentGain: 0.75, // Default ~75% gain
-            reverbMix: 0.15,      // Default 15% reverb
-            delayMix: 0,          // Default no delay
-            chorusMix: 0,         // Default no chorus
-            delayFeedback: 0.3,   // Default 30% feedback
-            tremoloDepth: 0,      // Default no tremolo
-            phaserMix: 0,         // Default no phaser
-            filterMix: 0,         // Default no auto-filter
-            vibratoDepth: 0,
-            distortionAmount: 0,
-            pitchShift: 0,
-            isMuted: false,
-            customInstruments: [] as CustomInstrument[],
-            userPatches: [] as InstrumentPatch[],
-            cloudSongs: [] as Song[],
+            // volume removed (in slice)
+
+            // cloudSongs, isLoadingCloud removed (in slice)
+            // chordInversion, autoAdvance still here for now
             chordInversion: 0,
-            isLoadingCloud: false,
             autoAdvance: true,
 
             resetState: () => set({
+                cloudSongs: [], // This might need to check if cloudSlice handles reset?
+                // Actually resetState implementation needs to clear cloudSongs which is now in slice.
+                // But cloudSongs is initialized by slice.
+                // We should probably just call a reset action if we had one, or set it directly since we can set slice state.
                 cloudSongs: [],
                 customInstruments: [],
                 currentSong: DEFAULT_SONG,
@@ -589,243 +332,9 @@ export const useSongStore = create<SongState>()(
                 canRedo: false
             }),
 
-            loadCloudSongs: async () => {
-                const { data: { user } = {} } = await supabase.auth.getUser();
-                if (!user) return;
-
-                set({ isLoadingCloud: true });
-                const { data, error } = await supabase
-                    .from('songs')
-                    .select('*')
-                    .order('updated_at', { ascending: false });
-
-                if (error) {
-                    console.error('Error loading cloud songs:', error);
-                } else {
-                    const songs = data.map(row => ({
-                        ...row.data,
-                        id: row.id, // Ensure ID matches DB
-                        // Ensure dates are parsed
-                        createdAt: new Date(row.created_at),
-                        updatedAt: new Date(row.updated_at)
-                    }));
-                    set({ cloudSongs: songs });
-                }
-
-                // Also fetch instruments
-                const instruments = await get().fetchUserInstruments();
-                set({ customInstruments: instruments, isLoadingCloud: false });
-            },
-
-            saveToCloud: async (song: Song) => {
-                const { data: { user } = {} } = await supabase.auth.getUser();
-                if (!user) return;
-
-                set({ isLoadingCloud: true });
-
-                // If song.id is not a valid UUID, generate one.
-                let finalId = (song.id && song.id.length === 36) ? song.id : uuidv4();
-
-                // Check if we can update this ID (i.e. do we own it?)
-                // We try to fetch it first.
-                // If we can't see it (RLS) or it doesn't exist, we must treat it as a new song (new ID).
-                // Exception: If we are creating it for the first time (it doesn't exist but we generated the ID), then it's fine.
-
-                if (song.id && song.id.length === 36) {
-                    await supabase
-                        .from('songs')
-                        .select('id')
-                        .eq('id', song.id)
-                        .maybeSingle();
-
-                    // If it exists but we can't see it? maybeSingle returns null if not found (or hidden by RLS).
-                    // Ideally we want to know if it exists AT ALL contextually, but RLS hides it.
-                    // Simple logic: If we are trying to save a song with an ID, and we can't find that ID in our view of the DB,
-                    // AND we didn't just create it locally?
-                    // Actually, if we are switching accounts, the ID belongs to someone else.
-                    // So `maybeSingle` returns null.
-                    // But `upsert` would fail RLS if it exists for someone else.
-                    // If it doesn't exist at all, `upsert` works.
-
-                    // To be safe: if we are switching users, likely the local ID is 'stale' for this new user.
-                    // Always try to select first. If null, does it mean "verified new" or "hidden"?
-                    // RLS policies usually hide rows from other users.
-                    // So if we get null, we assume we don't own it.
-                    // But what if it's a brand new song we just generated an ID for? It also returns null.
-
-                    // Helper: check if `song.id` is in `state.cloudSongs` (which we just loaded for this user).
-                    // If it's NOT in cloudSongs, and it has an ID, likely it belongs to the previous user (or is truly new).
-
-                    const isKnownCloudSong = get().cloudSongs.some(s => s.id === song.id);
-                    if (!isKnownCloudSong && song.id !== 'default') {
-                        // It's not in our list. It might be a local artifact from another user.
-                        // Safest bet: Generate a NEW ID to avoid RLS conflict.
-                        finalId = uuidv4();
-                    }
-                }
-
-                // Ensure the song data blob contains the correct ID
-                const songData = { ...song, id: finalId };
-
-                const { data, error } = await supabase
-                    .from('songs')
-                    .upsert({
-                        id: finalId,
-                        user_id: user.id,
-                        title: song.title,
-                        data: songData,
-                        updated_at: new Date().toISOString()
-                    })
-                    .select()
-                    .single();
-
-                if (error) {
-                    console.error('Error saving song to cloud:', error);
-                    // If we still hit RLS error, try one last fallback: Force new ID
-                    if (error.code === '42501' || error.message.includes('row-level security')) {
-                        const emergencyId = uuidv4();
-                        const emergencyData = { ...song, id: emergencyId };
-                        await supabase.from('songs').insert({
-                            id: emergencyId,
-                            user_id: user.id,
-                            title: song.title,
-                            data: emergencyData
-                        });
-                        set({ currentSong: emergencyData });
-                        get().loadCloudSongs();
-                    } else {
-                        alert('Failed to save to cloud: ' + error.message);
-                    }
-                } else if (data) {
-                    // Update local currentSong to match the saved ID if it changed
-                    // AND update the data to match what was saved (e.g. if we want to ensure consistency)
-                    if (get().currentSong.id !== finalId) {
-                        set({ currentSong: songData });
-                    } else {
-                        // Even if ID is same, update the store's currentSong with the saved data to ensure they are in sync
-                        set({ currentSong: songData });
-                    }
-                    // Reload list
-                    get().loadCloudSongs();
-                }
-                set({ isLoadingCloud: false });
-            },
-
-            deleteFromCloud: async (id: string) => {
-                set({ isLoadingCloud: true });
-                const { error } = await supabase
-                    .from('songs')
-                    .delete()
-                    .eq('id', id);
-
-                if (error) {
-                    console.error('Error deleting song:', error);
-                } else {
-                    get().loadCloudSongs();
-                }
-                set({ isLoadingCloud: false });
-            },
-
-            saveInstrumentToCloud: async (instrument: CustomInstrument) => {
-                const { data: { user } = {} } = await supabase.auth.getUser();
-                if (!user) return;
-
-                const { error } = await supabase
-                    .from('instruments')
-                    .insert({
-                        user_id: user.id,
-                        name: instrument.name,
-                        type: instrument.type || 'sampler',
-                        data: instrument
-                    });
-
-                if (error) {
-                    console.error('Error saving instrument:', error);
-                    alert(`Failed to save instrument: ${error.message} `);
-                }
-            },
-
-            fetchUserInstruments: async () => {
-                const { data: { user } = {} } = await supabase.auth.getUser();
-                if (!user) return [];
-
-                const { data, error } = await supabase
-                    .from('instruments')
-                    .select('*')
-                    .order('created_at', { ascending: false });
-
-                if (error) {
-                    console.error('Error fetching instruments:', error);
-                    return [];
-                }
-
-                return data.map(row => ({
-                    ...row.data,
-                    id: row.id, // Ensure ID matches DB
-                    user_id: row.user_id, // Keep track of owner
-                })) as CustomInstrument[];
-            },
-
-            uploadSample: async (file: Blob, folder: string, filename: string) => {
-                const { data: { user } = {} } = await supabase.auth.getUser();
-                if (!user) return null;
-
-                // Enforce 1MB limit (client-side check strictly)
-                if (file.size > 1024 * 1024) {
-                    console.error('File too large');
-                    return null;
-                }
-
-                const path = `${user.id}/${folder}/${filename}`;
-
-                const { error } = await supabase
-                    .storage
-                    .from('samples')
-                    .upload(path, file, {
-                        cacheControl: '3600',
-                        upsert: true
-                    });
-
-                if (error) {
-                    console.error('Error uploading sample:', error);
-                    return null;
-                }
-
-                // Get public URL
-                const { data: { publicUrl } } = supabase
-                    .storage
-                    .from('samples')
-                    .getPublicUrl(path);
-
-                return publicUrl;
-            },
 
 
-            addCustomInstrument: (instrument) => set((state) => ({
-                customInstruments: [...state.customInstruments, instrument]
-            })),
 
-            deleteInstrumentFromCloud: async (id: string) => {
-                const { error } = await supabase
-                    .from('instruments')
-                    .delete()
-                    .eq('id', id);
-
-                if (error) {
-                    console.error('Error deleting instrument from cloud:', error);
-                }
-            },
-
-            removeCustomInstrument: async (id) => {
-                // Delete from cloud first
-                await get().deleteInstrumentFromCloud(id);
-                // Then update local state
-                set((state) => ({
-                    customInstruments: state.customInstruments.filter(i => i.id !== id),
-                    // If the removed instrument was selected, revert to piano
-                    instrument: state.instrument === id ? 'piano' : state.instrument
-                }));
-            },
 
             setChordInversion: (inversion) => set({ chordInversion: inversion }),
 
@@ -944,317 +453,15 @@ export const useSongStore = create<SongState>()(
             }),
             setChordPanelGuitarExpanded: (expanded) => set({ chordPanelGuitarExpanded: expanded }),
             setChordPanelVoicingsExpanded: (expanded) => set({ chordPanelVoicingsExpanded: expanded }),
-            setChordPanelScrollTarget: (target) => set({ chordPanelScrollTarget: target }),
             pulseChordPanel: () => {
                 set({ chordPanelAttention: true });
                 setTimeout(() => set({ chordPanelAttention: false }), 600);
             },
-            setVoicingPickerState: (pickerState) => set((state) => ({
-                voicingPickerState: { ...state.voicingPickerState, ...pickerState }
-            })),
 
-            openVoicingPicker: (config) => set({
-                selectedChord: config.chord,
-                chordInversion: config.inversion,
-                voicingPickerState: {
-                    isOpen: true,
-                    chord: config.chord,
-                    voicingSuggestion: config.voicingSuggestion || '',
-                    baseQuality: config.baseQuality || config.chord?.quality || 'major'
-                }
-            }),
-            closeVoicingPicker: () => set((state) => ({
-                voicingPickerState: {
-                    ...state.voicingPickerState,
-                    isOpen: false
-                }
-            })),
-
-            setIsDraggingVoicingPicker: (isDragging) => set({ isDraggingVoicingPicker: isDragging }),
             toggleAutoAdvance: () => set((state) => ({ autoAdvance: !state.autoAdvance })),
 
-            setSelectedChord: (chord) => set({ selectedChord: chord }),
-            setSelectedSlot: (sectionId, slotId) => set((state) => {
-                if (!sectionId || !slotId) {
-                    return {
-                        selectedSectionId: null,
-                        selectedSlotId: null,
-                        selectedSlots: [],
-                        selectionAnchor: null,
-                        selectedChord: null
-                    };
-                }
-
-                const slot = { sectionId, slotId };
-                const chord = findChordForSlot(state.currentSong.sections, slot);
-
-                return {
-                    selectedSectionId: sectionId,
-                    selectedSlotId: slotId,
-                    selectedSlots: [slot],
-                    selectionAnchor: slot,
-                    selectedChord: chord ?? null
-                };
-            }),
-            // Select slot without updating the global chord - for timeline browsing
-            selectSlotOnly: (sectionId, slotId) => set(() => {
-                if (!sectionId || !slotId) {
-                    return {
-                        selectedSectionId: null,
-                        selectedSlotId: null,
-                        selectedSlots: [],
-                        selectionAnchor: null
-                        // Note: selectedChord is NOT reset here
-                    };
-                }
-
-                const slot = { sectionId, slotId };
-
-                return {
-                    selectedSectionId: sectionId,
-                    selectedSlotId: slotId,
-                    selectedSlots: [slot],
-                    selectionAnchor: slot
-                    // Note: selectedChord is NOT updated here
-                };
-            }),
-            setSelectedSlots: (slots) => set((state) => {
-                const sanitized = slots.filter(Boolean);
-                const last = sanitized[sanitized.length - 1] ?? null;
-                const chord = findChordForSlot(state.currentSong.sections, last);
-
-                return {
-                    selectedSlots: sanitized,
-                    selectedSectionId: last?.sectionId ?? null,
-                    selectedSlotId: last?.slotId ?? null,
-                    selectionAnchor: sanitized[0] ?? last ?? null,
-                    selectedChord: chord ?? null
-                };
-            }),
-            toggleSlotSelection: (sectionId, slotId) => set((state) => {
-                const exists = state.selectedSlots.some(
-                    (slot) => slot.sectionId === sectionId && slot.slotId === slotId
-                );
-
-                const nextSlots = exists
-                    ? state.selectedSlots.filter(
-                        (slot) => !(slot.sectionId === sectionId && slot.slotId === slotId)
-                    )
-                    : [...state.selectedSlots, { sectionId, slotId }];
-
-                const last = nextSlots[nextSlots.length - 1] ?? null;
-                const chord = findChordForSlot(state.currentSong.sections, last);
-                const removedAnchor =
-                    exists && state.selectionAnchor && slotKey(state.selectionAnchor) === slotKey({ sectionId, slotId });
-
-                return {
-                    selectedSlots: nextSlots,
-                    selectedSectionId: last?.sectionId ?? null,
-                    selectedSlotId: last?.slotId ?? null,
-                    selectionAnchor: removedAnchor
-                        ? nextSlots[0] ?? last ?? null
-                        : state.selectionAnchor ?? last ?? null,
-                    selectedChord: chord ?? null
-                };
-            }),
-            selectRangeTo: (sectionId, slotId) => set((state) => {
-                const target = { sectionId, slotId };
-                const anchor =
-                    state.selectionAnchor ||
-                    state.selectedSlots[state.selectedSlots.length - 1] ||
-                    (state.selectedSectionId && state.selectedSlotId
-                        ? { sectionId: state.selectedSectionId, slotId: state.selectedSlotId }
-                        : target);
-
-                const anchorIsValid = slotExists(state.currentSong.sections, anchor);
-                const effectiveAnchor = anchorIsValid ? anchor : target;
-
-                const rangeSlots = getSlotsInRange(state.currentSong.sections, effectiveAnchor, target);
-                const slotsToApply = rangeSlots.length ? rangeSlots : [target];
-                const chord = findChordForSlot(state.currentSong.sections, target);
-
-                return {
-                    selectedSlots: slotsToApply,
-                    selectedSectionId: target.sectionId,
-                    selectedSlotId: target.slotId,
-                    selectionAnchor: effectiveAnchor,
-                    selectedChord: chord ?? null
-                };
-            }),
-            moveSelection: (active, target, mode = 'move') => {
-                const state = get();
-                const slots = flattenSlots(state.currentSong.sections);
-                const activeIdx = findSlotIndex(state.currentSong.sections, active);
-                const targetIdx = findSlotIndex(state.currentSong.sections, target);
-
-                if (activeIdx === -1 || targetIdx === -1) return false;
-
-                const selectionList = state.selectedSlots.length ? state.selectedSlots : [active];
-                const indexedSelection = selectionList
-                    .map((slot) => {
-                        const idx = slots.findIndex(
-                            (s) => s.sectionId === slot.sectionId && s.slotId === slot.slotId
-                        );
-                        return idx >= 0 ? { idx, slot: slots[idx] } : null;
-                    })
-                    .filter((item): item is { idx: number; slot: SelectionSlot & { chord: Chord | null } } => Boolean(item))
-                    .sort((a, b) => a.idx - b.idx);
-
-                if (!indexedSelection.length) return false;
-
-                const offset = targetIdx - activeIdx;
-                const destinationIndices = indexedSelection.map(({ idx }) => idx + offset);
-
-                if (destinationIndices.some((idx) => idx < 0 || idx >= slots.length)) {
-                    return false;
-                }
-
-                const destinationSlots = destinationIndices.map((idx) => slots[idx]);
-
-                // Preserve swap behavior for single moves (existing UX)
-                if (indexedSelection.length === 1 && mode === 'move') {
-                    const sourceSlot = indexedSelection[0].slot;
-                    const targetSlot = destinationSlots[0];
-                    const history = buildHistoryState(state);
-
-                    const newSections = state.currentSong.sections.map((section) => ({
-                        ...section,
-                        measures: section.measures.map((measure) => ({
-                            ...measure,
-                            beats: measure.beats.map((beat) => {
-                                if (beat.id === sourceSlot.slotId && section.id === sourceSlot.sectionId) {
-                                    return { ...beat, chord: targetSlot.chord };
-                                }
-                                if (beat.id === targetSlot.slotId && section.id === targetSlot.sectionId) {
-                                    return { ...beat, chord: sourceSlot.chord };
-                                }
-                                return beat;
-                            }),
-                        })),
-                    }));
-
-                    const anchorMatchesSource =
-                        state.selectionAnchor && slotKey(state.selectionAnchor) === slotKey(active);
-
-                    const updatedSelection = ensureSelectionStillExists(
-                        newSections,
-                        target.sectionId,
-                        target.slotId,
-                        [{ sectionId: targetSlot.sectionId, slotId: targetSlot.slotId }],
-                        anchorMatchesSource ? { sectionId: targetSlot.sectionId, slotId: targetSlot.slotId } : state.selectionAnchor
-                    );
-
-                    const primarySlot = updatedSelection.selectedSectionId && updatedSelection.selectedSlotId
-                        ? { sectionId: updatedSelection.selectedSectionId, slotId: updatedSelection.selectedSlotId }
-                        : null;
-
-                    const chord = findChordForSlot(newSections, primarySlot);
-
-                    set({
-                        ...history,
-                        currentSong: { ...state.currentSong, sections: newSections },
-                        selectedSectionId: updatedSelection.selectedSectionId,
-                        selectedSlotId: updatedSelection.selectedSlotId,
-                        selectedSlots: updatedSelection.selectedSlots,
-                        selectionAnchor: updatedSelection.selectionAnchor,
-                        selectedChord: chord ?? null,
-                    });
-
-                    return true;
-                }
-
-                const destAssignments = new Map<string, Chord | null>();
-                indexedSelection.forEach((item, i) => {
-                    destAssignments.set(
-                        slotKey(destinationSlots[i]),
-                        item.slot.chord ?? null
-                    );
-                });
-
-                const sourcesToClear = new Set<string>();
-                if (mode === 'move') {
-                    indexedSelection.forEach((item, i) => {
-                        const sourceKey = slotKey(item.slot);
-                        const destKey = slotKey(destinationSlots[i]);
-                        if (sourceKey !== destKey) {
-                            sourcesToClear.add(sourceKey);
-                        }
-                    });
-                }
-
-                const history = buildHistoryState(state);
-
-                const newSections = state.currentSong.sections.map((section) => ({
-                    ...section,
-                    measures: section.measures.map((measure) => ({
-                        ...measure,
-                        beats: measure.beats.map((beat) => {
-                            const key = slotKey({ sectionId: section.id, slotId: beat.id });
-
-                            if (destAssignments.has(key)) {
-                                return { ...beat, chord: destAssignments.get(key) ?? null };
-                            }
-
-                            if (sourcesToClear.has(key)) {
-                                return { ...beat, chord: null };
-                            }
-
-                            return beat;
-                        }),
-                    })),
-                }));
-
-                const anchorKey = slotKey(state.selectionAnchor);
-                const anchorUpdate = indexedSelection.find((item) => slotKey(item.slot) === anchorKey);
-                const newAnchor = anchorUpdate
-                    ? { sectionId: destinationSlots[indexedSelection.indexOf(anchorUpdate)].sectionId, slotId: destinationSlots[indexedSelection.indexOf(anchorUpdate)].slotId }
-                    : state.selectionAnchor;
-
-                const updatedSelection = ensureSelectionStillExists(
-                    newSections,
-                    target.sectionId,
-                    target.slotId,
-                    destinationSlots.map((slot) => ({ sectionId: slot.sectionId, slotId: slot.slotId })),
-                    newAnchor ?? null
-                );
-
-                const primarySlot = updatedSelection.selectedSectionId && updatedSelection.selectedSlotId
-                    ? { sectionId: updatedSelection.selectedSectionId, slotId: updatedSelection.selectedSlotId }
-                    : null;
-
-                const chord = findChordForSlot(newSections, primarySlot);
-
-                set({
-                    ...history,
-                    currentSong: { ...state.currentSong, sections: newSections },
-                    selectedSectionId: updatedSelection.selectedSectionId,
-                    selectedSlotId: updatedSelection.selectedSlotId,
-                    selectedSlots: updatedSelection.selectedSlots,
-                    selectionAnchor: updatedSelection.selectionAnchor,
-                    selectedChord: chord ?? null,
-                });
-
-                return true;
-            },
-            selectNextSlotAfter: (sectionId, slotId) => {
-                const state = get();
-                const next = findNextSlot(state.currentSong.sections, sectionId, slotId);
-
-                if (!next) return false;
-
-                set({
-                    selectedSectionId: next.sectionId,
-                    selectedSlotId: next.slotId,
-                    // Keep selectedChord as-is for rapid entry workflow
-                    selectedSlots: [{ sectionId: next.sectionId, slotId: next.slotId }],
-                    selectionAnchor: { sectionId: next.sectionId, slotId: next.slotId }
-                });
-
-                return true;
-            },
-
             setTempo: (tempo) => set((state) => {
-                const history = buildHistoryState(state);
+                const history = buildHistoryState(state.currentSong, state.historyPast);
                 return {
                     ...history,
                     tempo,
@@ -1264,137 +471,13 @@ export const useSongStore = create<SongState>()(
                     }
                 };
             }),
-            setVolume: (volume) => set({ volume }),
-            setInstrument: (instrument) => set({ instrument }),
-            setIsPlaying: (isPlaying) => set({ isPlaying }),
-            setPlayingSlot: (sectionId, slotId) => set({ playingSectionId: sectionId, playingSlotId: slotId }),
-            toggleLoop: () => set((state) => ({ isLooping: !state.isLooping })),
-            toggleMute: () => set((state) => ({ isMuted: !state.isMuted })),
-            toggleInstrumentControlsModal: (force) => set((state) => ({
-                instrumentControlsModalVisible: force !== undefined ? force : !state.instrumentControlsModalVisible
-            })),
-            setInstrumentControlsPosition: (position) => set({ instrumentControlsPosition: position }),
-            setTone: (val) => set({ tone: val }),
-            setInstrumentGain: (gain) => set({ instrumentGain: gain }),
-            setReverbMix: (mix) => set({ reverbMix: mix }),
-            setDelayMix: (mix) => set({ delayMix: mix }),
-            setChorusMix: (mix) => set({ chorusMix: mix }),
-            setVibratoDepth: (depth) => set({ vibratoDepth: depth }),
-            setDistortionAmount: (amount) => set({ distortionAmount: amount }),
-            setDelayFeedback: (amount) => set({ delayFeedback: amount }),
-            setTremoloDepth: (amount) => set({ tremoloDepth: amount }),
-            setPhaserMix: (amount) => set({ phaserMix: amount }),
-            setFilterMix: (amount) => set({ filterMix: amount }),
-            setPitchShift: (shift) => set({ pitchShift: shift }),
 
-            resetInstrumentControls: () => set({
-                instrumentGain: 1.0,
-                tone: 0,
-                pitchShift: 0,
-                distortionAmount: 0,
-                delayFeedback: 0.3,
-                tremoloDepth: 0,
-                phaserMix: 0,
-                filterMix: 0,
-                reverbMix: 0.15,
-                delayMix: 0,
-                chorusMix: 0,
-                vibratoDepth: 0
-            }),
+            // setVolume, setInstrument (wait, setInstrument is here), setIsPlaying...
+            // setVolume: (volume) => set({ volume }), // Inherited
 
-            fetchUserPatches: async () => {
-                const { data: { user } } = await supabase.auth.getUser();
-                if (!user) return;
-
-                const { data, error } = await supabase
-                    .from('patches')
-                    .select('*')
-                    .order('created_at', { ascending: false });
-
-                if (error) {
-                    console.error('Error fetching patches:', error);
-                } else if (data) {
-                    set({ userPatches: data.map(d => ({ ...d, createdAt: d.created_at })) });
-                }
-            },
-
-            saveUserPatch: async (name: string) => {
-                const { data: { user } } = await supabase.auth.getUser();
-                if (!user) {
-                    throw new Error('NOT_AUTHENTICATED');
-                }
-
-                const state = get();
-                const settings = {
-                    instrument: state.instrument,
-                    instrumentGain: state.instrumentGain,
-                    tone: state.tone,
-                    pitchShift: state.pitchShift,
-                    distortionAmount: state.distortionAmount,
-                    tremoloDepth: state.tremoloDepth,
-                    phaserMix: state.phaserMix,
-                    filterMix: state.filterMix,
-                    reverbMix: state.reverbMix,
-                    delayMix: state.delayMix,
-                    delayFeedback: state.delayFeedback,
-                    chorusMix: state.chorusMix,
-                    vibratoDepth: state.vibratoDepth,
-                };
-
-                const newPatch = {
-                    user_id: user.id,
-                    name,
-                    settings
-                };
-
-                const { data, error } = await supabase
-                    .from('patches')
-                    .insert(newPatch)
-                    .select()
-                    .single();
-
-                if (error) {
-                    console.error('Error saving patch:', error);
-                    alert('Failed to save patch');
-                } else if (data) {
-                    const patch: InstrumentPatch = { ...data, createdAt: data.created_at };
-                    set(state => ({ userPatches: [patch, ...state.userPatches] }));
-                }
-            },
-
-            deleteUserPatch: async (id: string) => {
-                const { error } = await supabase
-                    .from('patches')
-                    .delete()
-                    .eq('id', id);
-
-                if (error) {
-                    console.error('Error deleting patch:', error);
-                } else {
-                    set(state => ({ userPatches: state.userPatches.filter(p => p.id !== id) }));
-                }
-            },
-
-            applyPatch: (patch: InstrumentPatch) => {
-                set({
-                    instrument: patch.settings.instrument,
-                    instrumentGain: patch.settings.instrumentGain,
-                    tone: patch.settings.tone,
-                    pitchShift: patch.settings.pitchShift,
-                    distortionAmount: patch.settings.distortionAmount,
-                    tremoloDepth: patch.settings.tremoloDepth,
-                    phaserMix: patch.settings.phaserMix,
-                    filterMix: patch.settings.filterMix,
-                    reverbMix: patch.settings.reverbMix,
-                    delayMix: patch.settings.delayMix,
-                    delayFeedback: patch.settings.delayFeedback,
-                    chorusMix: patch.settings.chorusMix,
-                    vibratoDepth: patch.settings.vibratoDepth,
-                });
-            },
 
             setTitle: (title) => set((state) => {
-                const history = buildHistoryState(state);
+                const history = buildHistoryState(state.currentSong, state.historyPast);
                 return {
                     ...history,
                     currentSong: { ...state.currentSong, title }
@@ -1402,7 +485,7 @@ export const useSongStore = create<SongState>()(
             }),
 
             setArtist: (artist) => set((state) => {
-                const history = buildHistoryState(state);
+                const history = buildHistoryState(state.currentSong, state.historyPast);
                 return {
                     ...history,
                     currentSong: { ...state.currentSong, artist }
@@ -1410,7 +493,7 @@ export const useSongStore = create<SongState>()(
             }),
 
             setTags: (tags) => set((state) => {
-                const history = buildHistoryState(state);
+                const history = buildHistoryState(state.currentSong, state.historyPast);
                 return {
                     ...history,
                     currentSong: { ...state.currentSong, tags }
@@ -1418,7 +501,7 @@ export const useSongStore = create<SongState>()(
             }),
 
             setSongTimeSignature: (signature) => set((state) => {
-                const history = buildHistoryState(state);
+                const history = buildHistoryState(state.currentSong, state.historyPast);
                 return {
                     ...history,
                     currentSong: { ...state.currentSong, timeSignature: signature }
@@ -1437,7 +520,7 @@ export const useSongStore = create<SongState>()(
                     }
                 }
 
-                const history = buildHistoryState(state);
+                const history = buildHistoryState(state.currentSong, state.historyPast);
 
                 return {
                     ...history,
@@ -1455,7 +538,7 @@ export const useSongStore = create<SongState>()(
             }),
 
             newSong: () => set((state) => {
-                const history = buildHistoryState(state);
+                const history = buildHistoryState(state.currentSong, state.historyPast);
                 return {
                     ...history,
                     currentSong: {
@@ -1502,7 +585,7 @@ export const useSongStore = create<SongState>()(
                     timeSignature: state.currentSong.timeSignature || DEFAULT_TIME_SIGNATURE,
                     measures: Array(4).fill(null).map(() => createEmptyMeasure(state.currentSong.timeSignature || DEFAULT_TIME_SIGNATURE))
                 };
-                const history = buildHistoryState(state);
+                const history = buildHistoryState(state.currentSong, state.historyPast);
 
                 return {
                     ...history,
@@ -1522,7 +605,7 @@ export const useSongStore = create<SongState>()(
                     timeSignature: state.currentSong.timeSignature || DEFAULT_TIME_SIGNATURE,
                     measures: Array(4).fill(null).map(() => createEmptyMeasure(state.currentSong.timeSignature || DEFAULT_TIME_SIGNATURE))
                 };
-                const history = buildHistoryState(state);
+                const history = buildHistoryState(state.currentSong, state.historyPast);
 
                 return {
                     ...history,
@@ -1595,7 +678,7 @@ export const useSongStore = create<SongState>()(
                     measures
                 };
 
-                const history = buildHistoryState(state);
+                const history = buildHistoryState(state.currentSong, state.historyPast);
 
                 // Select the first slot of the new section so timeline can auto-scroll to it
                 const firstSlotId = measures[0]?.beats[0]?.id;
@@ -1622,7 +705,7 @@ export const useSongStore = create<SongState>()(
             },
 
             updateSection: (id: string, updates: Partial<Section>) => set((state) => {
-                const history = buildHistoryState(state);
+                const history = buildHistoryState(state.currentSong, state.historyPast);
                 return {
                     ...history,
                     currentSong: {
@@ -1633,7 +716,7 @@ export const useSongStore = create<SongState>()(
             }),
 
             removeSection: (id: string) => set((state) => {
-                const history = buildHistoryState(state);
+                const history = buildHistoryState(state.currentSong, state.historyPast);
                 const remainingCollapsed = { ...state.collapsedSections };
                 delete remainingCollapsed[id];
                 return {
@@ -1657,7 +740,7 @@ export const useSongStore = create<SongState>()(
 
                 if (!hasAnyChords) return {};
 
-                const history = buildHistoryState(state);
+                const history = buildHistoryState(state.currentSong, state.historyPast);
 
                 const newSections = state.currentSong.sections.map(s => {
                     if (s.id !== id) return s;
@@ -1683,7 +766,7 @@ export const useSongStore = create<SongState>()(
                 const sectionToCopy = state.currentSong.sections.find(s => s.id === id);
                 if (!sectionToCopy) return {};
 
-                const history = buildHistoryState(state);
+                const history = buildHistoryState(state.currentSong, state.historyPast);
 
                 const newSection: Section = {
                     ...sectionToCopy,
@@ -1720,7 +803,7 @@ export const useSongStore = create<SongState>()(
             }),
 
             reorderSections: (sections: Section[]) => set((state) => {
-                const history = buildHistoryState(state);
+                const history = buildHistoryState(state.currentSong, state.historyPast);
                 return {
                     ...history,
                     currentSong: { ...state.currentSong, sections }
@@ -1755,7 +838,7 @@ export const useSongStore = create<SongState>()(
                     state.selectionAnchor
                 );
 
-                const history = buildHistoryState(state);
+                const history = buildHistoryState(state.currentSong, state.historyPast);
 
                 return {
                     ...history,
@@ -1795,7 +878,7 @@ export const useSongStore = create<SongState>()(
                     state.selectionAnchor
                 );
 
-                const history = buildHistoryState(state);
+                const history = buildHistoryState(state.currentSong, state.historyPast);
 
                 return {
                     ...history,
@@ -1840,7 +923,7 @@ export const useSongStore = create<SongState>()(
                     state.selectionAnchor
                 );
 
-                const history = buildHistoryState(state);
+                const history = buildHistoryState(state.currentSong, state.historyPast);
 
                 return {
                     ...history,
@@ -1883,7 +966,7 @@ export const useSongStore = create<SongState>()(
                     state.selectionAnchor
                 );
 
-                const history = buildHistoryState(state);
+                const history = buildHistoryState(state.currentSong, state.historyPast);
 
                 return {
                     ...history,
@@ -1893,7 +976,7 @@ export const useSongStore = create<SongState>()(
             }),
 
             resizeSlot: (sectionId: string, measureId: string, slotId: string, lenChange: number) => set((state) => {
-                const history = buildHistoryState(state);
+                const history = buildHistoryState(state.currentSong, state.historyPast);
                 const newSections = state.currentSong.sections.map((section) => {
                     if (section.id !== sectionId) return section;
 
@@ -1968,7 +1051,7 @@ export const useSongStore = create<SongState>()(
             }),
 
             addChordToSlot: (chord: Chord, sectionId: string, slotId: string) => set((state) => {
-                const history = buildHistoryState(state);
+                const history = buildHistoryState(state.currentSong, state.historyPast);
                 const newSections = state.currentSong.sections.map(section => {
                     if (section.id !== sectionId) return section;
                     return {
@@ -1998,7 +1081,7 @@ export const useSongStore = create<SongState>()(
 
                 if (!hadChord) return {};
 
-                const history = buildHistoryState(state);
+                const history = buildHistoryState(state.currentSong, state.historyPast);
 
                 const newSections = state.currentSong.sections.map(section => {
                     if (section.id !== sectionId) return section;
@@ -2029,7 +1112,7 @@ export const useSongStore = create<SongState>()(
 
                 if (!hasAnyChords) return {};
 
-                const history = buildHistoryState(state);
+                const history = buildHistoryState(state.currentSong, state.historyPast);
 
                 const newSections = state.currentSong.sections.map(section => ({
                     ...section,
@@ -2075,7 +1158,7 @@ export const useSongStore = create<SongState>()(
                 // and moving the target back to source.
 
                 // Second pass: swap
-                const history = buildHistoryState(state);
+                const history = buildHistoryState(state.currentSong, state.historyPast);
                 const newSections = state.currentSong.sections.map(section => {
                     return {
                         ...section,

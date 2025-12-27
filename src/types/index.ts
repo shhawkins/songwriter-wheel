@@ -141,3 +141,8 @@ export interface InstrumentPatch {
 }
 
 
+
+export interface SelectionSlot {
+    sectionId: string;
+    slotId: string;
+}
