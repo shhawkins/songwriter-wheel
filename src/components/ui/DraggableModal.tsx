@@ -21,6 +21,10 @@ export interface DraggableModalProps {
     compact?: boolean;
     /** Minimum width of the modal */
     minWidth?: string;
+    /** Maximum width of the modal */
+    maxWidth?: string;
+    /** Fixed width of the modal (overrides min/max) */
+    width?: string;
     /** z-index for stacking */
     zIndex?: number;
     /** Show the close (X) button */
@@ -55,6 +59,8 @@ export const DraggableModal: React.FC<DraggableModalProps> = ({
     className,
     compact = false,
     minWidth = '320px',
+    maxWidth,
+    width,
     zIndex = 120,
     showCloseButton = true,
     showDragHandle = true,
@@ -103,9 +109,9 @@ export const DraggableModal: React.FC<DraggableModalProps> = ({
                 left: 0,
                 top: 0,
                 zIndex,
-                width: 'auto',
-                minWidth,
-                maxWidth: 'calc(100vw - 24px)',
+                width: width || 'auto',
+                minWidth: width ? undefined : minWidth,
+                maxWidth: width ? undefined : (maxWidth || 'calc(100vw - 24px)'),
                 transform: `translate3d(${position.x}px, ${position.y}px, 0)`,
                 willChange: 'transform',
                 touchAction: 'none'
@@ -121,7 +127,7 @@ export const DraggableModal: React.FC<DraggableModalProps> = ({
         >
             {/* Top Drag Handle */}
             {showDragHandle && (
-                <div className="w-12 h-1.5 rounded-full bg-white/20 mb-2 cursor-move" />
+                <div className={clsx("w-12 h-1.5 rounded-full bg-white/20 cursor-move", compact ? "mb-2" : "mb-3")} />
             )}
 
             {/* Close Button */}
@@ -137,9 +143,9 @@ export const DraggableModal: React.FC<DraggableModalProps> = ({
                         onClose();
                     }}
                     className={clsx(
-                        "absolute p-2.5 text-text-muted hover:text-text-primary",
+                        "absolute p-1.5 text-text-muted hover:text-text-primary",
                         "rounded-full hover:bg-white/10 transition-colors z-50",
-                        compact ? "-top-1.74 -right-0.5" : "-top-1.74 -right-0.5"
+                        compact ? "-top-1 right-2" : "top-2 right-2"
                     )}
                 >
                     <X size={18} />

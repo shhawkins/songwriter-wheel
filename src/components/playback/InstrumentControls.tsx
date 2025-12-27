@@ -319,7 +319,7 @@ export const InstrumentControls: React.FC = () => {
             {/* Title / Instrument Selector - HIDDEN in Compact Mode to save space */}
 
             {/* Knobs Grid - Compact Layout (2 Rows of 6 or flexible) */}
-            <div className="grid grid-cols-6 gap-x-1 gap-y-2 mb-1">
+            <div className="grid grid-cols-6 gap-x-1 gap-y-2 mb-1 mt-4">
                 <Knob label="Gain" value={instrumentGain} defaultValue={1.0} min={0} max={3.0} onChange={setInstrumentGain} formatValue={(v) => `${Math.round(v * 100)}%`} icon={<Volume2 />} compact />
                 <Knob label="Tone" value={tone} defaultValue={0} min={-12} max={12} onChange={setTone} formatValue={(v) => v > 0 ? `+${Math.round(v)}` : `${Math.round(v)}`} icon={<Music />} compact />
                 <Knob label="Octave" value={pitchShift} defaultValue={0} min={-24} max={24} step={12} onChange={setPitchShift} formatValue={(v) => `${v / 12 > 0 ? '+' : ''}${v / 12}`} icon={<Music />} compact />

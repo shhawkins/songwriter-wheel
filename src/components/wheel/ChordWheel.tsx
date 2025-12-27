@@ -444,7 +444,11 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
     const handleTouchStart = useCallback((e: React.TouchEvent) => {
         const wheelTouches = Array.from(e.touches).filter(touch => {
             const target = touch.target as HTMLElement;
-            return !target.closest('.piano-keyboard') && !target.closest('.chord-details-drawer');
+            // Exclude keyboard, drawer, and modals
+            return !target.closest('.piano-keyboard') &&
+                !target.closest('.chord-details-drawer') &&
+                !target.closest('[data-voicing-picker]') &&
+                !target.closest('[data-instrument-controls]');
         });
 
         if (wheelTouches.length === 2) {
@@ -464,7 +468,11 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
     const handleTouchMove = useCallback((e: React.TouchEvent) => {
         const wheelTouches = Array.from(e.touches).filter(touch => {
             const target = touch.target as HTMLElement;
-            return !target.closest('.piano-keyboard') && !target.closest('.chord-details-drawer');
+            // Exclude keyboard, drawer, and modals
+            return !target.closest('.piano-keyboard') &&
+                !target.closest('.chord-details-drawer') &&
+                !target.closest('[data-voicing-picker]') &&
+                !target.closest('[data-instrument-controls]');
         });
 
         if (wheelTouches.length === 2 && lastTouchDistance.current !== null) {
@@ -723,11 +731,15 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
         return rootMatch && qualityMatch;
     };
 
-    // Filter touches to only include those on the wheel/app but NOT on keyboard or details drawer
+    // Filter touches to only include those on the wheel/app but NOT on keyboard, details drawer, or modals
     const getWheelTouches = (e: React.TouchEvent) => {
         return Array.from(e.touches).filter(touch => {
             const target = touch.target as HTMLElement;
-            return !target.closest('.piano-keyboard') && !target.closest('.chord-details-drawer');
+            // Exclude keyboard, drawer, and draggable modals (voicing picker, instrument controls)
+            return !target.closest('.piano-keyboard') &&
+                !target.closest('.chord-details-drawer') &&
+                !target.closest('[data-voicing-picker]') &&
+                !target.closest('[data-instrument-controls]');
         });
     };
 
@@ -1295,7 +1307,7 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
                     }
                 }}
                 chordRoot={voicingPickerState.chord?.root || 'C'}
-                voicings={parseVoicingSuggestions(voicingPickerState.voicingSuggestion, voicingPickerState.baseQuality)}
+                voicings={parseVoicingSuggestions(voicingPickerState.voicingSuggestion, voicingPickerState.baseQuality || voicingPickerState.chord?.quality || 'major')}
                 selectedQuality={voicingPickerState.chord?.quality}
                 onChangeChord={(chord, suggestion, quality) => {
                     const currentState = useSongStore.getState();

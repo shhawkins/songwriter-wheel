@@ -335,9 +335,9 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
             showDragHandle={true}
             showCloseButton={true}
             compact={isLandscapeMobile}
-            minWidth={isMobile
-                ? (isLandscapeMobile ? '280px' : 'calc(100vw - 24px)')
-                : '520px'}
+            width={isLandscapeMobile ? '280px' : undefined}
+            minWidth={isMobile ? '320px' : '520px'}
+            maxWidth={isLandscapeMobile ? '280px' : undefined}
             dragExcludeSelectors={['button', '.touch-none', '.voice-selector-dropdown', 'input', 'select', '.no-scrollbar']}
             dataAttribute="voicing-picker"
             className={clsx(
@@ -346,10 +346,10 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
             zIndex={120}
         >
             {/* ROW 1: VOICINGS & QUICK ACTIONS */}
-            <div className={clsx("flex items-center gap-2 w-full shrink-0 pr-6", isLandscapeMobile ? "h-10" : "h-11")}>
+            <div className={clsx("flex items-center gap-1.5 w-full shrink-0", isLandscapeMobile ? "h-9" : "h-11")}>
                 <div
                     onWheel={(e) => e.stopPropagation()}
-                    className="flex flex-row items-center overflow-x-auto no-scrollbar mask-linear-fade flex-1 min-w-0 gap-1.5 h-full touch-pan-x"
+                    className={clsx("flex flex-row items-center overflow-x-auto overflow-y-visible no-scrollbar mask-linear-fade flex-1 min-w-0 gap-1 touch-pan-x", isLandscapeMobile ? "h-8" : "h-9")}
                 >
                     {voicings.map((voicing) => {
                         const isSelected = voicing.quality === currentQuality;
@@ -362,14 +362,14 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
                                 className={clsx(
                                     "flex items-center justify-center rounded-xl transition-all shrink-0 active:scale-95 outline-none",
                                     isLandscapeMobile
-                                        ? "min-w-[32px] h-full px-1"
-                                        : (isTiny ? "min-w-[36px] h-full px-1" : "min-w-[44px] h-full px-2.5"),
+                                        ? "min-w-[32px] h-8 px-2"
+                                        : (isTiny ? "min-w-[36px] h-9 px-1" : "min-w-[44px] h-9 px-2.5"),
                                     isSelected
                                         ? "bg-accent-primary text-white"
                                         : "text-text-secondary hover:text-text-primary hover:bg-bg-tertiary border border-white/5"
                                 )}
                             >
-                                <span className={clsx("font-bold text-xs")}>
+                                <span className={clsx("font-bold", isLandscapeMobile ? "text-[10px]" : "text-xs")}>
                                     {voicing.label || 'maj'}
                                 </span>
                             </button>
@@ -382,20 +382,20 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
                         onTouchStart={handleTouchStart}
                         onTouchEnd={(e) => { e.stopPropagation(); handleTouchEnd(e, () => handleAllVoicingsClick()); }}
                         className={clsx(
-                            "flex items-center justify-center rounded-xl transition-all shrink-0 active:scale-95 outline-none",
-                            isLandscapeMobile ? "min-w-[60px] h-full px-2" : "min-w-[80px] h-full px-3",
+                            "flex items-center justify-center rounded-xl transition-all shrink-0 active:scale-95 outline-none whitespace-nowrap",
+                            isLandscapeMobile ? "px-2 h-8" : "px-3 h-9",
                             "text-accent-primary hover:text-white hover:bg-accent-primary border border-accent-primary/20 bg-accent-primary/5"
                         )}
                     >
-                        <span className={clsx("font-bold uppercase tracking-wider", isLandscapeMobile ? "text-[8px]" : "text-[10px]")}>
+                        <span className={clsx("font-bold uppercase tracking-wider", isLandscapeMobile ? "text-[7px]" : "text-[10px]")}>
                             All Voicings
                         </span>
                     </button>
                 </div>
 
-                <div className="w-px h-8 bg-white/10 shrink-0 mx-1" />
+                <div className={clsx("w-px bg-white/10 shrink-0", isLandscapeMobile ? "h-6" : "h-6")} />
 
-                <div className="flex items-center gap-1 shrink-0 h-full">
+                <div className={clsx("flex items-center gap-1 shrink-0", isLandscapeMobile ? "h-8" : "h-9")}>
                     {/* Auto-Advance Toggle */}
                     <button
                         onClick={(e) => { e.stopPropagation(); toggleAutoAdvance(); resetFadeTimer(); }}
@@ -407,19 +407,15 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
                             });
                         }}
                         className={clsx(
-                            "flex flex-col items-center justify-center rounded-xl transition-all outline-none no-touch-enlarge",
-                            isLandscapeMobile ? "w-8 h-full" : "w-10 h-full",
+                            "flex items-center justify-center rounded-xl transition-all outline-none no-touch-enlarge",
+                            isLandscapeMobile ? "w-8 h-8" : "w-10 h-9",
                             autoAdvance
                                 ? "bg-accent-primary text-white shadow-[0_0_12px_rgba(99,102,241,0.4)] border border-white/20"
                                 : "text-text-tertiary hover:text-text-primary hover:bg-bg-tertiary border border-white/5 bg-white/5"
                         )}
                         title={autoAdvance ? "Auto-advance ON" : "Auto-advance OFF"}
                     >
-                        <MoveRight size={16} className={clsx("transition-transform", autoAdvance ? "scale-110" : "scale-90 opacity-50")} />
-                        <div className={clsx(
-                            "w-1 h-1 rounded-full mt-1 transition-all",
-                            autoAdvance ? "bg-white scale-100" : "bg-white/40 scale-75"
-                        )} />
+                        <MoveRight size={isLandscapeMobile ? 16 : 16} className={clsx("transition-transform", autoAdvance ? "scale-110" : "scale-90 opacity-50")} />
                     </button>
 
                     {onAddToTimeline && (
@@ -437,9 +433,9 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
                                     if (qualityToAdd) { onAddToTimeline(qualityToAdd); }
                                 });
                             }}
-                            className={clsx("flex items-center justify-center rounded-xl bg-accent-primary/30 text-accent-primary hover:bg-accent-primary hover:text-white transition-all shadow-sm outline-none", isLandscapeMobile ? "w-8 h-full" : "w-10 h-full")}
+                            className={clsx("flex items-center justify-center rounded-xl bg-accent-primary/30 text-accent-primary hover:bg-accent-primary hover:text-white transition-all shadow-sm outline-none", isLandscapeMobile ? "w-8 h-8" : "w-10 h-9")}
                         >
-                            <Plus size={20} />
+                            <Plus size={isLandscapeMobile ? 16 : 20} />
                         </button>
                     )}
                 </div>
@@ -557,12 +553,40 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
 };
 
 export function parseVoicingSuggestions(suggestion: string, baseQuality: string): VoicingOption[] {
-    if (!suggestion) return [];
-    const parts = suggestion.split(/,\s*|\s+or\s+/).map(s => s.trim()).filter(Boolean);
     const options: VoicingOption[] = [];
-    if (baseQuality === 'major') options.push({ quality: 'major', label: '' });
-    else if (baseQuality === 'minor') options.push({ quality: 'minor', label: 'm' });
-    else if (baseQuality === 'diminished') options.push({ quality: 'diminished', label: '°' });
+
+    // Add base chord option first
+    if (baseQuality === 'major' || !baseQuality) {
+        options.push({ quality: 'major', label: 'maj' });
+    } else if (baseQuality === 'minor') {
+        options.push({ quality: 'minor', label: 'm' });
+    } else if (baseQuality === 'diminished') {
+        options.push({ quality: 'diminished', label: '°' });
+    }
+
+    // If no suggestion provided, return default voicings based on quality
+    if (!suggestion) {
+        if (baseQuality === 'major' || !baseQuality) {
+            options.push(
+                { quality: 'major7', label: '7' },
+                { quality: 'sus4', label: 'sus4' },
+                { quality: 'major6', label: '6' }
+            );
+        } else if (baseQuality === 'minor') {
+            options.push(
+                { quality: 'minor7', label: 'm7' },
+                { quality: 'minor9', label: 'm9' }
+            );
+        } else if (baseQuality === 'diminished') {
+            options.push(
+                { quality: 'halfDiminished7', label: 'ø7' }
+            );
+        }
+        return options;
+    }
+
+    // Parse provided suggestion string
+    const parts = suggestion.split(/,\s*|\s+or\s+/).map(s => s.trim()).filter(Boolean);
     for (const part of parts) {
         let quality = part;
         let label = part;
