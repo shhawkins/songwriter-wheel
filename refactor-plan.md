@@ -8,7 +8,7 @@
 
 ## Objective
 
-Consolidate the modal patterns from `InstrumentControls.tsx` and `VoicingQuickPicker.tsx` into a reusable `DraggableModal` component, using the `InstrumentControls.tsx` pattern as the template (touch-anywhere-to-drag behavior).
+Reduce App.tsx complexity from 2000+ lines and extract reusable patterns.
 
 ---
 
@@ -31,48 +31,54 @@ Consolidate the modal patterns from `InstrumentControls.tsx` and `VoicingQuickPi
 - Reusable draggable modal with glassmorphism styling
 - Uses `useDraggablePosition` hook
 - Portal rendering to document.body
-- Configurable: close button, drag handle, compact mode, tap-to-close
+- **Bug fixed**: Changed from `touch-none` class to inline `touchAction` style
+
+### 4. Refactored `InstrumentControls.tsx` ✅
+- Now uses `DraggableModal` component
+- Removed ~220 lines of embedded drag logic
+- Drag functionality tested and working
+
+### 5. Refactored `VoicingQuickPicker.tsx` ✅
+- Now uses `DraggableModal` component
+- Removed ~300 lines of custom drag logic
+- tapToClose and auto-fade preserved
+
+### 6. Created `useKeyboardShortcuts` Hook ✅
+- Extracted from App.tsx
+- Handles Delete/Backspace for slot clearing
+- Handles Cmd+Z (undo) and Cmd+Shift+Z (redo)
+
+### 7. Created `useLayoutManager` Hook (WIP) 🔲
+- Created `src/hooks/useLayoutManager.ts` with:
+  - isMobile/isLandscape detection
+  - Wheel zoom/pan state management
+  - Mobile immersive mode
+  - Landscape header visibility
+  - Responsive wheel sizing
+- **Next**: Replace usages in App.tsx with `layout.*` variables
 
 ---
 
 ## Remaining Tasks 🔲
 
-### Phase 1: Refactor Existing Modals
+### Phase 1: Complete useLayoutManager Integration
 
-- [ ] **Refactor `InstrumentControls.tsx`** to use `DraggableModal`
-  - Remove ~150 lines of embedded drag logic
-  - Keep `Knob` component local
-  - Preserve all instrument control functionality
-  - Keep position persistence via store
+- [ ] Remove old state variables from App.tsx (lines ~390-440)
+- [ ] Remove old effects from App.tsx (lines ~450-770)
+- [ ] Replace all usages with `layout.*` destructured values
+- [ ] Test all responsive scenarios (mobile portrait, landscape, desktop)
 
-- [ ] **Refactor `VoicingQuickPicker.tsx`** to use `DraggableModal`
-  - Remove custom drag logic
-  - Enable `tapToClose` prop
-  - Preserve auto-fade timeout (component-specific)
-  - Preserve all voicing/inversion functionality
+### Phase 2: Testing
 
-### Phase 2: Extract Additional Hooks
-
-- [ ] **Create `useKeyboardShortcuts` hook** (`src/hooks/useKeyboardShortcuts.ts`)
-  - Extract from `App.tsx` lines ~895-925
-  - Handle undo/redo, escape key, playback controls
+- [ ] Verify modal dragging works on mobile touch devices
+- [ ] Verify landscape/portrait transitions
+- [ ] Verify zoom/pan behavior
+- [ ] Verify immersive mode auto-timer
 
 ### Phase 3: Documentation
 
-- [ ] **Update `consultant.md`** with refactor completion notes
-
----
-
-## Upcoming Features to Consider
-
-These features were mentioned for future development - the refactored architecture should support them:
-
-1. **Built-in Sampler** - Record 3 notes directly (no file upload)
-2. **Notes/Lyrics Panel** - Per-song notepad in ChordDetails, synced to backend
-3. **Drum Machine** - Simple drum beats / patterns
-4. **Metronome** - Click track for practice
-5. **Play-to-Record Mode** - Play along with metronome/drums, chords auto-quantize
-6. **Mode Visualizations** - Playable note strips and guitar fretboard for each mode
+- [ ] Update `consultant.md` with final refactor notes
+- [ ] Update README if public API changed
 
 ---
 
@@ -82,49 +88,32 @@ These features were mentioned for future development - the refactored architectu
 |--------|------|---------|
 | ✅ NEW | `src/hooks/useDraggablePosition.ts` | Position management hook |
 | ✅ NEW | `src/components/ui/DraggableModal.tsx` | Reusable modal component |
+| ✅ NEW | `src/hooks/useKeyboardShortcuts.ts` | Keyboard shortcuts hook |
+| 🔲 NEW | `src/hooks/useLayoutManager.ts` | Layout/responsive state hook (created, not integrated) |
 | ✅ MOD | `src/index.css` | Added `.glass-panel` utilities |
-| 🔲 MOD | `src/components/playback/InstrumentControls.tsx` | Use DraggableModal |
-| 🔲 MOD | `src/components/wheel/VoicingQuickPicker.tsx` | Use DraggableModal |
-| 🔲 NEW | `src/hooks/useKeyboardShortcuts.ts` | Keyboard shortcuts hook |
+| ✅ MOD | `src/components/playback/InstrumentControls.tsx` | Uses DraggableModal |
+| ✅ MOD | `src/components/wheel/VoicingQuickPicker.tsx` | Uses DraggableModal |
+| 🔲 MOD | `src/App.tsx` | Needs cleanup after layout hook integration |
 
 ---
 
-## Verification Plan
+## Manual Test Checklist
 
-After refactoring each component:
+**Modals:**
+- [x] InstrumentControls draggable ✅
+- [x] VoicingQuickPicker draggable ✅
+- [x] Position persistence works
+- [x] Close buttons work
+- [x] Knobs work (drag up/down)
 
-```bash
-npm run build  # Ensure no TypeScript errors
-npm run lint   # Check code quality
-npm run dev    # Manual testing
-```
-
-### Manual Test Checklist
-
-**InstrumentControls Modal:**
-- [ ] Modal appears with all knobs visible
-- [ ] Drag from anywhere in background works
-- [ ] Knobs still work (drag up/down)
-- [ ] Double-tap knob resets to default
-- [ ] Close button (X) works
-- [ ] Position remembered after reopen
-
-**VoicingQuickPicker Modal:**
-- [ ] Modal appears with voicing options
-- [ ] Tapping outside closes it
-- [ ] Voicing buttons work
-- [ ] Inversion controls work
-- [ ] Auto-advance toggle works
+**Layout (after integration):**
+- [ ] Mobile portrait mode
+- [ ] Mobile landscape mode
+- [ ] Desktop with sidebar
+- [ ] Immersive mode auto-timer
+- [ ] Zoom/pan gestures
 
 ---
 
-## Key Design Decisions
+*Continue this refactor by integrating useLayoutManager into App.tsx.*
 
-1. **Keep `Knob` component in InstrumentControls** - It's specific to that modal
-2. **VoicingQuickPicker uses `tapToClose: true`** - Matches current UX behavior
-3. **Position persistence via callbacks** - Each modal manages its own store state
-4. **No breaking changes** - All public interfaces preserved
-
----
-
-*Continue this refactor by reading this file and implementing the remaining tasks.*
