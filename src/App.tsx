@@ -30,6 +30,7 @@ import { useAuthStore } from './stores/authStore';
 import { User as UserIcon } from 'lucide-react';
 import { useAudioSync } from './hooks/useAudioSync';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { useLayoutManager } from './hooks/useLayoutManager';
 
 
 // Mobile Portrait Drawers Component - handles combined toggle bar with drag gesture
@@ -221,6 +222,9 @@ function App() {
   // causing audio settings to stop syncing when it was unmounted.
   useAudioSync();
   useKeyboardShortcuts();
+
+  // Layout management - responsive state, zoom, pan, immersive mode
+  const layout = useLayoutManager();
 
   const [showHelp, setShowHelp] = useState(false);
   const [showKeySelector, setShowKeySelector] = useState(false);

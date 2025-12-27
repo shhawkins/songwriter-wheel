@@ -435,17 +435,17 @@ export const InstrumentControls: React.FC = () => {
                 </button>
             )}
 
-            {/* Save Button (Lower Left) */}
+            {/* Folder Button (Lower Left) */}
             <button
                 onClick={(e) => {
                     e.stopPropagation();
-                    setPatchManagerInitialView('save');
+                    setPatchManagerInitialView('list');
                     setShowPatchManager(true);
                 }}
                 className="absolute bottom-2 left-2 p-1.5 text-text-muted hover:text-text-primary rounded-full hover:bg-white/10 transition-colors"
-                title="Save Current Sound"
+                title="Presets / Patches"
             >
-                <Save size={14} />
+                <Folder size={16} />
             </button>
 
             {/* Reset Button (Lower Right) */}
@@ -460,7 +460,7 @@ export const InstrumentControls: React.FC = () => {
                 <RotateCcw size={14} />
             </button>
 
-            {/* Patch Manager Toggle (Header Left) - Adjust position for DraggableModal */}
+            {/* Save Button (Header Left) - Adjust position for DraggableModal */}
             <div className={clsx(
                 "absolute left-2 flex items-center gap-1 z-50",
                 isCompact ? "-top-1" : "top-2"
@@ -468,13 +468,13 @@ export const InstrumentControls: React.FC = () => {
                 <button
                     onClick={(e) => {
                         e.stopPropagation();
-                        setPatchManagerInitialView('list');
+                        setPatchManagerInitialView('save');
                         setShowPatchManager(true);
                     }}
                     className="p-1.5 text-text-muted hover:text-accent-primary hover:bg-white/10 rounded-full transition-colors"
-                    title="Presets / Patches"
+                    title="Save Current Sound"
                 >
-                    <Folder size={16} />
+                    <Save size={14} />
                 </button>
             </div>
 
