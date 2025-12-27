@@ -11,7 +11,7 @@ import { Logo } from './components/Logo';
 import * as Tone from 'tone';
 import jsPDF from 'jspdf';
 import { saveAs } from 'file-saver';
-import { saveSong, getSavedSongs, deleteSong } from './utils/storage';
+import { deleteSong } from './utils/storage';
 import { getGuitarChord, type GuitarChordShape } from './utils/guitarChordData';
 import { getSectionDisplayName, type Song } from './types';
 import { setInstrument, setVolume, setMute, initAudio, startSilentAudioForIOS, unlockAudioForIOS, setAudioResumeNeededCallback, tryResumeAudioContext } from './utils/audioEngine';
@@ -224,7 +224,26 @@ function App() {
   useKeyboardShortcuts();
 
   // Layout management - responsive state, zoom, pan, immersive mode
-  const layout = useLayoutManager();
+  const {
+    isMobile,
+    isLandscape,
+    mobileImmersive,
+    setMobileImmersive,
+    mobileTimelineOpen,
+    setMobileTimelineOpen,
+    landscapeHeaderVisible,
+    handleLandscapeWheelTap,
+    landscapeWheelWidth,
+    computedWheelSize,
+    wheelZoom,
+    wheelZoomOrigin,
+    wheelPanOffset,
+    wheelRotationOffset,
+    handleZoomChange,
+    handleZoomIn,
+    handleZoomOut,
+    handlePanChange,
+  } = useLayoutManager();
 
   const [showHelp, setShowHelp] = useState(false);
   const [showKeySelector, setShowKeySelector] = useState(false);
@@ -384,392 +403,15 @@ function App() {
     };
   }, []);
 
-
-
-
-  // Wheel zoom state - use different defaults for mobile vs desktop
-  // Mobile needs higher zoom to fill screen width, desktop uses 1.0
-  const [wheelZoom, setWheelZoom] = useState(() => {
-    if (typeof window === 'undefined') return 1;
-    const w = window.innerWidth;
-    const h = window.innerHeight;
-    const isMobileInit = w < 768 || (h < 500 && h < w);
-    return isMobileInit ? 1.25 : 1;
-  });
-  const [wheelZoomOrigin, setWheelZoomOrigin] = useState(50);
-  // Wheel pan offset state - for user interaction
-  const [wheelPanOffset, setWheelPanOffset] = useState({ x: 0, y: 0 });
-  // Save zoom/origin before entering special centering modes (landscape or portrait with panel)
-  const savedZoomStateRef = useRef<{ zoom: number; origin: number; pan: { x: number; y: number } } | null>(null);
-
-  // Landscape-specific: width of the wheel container area (managed by state for reactivity)
-  const [landscapeWheelWidth, setLandscapeWheelWidth] = useState(() => {
-    if (typeof window === 'undefined') return 200;
-    return Math.max(200, Math.floor(window.innerWidth * 0.33));
-  });
-
-  // Computed wheel size for desktop/tablet - calculated via JS for reliable cross-browser support
-  // This is used when `isMobile` is false (iPad, desktop, etc.)
-  const [computedWheelSize, setComputedWheelSize] = useState(() => {
-    if (typeof window === 'undefined') return 500;
-    const w = window.innerWidth;
-    const h = window.innerHeight;
-    // Available height = viewport - header(48) - footer(65) - timeline(152) - padding(20)
-    // Adjusted footer estimate to 65px (tight fit) and padding to 20px
-    const availableHeight = h - 48 - 65 - 152 - 20;
-    // Available width = viewport - sidebar(380) - padding(40)
-    const availableWidth = w - 380 - 40;
-    return Math.max(300, Math.min(availableWidth, availableHeight));
-  });
-
-
-  // Responsive state - use height-based detection for landscape since modern phones can have width > 768 in landscape
-  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 768 || (window.innerHeight < 500 && window.innerHeight < window.innerWidth) : false);
-  const [isLandscape, setIsLandscape] = useState(() => typeof window !== 'undefined' ? window.innerHeight < window.innerWidth && window.innerHeight < 500 : false);
-  const autoCollapsedPanelRef = useRef(false);
-  const hasInitializedMobile = useRef(false);
-
-  // Mobile immersive mode - hide header/footer to maximize wheel visibility
-  // Start in non-immersive mode to show toolbars on page load
-  const [mobileImmersive, setMobileImmersive] = useState(false);
-  const immersiveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Mobile timeline drawer state (separate from desktop timeline)
-  const [mobileTimelineOpen, setMobileTimelineOpen] = useState(false);
-
   // Track if chord panel is scrolled to bottom (to show footer)
   const [chordPanelScrolledToBottom, setChordPanelScrolledToBottom] = useState(false);
 
-  // Auto-enter immersive mode after inactivity on mobile (both portrait and landscape)
-  // In landscape, header is hidden by default (starts in immersive mode)
-  // Also open both drawers by default in landscape
-  // Track whether chord panel was open before entering landscape to restore on exit
-  const chordPanelOpenBeforeLandscape = useRef<boolean | null>(null);
-  const wasInLandscape = useRef(false);
-
-  useEffect(() => {
-    if (!isMobile) return;
-
-    // Entering landscape mode
-    if (isLandscape && !wasInLandscape.current) {
-      wasInLandscape.current = true;
-      // Save current panel state before auto-opening
-      chordPanelOpenBeforeLandscape.current = useSongStore.getState().chordPanelVisible;
-
-      setMobileImmersive(true);
-      setMobileTimelineOpen(true);
-      // Open chord panel via store
-      if (!useSongStore.getState().chordPanelVisible) {
-        useSongStore.getState().toggleChordPanel();
-      }
-    }
-    // Exiting landscape mode (returning to portrait)
-    else if (!isLandscape && wasInLandscape.current) {
-      wasInLandscape.current = false;
-
-      // Restore panel state to what it was before landscape
-      const currentlyOpen = useSongStore.getState().chordPanelVisible;
-      const wasOpenBefore = chordPanelOpenBeforeLandscape.current;
-
-      if (wasOpenBefore !== null && currentlyOpen !== wasOpenBefore) {
-        useSongStore.getState().toggleChordPanel();
-      }
-
-      // Also close mobile timeline since we're back in portrait
-      setMobileTimelineOpen(false);
-      chordPanelOpenBeforeLandscape.current = null;
-    }
-
-    const enterImmersive = () => {
-      setMobileImmersive(true);
-    };
-
-    const resetImmersiveTimer = () => {
-      if (immersiveTimeoutRef.current) {
-        clearTimeout(immersiveTimeoutRef.current);
-      }
-      // Re-enter immersive after 10 seconds of inactivity (screensaver-like behavior)
-      immersiveTimeoutRef.current = setTimeout(enterImmersive, 10000);
-    };
-
-    // Toggle immersive on touch in the wheel background area, not chord details
-    const handleTouchStart = (e: TouchEvent) => {
-      // Check if touch is in the wheel container area (not chord details panel)
-      const target = e.target as HTMLElement;
-      const isInChordDetails = target.closest('[data-chord-details]');
-      const isInPlaybackControls = target.closest('[data-playback-controls]');
-      const isInMobileTimeline = target.closest('[data-mobile-timeline]');
-      const isInHeader = target.closest('header');
-      const isInWheelBackground = target.closest('[data-wheel-background]');
-      const isInHelpButton = target.closest('button');
-
-      // Check if we're touching an interactive element within the chord wheel
-      // (path elements are the wheel segments, circle elements are center/buttons, g elements with cursor-pointer are controls)
-      const isInteractiveWheelElement =
-        target.tagName === 'path' ||
-        target.tagName === 'circle' ||
-        target.tagName === 'text' ||
-        target.tagName === 'polygon' ||
-        (target.tagName === 'g' && target.style.cursor === 'pointer') ||
-        target.closest('g[style*="cursor: pointer"]') ||
-        target.closest('g[class*="cursor-pointer"]');
-
-      // In portrait mode with chord panel open, disable toggle so user can scroll the theory section
-      const isPortraitWithPanel = !isLandscape && useSongStore.getState().chordPanelVisible;
-
-      // Toggle header/footer when touching the wheel background area
-      // but NOT when touching interactive wheel elements, buttons, or other UI elements
-      // Also skip when in portrait mode with chord panel open (user needs to scroll)
-      if (isInWheelBackground && !isInChordDetails && !isInPlaybackControls && !isInMobileTimeline && !isInHeader && !isInHelpButton && !isInteractiveWheelElement && !isPortraitWithPanel) {
-        // Consolidated action: CLOSE picker (if open) AND toggle immersive UI
-        const state = useSongStore.getState();
-        if (state.voicingPickerState.isOpen) {
-          state.closeVoicingPicker();
-        }
-
-        setMobileImmersive(prev => !prev);
-        // Reset the auto-immersive timer
-        if (immersiveTimeoutRef.current) {
-          clearTimeout(immersiveTimeoutRef.current);
-        }
-        // Only restart timer if we're now showing the header (exiting immersive)
-        // Timer will auto-hide after 30 seconds of inactivity
-        resetImmersiveTimer();
-      }
-    };
-
-    document.addEventListener('touchstart', handleTouchStart);
-
-    // Start the initial timer
-    resetImmersiveTimer();
-
-    return () => {
-      document.removeEventListener('touchstart', handleTouchStart);
-      if (immersiveTimeoutRef.current) {
-        clearTimeout(immersiveTimeoutRef.current);
-      }
-    };
-  }, [isMobile, isLandscape]);
-
-  // Landscape-specific: track if header is temporarily shown
-  const [landscapeHeaderVisible, setLandscapeHeaderVisible] = useState(false);
-  const landscapeHeaderTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Handle wheel background tap in landscape to show header temporarily
-  const handleLandscapeWheelTap = useCallback(() => {
-    if (!isMobile || !isLandscape) return;
-
-    setLandscapeHeaderVisible(true);
-
-    // Hide again after 3 seconds
-    if (landscapeHeaderTimeoutRef.current) {
-      clearTimeout(landscapeHeaderTimeoutRef.current);
-    }
-    landscapeHeaderTimeoutRef.current = setTimeout(() => {
-      setLandscapeHeaderVisible(false);
-    }, 3000);
-  }, [isMobile, isLandscape]);
-
-  // Cleanup landscape header timeout
-  useEffect(() => {
-    return () => {
-      if (landscapeHeaderTimeoutRef.current) {
-        clearTimeout(landscapeHeaderTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  // Listen for custom event from store's openTimeline action to open mobile timeline
-  useEffect(() => {
-    if (!isMobile) return;
-
-    const handleOpenMobileTimeline = () => {
-      setMobileTimelineOpen(true);
-    };
-
-    window.addEventListener('openMobileTimeline', handleOpenMobileTimeline);
-    return () => window.removeEventListener('openMobileTimeline', handleOpenMobileTimeline);
-  }, [isMobile]);
-
-  // Keep store's timelineVisible in sync with mobileTimelineOpen
-  // This ensures components checking timelineVisible get the correct value on mobile
-  useEffect(() => {
-    if (!isMobile) return;
-
-    const store = useSongStore.getState();
-    // Sync store state to match mobile timeline open state
-    if (mobileTimelineOpen && !store.timelineVisible) {
-      // Mobile timeline just opened - mark store as visible (but don't dispatch event again)
-      useSongStore.setState({ timelineVisible: true });
-    } else if (!mobileTimelineOpen && store.timelineVisible) {
-      // Mobile timeline just closed - mark store as NOT visible
-      useSongStore.setState({ timelineVisible: false });
-    }
-  }, [isMobile, mobileTimelineOpen]);
 
 
-  useEffect(() => {
-    const updateLayout = () => {
-      const width = window.innerWidth;
-      const height = window.innerHeight;
-      // Mobile: traditional width check OR landscape phone (height < 500 means phone in landscape)
-      const mobile = width < 768 || (height < 500 && height < width);
-      // Landscape: height < width AND height indicates phone (<500px)
-      const landscape = height < width && height < 500;
-
-      setIsMobile(mobile);
-      setIsLandscape(landscape);
-
-      // On mobile landscape, update container width
-      if (mobile && landscape) {
-        const containerWidth = Math.max(200, Math.floor(width * 0.33));
-        setLandscapeWheelWidth(containerWidth);
-      }
-
-      // For desktop/tablet, compute wheel size based on actual available space
-      if (!mobile) {
-        // Available height = viewport - header(48) - footer(70) - timeline(152/48) - padding(30)
-        // We use a safe footer estimate of 70px (actual is ~65px) + 30px padding for safety
-        const currentTimelineVisible = useSongStore.getState().timelineVisible;
-        const timelineH = currentTimelineVisible ? 152 : 48;
-        const availableHeight = height - 48 - 70 - timelineH - 30;
-
-        // Available width = viewport - sidebar(380) - padding(40)
-        const availableWidth = width - 380 - 40;
-        setComputedWheelSize(Math.max(200, Math.min(availableWidth, availableHeight)));
-      }
 
 
-      // Initialize mobile settings on first load
-      const store = useSongStore.getState();
-      if (mobile && !hasInitializedMobile.current) {
-        // Hide timeline by default on mobile
-        if (store.timelineVisible) {
-          store.toggleTimeline();
-        }
-        // Close chord panel on mobile (we'll use drawer mode)
-        if (store.chordPanelVisible) {
-          store.toggleChordPanel();
-        }
-        hasInitializedMobile.current = true;
-      }
-
-      // Handle switching between mobile and desktop
-      if (!mobile && autoCollapsedPanelRef.current && !store.chordPanelVisible) {
-        store.toggleChordPanel();
-        autoCollapsedPanelRef.current = false;
-      }
-    };
-
-    updateLayout();
-    window.addEventListener('resize', updateLayout);
-    window.addEventListener('orientationchange', updateLayout);
-    return () => {
-      window.removeEventListener('resize', updateLayout);
-      window.removeEventListener('orientationchange', updateLayout);
-    };
-  }, []);
-
-  // Recalculate wheel size when timeline visibility changes
-  useEffect(() => {
-    if (isMobile) return;
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-    const timelineH = timelineVisible ? 152 : 48;
-    // Match the calculation in updateLayout
-    const availableHeight = height - 48 - 70 - timelineH - 30;
-    const availableWidth = width - 380 - 40;
-    setComputedWheelSize(Math.max(300, Math.min(availableWidth, availableHeight)));
-  }, [timelineVisible, isMobile]);
 
 
-  const handleZoomChange = useCallback((scale: number, originY: number) => {
-    setWheelZoom(scale);
-    setWheelZoomOrigin(originY);
-  }, []);
-
-  const handleZoomIn = useCallback(() => {
-    const newScale = Math.min(2.5, wheelZoom + 0.2);
-    setWheelZoom(newScale);
-    setWheelZoomOrigin(newScale > 1.3 ? 38 : 50);
-  }, [wheelZoom]);
-
-  const handleZoomOut = useCallback(() => {
-    const newScale = Math.max(0.2, wheelZoom - 0.2);
-    setWheelZoom(newScale);
-    setWheelZoomOrigin(newScale > 1.3 ? 38 : 50);
-  }, [wheelZoom]);
-
-  // Handle pan offset change from ChordWheel
-  const handlePanChange = useCallback((offset: { x: number; y: number }) => {
-    setWheelPanOffset(offset);
-  }, []);
-
-  // Compute wheel rotation offset for mobile centering
-  // Rotate the wheel 90 degrees so the selected key appears at 3 o'clock
-  // This keeps all highlighted in-key chords visible:
-  // - In landscape mode: always (wheel is on the left side)
-  // - In portrait mode: when chord details panel is open (chords visible above panel)
-  const wheelRotationOffset = useMemo(() => {
-    if (isMobile && (isLandscape || chordPanelVisible)) {
-      return 90; // Rotate 90 degrees clockwise to put key at 3 o'clock
-    }
-    return 0;
-  }, [isMobile, isLandscape, chordPanelVisible]);
-
-  // Whether we're in a special centering mode (landscape or portrait with panel)
-  const isInSpecialCenteringMode = isMobile && (isLandscape || chordPanelVisible);
-
-  // Manage zoom states for the three different views:
-  // - Default portrait: 1.2 zoom, origin 50 (full wheel visible, centered)
-  // - Special portrait (panel open): 1.5 zoom, origin 48 (zoomed & positioned to maximize highlighted chord visibility)
-  // - Landscape: 1.6 zoom, origin 42 (heavily zoomed to show highlighted chords large)
-  useEffect(() => {
-    if (!isMobile) return;
-
-    if (isInSpecialCenteringMode) {
-      // Entering special centering mode - save current state and apply appropriate zoom
-      if (!savedZoomStateRef.current) {
-        savedZoomStateRef.current = {
-          zoom: wheelZoom,
-          origin: wheelZoomOrigin,
-          pan: { ...wheelPanOffset }
-        };
-      }
-
-      if (isLandscape) {
-        // Landscape view: zoom to show all highlighted chords without cutting them off
-        // Calculate zoom based on available container height for cross-browser consistency
-        const viewportHeight = window.innerHeight;
-        // Use viewport height as the basis for zoom calculation
-        // Goal: fit all highlighted chords (right half of wheel) within the visible area
-        // At 400px height, use 1.65 zoom; scale proportionally for other heights
-        const baseZoom = 1.65;
-        const heightFactor = Math.max(0.9, Math.min(1.1, viewportHeight / 400));
-        const calculatedZoom = baseZoom * heightFactor;
-        setWheelZoom(calculatedZoom);
-        setWheelZoomOrigin(48);
-        // Shift left to center the highlighted chords
-        setWheelPanOffset({ x: -35, y: 0 });
-      } else {
-        // Portrait with panel: zoomed & positioned to show highlighted chords above panel
-        // Reduced zoom by ~5% (from 1.5 to 1.42) and shifted up more to prevent bottom chords
-        // from being cut off by the timeline handle
-        setWheelZoom(1.42);
-        setWheelZoomOrigin(42);
-        // Shift left and up to center the highlighted chords better
-        setWheelPanOffset({ x: -35, y: -30 });
-      }
-    } else {
-      // Exiting special centering mode - restore previous state
-      if (savedZoomStateRef.current) {
-        setWheelZoom(savedZoomStateRef.current.zoom);
-        setWheelZoomOrigin(savedZoomStateRef.current.origin);
-        setWheelPanOffset(savedZoomStateRef.current.pan);
-        savedZoomStateRef.current = null;
-      }
-    }
-  }, [isInSpecialCenteringMode, isLandscape, isMobile]);
 
   // Handle title click (now opens modal instead of inline editing)
   const handleTitleClick = () => {
@@ -900,13 +542,8 @@ function App() {
 
   // Save/Load state (Task 30)
   const [showSaveMenu, setShowSaveMenu] = useState(false);
-  const [savedSongs, setSavedSongs] = useState<Song[]>([]);
   const saveMenuRef = useRef<HTMLDivElement>(null);
 
-  // Load saved songs list
-  useEffect(() => {
-    setSavedSongs(getSavedSongs());
-  }, []);
 
   // Close save menu when clicking outside
   useEffect(() => {
@@ -1015,7 +652,6 @@ function App() {
           await deleteFromCloud(songId);
         } else {
           deleteSong(songId);
-          setSavedSongs(getSavedSongs());
         }
       }
     });

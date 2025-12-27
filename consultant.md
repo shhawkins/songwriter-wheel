@@ -360,3 +360,15 @@ The pattern is clear: components that handle multiple layout variants and/or com
 -   Continue extracting hooks from `App.tsx` (e.g., `useLayoutManager`, `useModalOrchestrator`).
 -   Address the `useSongStore` bloat by splitting into smaller slices.
 -   Refactor `MobileTimeline` to separate drag-and-drop logic.
+
+### Progress Update: Integrated Layout Manager Hook (Dec 27, 2024, Session 2)
+
+**Completed:**
+-   **Extracted `useLayoutManager`**: Created a dedicated hook to handle all responsive logic, wheel zoom/pan state, and immersive mode transitions.
+-   **Cleaned `App.tsx`**: Successfully removed ~300 lines of duplicate code from `App.tsx` related to layout management.
+-   **Verified Layouts**: Validated that mobile portrait, landscape, and desktop layouts function correctly after the refactor.
+-   **Build Status**: Project builds successfully with no layout-related lint errors.
+
+**Next Immediate Step:**
+-   Address the `saveSong`/`savedSongs` unused variable warnings in `App.tsx` (likely vestigial code).
+-   Continue with `useModalOrchestrator` extraction to further simplify `App.tsx`.
