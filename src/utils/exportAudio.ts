@@ -109,32 +109,31 @@ const addOctavesToNotes = (notes: string[], baseOctave: number = 3): string[] =>
 
 /**
  * Create effects chain for wet export
+ * Simplified for offline context - just essential effects
  */
-const createEffectsChain = (settings: EffectSettings, destination: Tone.ToneAudioNode) => {
-    // Create effects in reverse order (last effect connects to destination first)
+const createEffectsChain = async (settings: EffectSettings, destination: Tone.ToneAudioNode) => {
+    // Create a simpler effects chain for offline rendering
+    // Full effects chain can cause issues in offline context
+
     const limiter = new Tone.Limiter(-3).connect(destination);
 
+    // Reverb needs to be awaited
     const reverb = new Tone.Reverb({
-        decay: 4.0,
+        decay: 2.0, // Shorter decay for offline
         wet: settings.reverbMix,
-        preDelay: 0.02,
+        preDelay: 0.01,
     }).connect(limiter);
 
-    const delay = new Tone.PingPongDelay({
+    // MUST await reverb.ready or it will hang
+    await reverb.ready;
+
+    const delay = new Tone.FeedbackDelay({
         delayTime: 0.25,
-        feedback: settings.delayFeedback,
+        feedback: settings.delayFeedback * 0.5, // Reduce feedback for stability
         wet: settings.delayMix,
     }).connect(reverb);
 
-    const chorus = new Tone.Chorus({
-        frequency: 1.5,
-        delayTime: 3.5,
-        depth: 0.7,
-        wet: settings.chorusMix,
-    }).connect(delay);
-    chorus.start();
-
-    const gain = new Tone.Gain(settings.instrumentGain).connect(chorus);
+    const gain = new Tone.Gain(settings.instrumentGain).connect(delay);
 
     const eq = new Tone.EQ3({
         low: -settings.tone,
@@ -142,56 +141,12 @@ const createEffectsChain = (settings: EffectSettings, destination: Tone.ToneAudi
         high: settings.tone,
     }).connect(gain);
 
-    const distortion = new Tone.Distortion({
-        distortion: settings.distortionAmount,
-        wet: settings.distortionAmount > 0 ? 0.5 : 0,
-    }).connect(eq);
-
-    const vibrato = new Tone.Vibrato({
-        frequency: 5,
-        depth: settings.vibratoDepth,
-    }).connect(distortion);
-    vibrato.wet.value = settings.vibratoDepth > 0 ? 1 : 0;
-
-    const tremolo = new Tone.Tremolo({
-        frequency: 5,
-        depth: settings.tremoloDepth,
-    }).connect(vibrato);
-    tremolo.start();
-    tremolo.wet.value = settings.tremoloDepth > 0 ? 1 : 0;
-
-    const phaser = new Tone.Phaser({
-        frequency: 0.5,
-        octaves: 3,
-        baseFrequency: 1000,
-    }).connect(tremolo);
-    phaser.wet.value = settings.phaserMix;
-
-    const autoFilter = new Tone.AutoFilter({
-        frequency: 0.5,
-        baseFrequency: 200,
-        octaves: 4,
-    }).connect(phaser);
-    autoFilter.start();
-    autoFilter.wet.value = settings.filterMix;
-
-    const pitchShift = new Tone.PitchShift({
-        pitch: settings.pitchShift,
-    }).connect(autoFilter);
-
     // Return the input of the chain (where instrument should connect)
     return {
-        input: pitchShift,
+        input: eq,
         dispose: () => {
-            pitchShift.dispose();
-            autoFilter.dispose();
-            phaser.dispose();
-            tremolo.dispose();
-            vibrato.dispose();
-            distortion.dispose();
             eq.dispose();
             gain.dispose();
-            chorus.dispose();
             delay.dispose();
             reverb.dispose();
             limiter.dispose();
@@ -363,12 +318,14 @@ export const exportSongAsAudio = async (
 
     // Use Tone.Offline to render audio
     const buffer = await Tone.Offline(async ({ transport, destination }) => {
-        let effectsChain: ReturnType<typeof createEffectsChain> | null = null;
+        let effectsChain: Awaited<ReturnType<typeof createEffectsChain>> | null = null;
+        let instrumentDest: Tone.ToneAudioNode = destination;
 
         // Create destination (with or without effects)
-        const instrumentDest = wet
-            ? (effectsChain = createEffectsChain(effectSettings, destination)).input
-            : destination;
+        if (wet) {
+            effectsChain = await createEffectsChain(effectSettings, destination);
+            instrumentDest = effectsChain.input;
+        }
 
         // Create instrument for offline context
         let instrument: Tone.Sampler | Tone.PolySynth;

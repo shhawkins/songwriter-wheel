@@ -1056,7 +1056,10 @@ function App() {
   // This ensures the timeline is fully visible above the footer
   const timelineHeight = 152;
 
-  const handleExport = () => {
+  /**
+   * Generate PDF document (used by both direct export and bundle export)
+   */
+  const generatePdfDocument = (): jsPDF => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     const leftMargin = 20;
@@ -1320,6 +1323,23 @@ function App() {
       doc.setPage(i);
       drawTimelineFooter(doc);
     }
+
+    return doc;
+  };
+
+  /**
+   * Get PDF as blob for export bundling
+   */
+  const getPdfBlob = useCallback((): Blob => {
+    const doc = generatePdfDocument();
+    return doc.output('blob');
+  }, [currentSong.title, currentSong.artist, currentSong.key, currentSong.tempo, currentSong.sections]);
+
+  /**
+   * Export PDF directly (for single-click PDF export)
+   */
+  const handleExport = () => {
+    const doc = generatePdfDocument();
 
     // Generate filename
     const fileName = `${currentSong.title.replace(/\s+/g, '-').toLowerCase()}.pdf`;
@@ -2059,6 +2079,7 @@ function App() {
       <ExportModal
         isOpen={exportModalOpen}
         onClose={() => setExportModalOpen(false)}
+        getPdfBlob={getPdfBlob}
       />
 
       {/* Auth Modal */}

@@ -12,6 +12,7 @@ import {
     Download,
     Music,
     FileAudio,
+    FileText,
     Check,
     Loader2,
     Volume2,
@@ -26,6 +27,8 @@ import { exportSongAsMidi, sanitizeFilename } from '../utils/exportMidi';
 interface ExportModalProps {
     isOpen: boolean;
     onClose: () => void;
+    /** Function to generate PDF as Blob */
+    getPdfBlob?: () => Blob;
 }
 
 // Built-in instruments available for export (matches VoiceSelector.tsx)
@@ -51,7 +54,7 @@ interface ExportProgress {
     currentItem: string;
 }
 
-export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose }) => {
+export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, getPdfBlob }) => {
     const currentSong = useSongStore((state) => state.currentSong);
     const currentInstrument = useSongStore((state) => state.instrument);
 
@@ -61,6 +64,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose }) => 
     // Export format options
     const [exportAudio, setExportAudio] = useState(true);
     const [exportMidi, setExportMidi] = useState(true);
+    const [includePdf, setIncludePdf] = useState(true);
     const [includeDry, setIncludeDry] = useState(true);
     const [includeWet, setIncludeWet] = useState(true);
 
@@ -77,8 +81,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose }) => 
             if (includeWet) count += selectedInstruments.length;
         }
         if (exportMidi) count += 1; // MIDI is always one file
+        if (includePdf && getPdfBlob) count += 1; // PDF is one file
         return count;
-    }, [exportAudio, exportMidi, includeDry, includeWet, selectedInstruments]);
+    }, [exportAudio, exportMidi, includePdf, getPdfBlob, includeDry, includeWet, selectedInstruments]);
 
     // Toggle instrument selection
     const toggleInstrument = useCallback((instrument: InstrumentType) => {
@@ -100,7 +105,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose }) => 
 
     // Handle export
     const handleExport = useCallback(async () => {
-        if (!currentSong || (!exportAudio && !exportMidi)) return;
+        if (!currentSong || (!exportAudio && !exportMidi && !includePdf)) return;
 
         setIsExporting(true);
         setError(null);
@@ -111,6 +116,19 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose }) => 
         let currentProgress = 0;
 
         try {
+            // Export PDF first (quickest)
+            if (includePdf && getPdfBlob) {
+                setProgress({
+                    current: currentProgress,
+                    total: totalExportItems,
+                    currentItem: 'Creating PDF...',
+                });
+
+                const pdfBlob = getPdfBlob();
+                zip.file(`${baseFilename}.pdf`, pdfBlob);
+                currentProgress++;
+            }
+
             // Export MIDI (single file)
             if (exportMidi) {
                 setProgress({
@@ -176,7 +194,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose }) => 
             setIsExporting(false);
             setProgress(null);
         }
-    }, [currentSong, exportAudio, exportMidi, includeDry, includeWet, selectedInstruments, totalExportItems, onClose]);
+    }, [currentSong, exportAudio, exportMidi, includePdf, getPdfBlob, includeDry, includeWet, selectedInstruments, totalExportItems, onClose]);
 
     if (!isOpen) return null;
 
@@ -216,12 +234,12 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose }) => 
                             <FileAudio className="w-4 h-4" />
                             Export Formats
                         </h3>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-3 gap-3">
                             {/* Audio toggle */}
                             <button
                                 onClick={() => setExportAudio(!exportAudio)}
                                 disabled={isExporting}
-                                className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${exportAudio
+                                className={`flex items-center gap-2 px-3 py-3 rounded-xl border transition-all ${exportAudio
                                     ? 'bg-emerald-600/20 border-emerald-500/50 text-emerald-400'
                                     : 'bg-gray-800/50 border-gray-700/50 text-gray-400 hover:border-gray-600'
                                     }`}
@@ -230,14 +248,14 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose }) => 
                                     }`}>
                                     {exportAudio && <Check className="w-3 h-3 text-white" />}
                                 </div>
-                                <span className="font-medium">Audio (WAV)</span>
+                                <span className="font-medium text-sm">Audio</span>
                             </button>
 
                             {/* MIDI toggle */}
                             <button
                                 onClick={() => setExportMidi(!exportMidi)}
                                 disabled={isExporting}
-                                className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${exportMidi
+                                className={`flex items-center gap-2 px-3 py-3 rounded-xl border transition-all ${exportMidi
                                     ? 'bg-purple-600/20 border-purple-500/50 text-purple-400'
                                     : 'bg-gray-800/50 border-gray-700/50 text-gray-400 hover:border-gray-600'
                                     }`}
@@ -246,8 +264,26 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose }) => 
                                     }`}>
                                     {exportMidi && <Check className="w-3 h-3 text-white" />}
                                 </div>
-                                <span className="font-medium">MIDI</span>
+                                <span className="font-medium text-sm">MIDI</span>
                             </button>
+
+                            {/* PDF toggle */}
+                            {getPdfBlob && (
+                                <button
+                                    onClick={() => setIncludePdf(!includePdf)}
+                                    disabled={isExporting}
+                                    className={`flex items-center gap-2 px-3 py-3 rounded-xl border transition-all ${includePdf
+                                        ? 'bg-orange-600/20 border-orange-500/50 text-orange-400'
+                                        : 'bg-gray-800/50 border-gray-700/50 text-gray-400 hover:border-gray-600'
+                                        }`}
+                                >
+                                    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${includePdf ? 'bg-orange-500 border-orange-500' : 'border-gray-500'
+                                        }`}>
+                                        {includePdf && <Check className="w-3 h-3 text-white" />}
+                                    </div>
+                                    <span className="font-medium text-sm">PDF</span>
+                                </button>
+                            )}
                         </div>
                     </div>
 
