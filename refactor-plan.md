@@ -58,14 +58,15 @@ Reduce App.tsx complexity from 2000+ lines and extract reusable patterns.
 
 ## Remaining Tasks 🔲
 
-### Phase 1: Complete useLayoutManager Integration ✅
+### Phase 1: Custom Hooks & App.tsx Cleanup ✅
+- [x] Extract responsive layout logic (`useLayoutManager`)
+- [x] Extract modal logic (`DraggableModal`)
+- [x] Extract keyboard shortcuts (`useKeyboardShortcuts`)
+- [x] Extract `MobilePortraitDrawers` component (~160 lines)
+- [x] Extract `generatePdfDocument` to `utils/pdfGenerator.ts` (~400 lines)
+- [x] App.tsx reduced to ~1100 lines (from >2000)
 
-- [x] Remove old state variables from App.tsx
-- [x] Remove old effects from App.tsx
-- [x] Replace all usages with destructured values
-- [x] Test all responsive scenarios (mobile portrait, landscape, desktop)
-
-### Phase 2: Testing
+### Phase 2: Store Splitting (Next)
 
 - [ ] Verify modal dragging works on mobile touch devices
 - [ ] Verify landscape/portrait transitions
@@ -90,7 +91,9 @@ Reduce App.tsx complexity from 2000+ lines and extract reusable patterns.
 | ✅ MOD | `src/index.css` | Added `.glass-panel` utilities |
 | ✅ MOD | `src/components/playback/InstrumentControls.tsx` | Uses DraggableModal |
 | ✅ MOD | `src/components/wheel/VoicingQuickPicker.tsx` | Uses DraggableModal |
-| ✅ MOD | `src/App.tsx` | Layout hook integrated |
+| ✅ NEW | `src/components/layout/MobilePortraitDrawers.tsx` | Extracted drawer component |
+| ✅ NEW | `src/utils/pdfGenerator.ts` | PDF generation logic |
+| ✅ MOD | `src/App.tsx` | Layout hook integrated, comp. extracted |
 
 ---
 
