@@ -48,129 +48,63 @@ export const calculateSongDuration = (song: Song): number => {
     return (totalBeats * secondsPerBeat) + 2;
 };
 
+// Note names for octave calculation
+const NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
 /**
- * Create an instrument for offline rendering
+ * Convert flat notation to sharps for consistent indexing
  */
-const createInstrumentForExport = async (
-    instrumentType: InstrumentType,
-    destination: Tone.ToneAudioNode
-): Promise<Tone.Sampler | Tone.PolySynth> => {
-    // Import instrument creation logic similar to audioEngine
-    const baseUrl = 'https://tonejs.github.io/audio/salamander/';
-    const guitarBaseUrl = '/samples/';
+const normalizeToSharp = (note: string): string => {
+    const flatToSharp: Record<string, string> = {
+        'Db': 'C#', 'Eb': 'D#', 'Gb': 'F#', 'Ab': 'G#', 'Bb': 'A#',
+        'D♭': 'C#', 'E♭': 'D#', 'G♭': 'F#', 'A♭': 'G#', 'B♭': 'A#'
+    };
+    return flatToSharp[note] || note.replace('♯', '#').replace('♭', 'b');
+};
 
-    let instrument: Tone.Sampler | Tone.PolySynth;
+/**
+ * Add octave numbers to chord notes
+ * Matches the voicing logic from audioEngine.playChord
+ */
+const addOctavesToNotes = (notes: string[], baseOctave: number = 3): string[] => {
+    if (!notes || notes.length === 0) return [];
 
-    switch (instrumentType) {
-        case 'piano':
-            instrument = new Tone.Sampler({
-                urls: {
-                    'C4': 'C4.mp3',
-                    'D#4': 'Ds4.mp3',
-                    'F#4': 'Fs4.mp3',
-                    'A4': 'A4.mp3',
-                },
-                release: 1,
-                attack: 0.05,
-                baseUrl,
-            });
-            break;
+    // Get root note info
+    const rootNote = normalizeToSharp(notes[0].replace(/\d/, ''));
+    const rootIndex = NOTES.indexOf(rootNote);
 
-        case 'guitar':
-        case 'guitar-jazzmaster':
-            instrument = new Tone.Sampler({
-                urls: {
-                    'C3': 'electric-guitar-c3.m4a',
-                    'C4': 'electric-guitar-c4.m4a',
-                    'C5': 'electric-guitar-c5.m4a',
-                },
-                release: 2,
-                attack: 0.05,
-                baseUrl: guitarBaseUrl,
-            });
-            break;
+    return notes.map((note, i) => {
+        // If note already has octave, normalize and return it
+        if (/\d/.test(note)) {
+            return normalizeToSharp(note);
+        }
 
-        case 'organ':
-            instrument = new Tone.PolySynth(Tone.AMSynth, {
-                harmonicity: 3,
-                oscillator: { type: 'sine' },
-                envelope: { attack: 0.02, decay: 0.3, sustain: 0.9, release: 0.8 },
-                modulation: { type: 'square' },
-                modulationEnvelope: { attack: 0.5, decay: 0, sustain: 1, release: 0.5 },
-            });
-            break;
+        const noteName = normalizeToSharp(note);
+        const noteIndex = NOTES.indexOf(noteName);
 
-        case 'synth':
-            instrument = new Tone.PolySynth(Tone.Synth, {
-                oscillator: { type: 'sawtooth' },
-                envelope: { attack: 0.01, decay: 0.2, sustain: 0.5, release: 0.3 },
-            });
-            break;
+        if (i === 0) {
+            // Root note in base octave
+            return `${noteName}${baseOctave}`;
+        }
 
-        case 'strings':
-            instrument = new Tone.PolySynth(Tone.FMSynth, {
-                harmonicity: 2,
-                modulationIndex: 1,
-                oscillator: { type: 'sine' },
-                envelope: { attack: 0.5, decay: 0.3, sustain: 0.8, release: 1.5 },
-                modulation: { type: 'triangle' },
-                modulationEnvelope: { attack: 0.2, decay: 0.3, sustain: 0.7, release: 0.5 },
-            });
-            break;
-
-        case 'pad':
-            instrument = new Tone.PolySynth(Tone.FMSynth, {
-                harmonicity: 1.5,
-                modulationIndex: 0.5,
-                oscillator: { type: 'sine' },
-                envelope: { attack: 1.0, decay: 0.5, sustain: 0.9, release: 2.0 },
-                modulation: { type: 'triangle' },
-                modulationEnvelope: { attack: 0.8, decay: 0.5, sustain: 0.8, release: 1.0 },
-            });
-            break;
-
-        case 'brass':
-            instrument = new Tone.PolySynth(Tone.MonoSynth, {
-                oscillator: { type: 'sawtooth' },
-                filter: { Q: 2, type: 'lowpass', rolloff: -12 },
-                envelope: { attack: 0.05, decay: 0.2, sustain: 0.8, release: 0.3 },
-                filterEnvelope: { attack: 0.06, decay: 0.2, sustain: 0.5, release: 0.2 },
-            });
-            break;
-
-        case 'epiano':
-            instrument = new Tone.PolySynth(Tone.FMSynth, {
-                harmonicity: 8,
-                modulationIndex: 2,
-                oscillator: { type: 'sine' },
-                envelope: { attack: 0.001, decay: 1.4, sustain: 0, release: 0.2 },
-                modulation: { type: 'sine' },
-                modulationEnvelope: { attack: 0.002, decay: 0.2, sustain: 0, release: 0.2 },
-            });
-            break;
-
-        default:
-            // Fallback to basic synth
-            instrument = new Tone.PolySynth(Tone.Synth, {
-                oscillator: { type: 'triangle' },
-                envelope: { attack: 0.02, decay: 0.2, sustain: 0.5, release: 0.5 },
-            });
-    }
-
-    instrument.connect(destination);
-
-    // Wait for samples to load if it's a sampler
-    if (instrument instanceof Tone.Sampler) {
-        await new Promise<void>((resolve) => {
-            if ((instrument as Tone.Sampler).loaded) {
-                resolve();
-            } else {
-                (instrument as Tone.Sampler).onload = () => resolve();
+        // Other notes: if they're "below" the root in the chromatic scale, put them an octave up
+        let octave = baseOctave;
+        if (rootIndex !== -1 && noteIndex !== -1) {
+            if (noteIndex < rootIndex || (noteIndex - rootIndex > 6)) {
+                octave = baseOctave + 1;
             }
-        });
-    }
+        }
 
-    return instrument;
+        // For extended chords (9, 11, 13), put those even higher
+        if (i >= 4) {
+            octave = baseOctave + 1;
+        }
+        if (i >= 5) {
+            octave = baseOctave + 2;
+        }
+
+        return `${noteName}${octave}`;
+    });
 };
 
 /**
@@ -266,6 +200,113 @@ const createEffectsChain = (settings: EffectSettings, destination: Tone.ToneAudi
 };
 
 /**
+ * Get the sample URL configuration for an instrument
+ */
+const getInstrumentSampleConfig = (instrumentType: InstrumentType): { urls: Record<string, string>; baseUrl: string; options: any } | null => {
+    const samplesBaseUrl = `${window.location.origin}/samples/`;
+    const pianoBaseUrl = 'https://tonejs.github.io/audio/salamander/';
+
+    switch (instrumentType) {
+        case 'piano':
+            return {
+                urls: { 'C4': 'C4.mp3', 'D#4': 'Ds4.mp3', 'F#4': 'Fs4.mp3', 'A4': 'A4.mp3' },
+                baseUrl: pianoBaseUrl,
+                options: { release: 1, attack: 0.05 }
+            };
+        case 'guitar-jazzmaster':
+            return {
+                urls: { 'C3': 'electric-guitar-c3.m4a', 'C4': 'electric-guitar-c4.m4a', 'C5': 'electric-guitar-c5.m4a' },
+                baseUrl: samplesBaseUrl,
+                options: { release: 2, attack: 0.05 }
+            };
+        case 'acoustic-archtop':
+            return {
+                urls: { 'C3': 'acoustic-archtop-c3.mp3', 'C4': 'acoustic-archtop-c4.mp3', 'C5': 'acoustic-archtop-c5.mp3' },
+                baseUrl: samplesBaseUrl,
+                options: { release: 2, attack: 0.05 }
+            };
+        case 'nylon-string':
+            return {
+                urls: { 'C3': 'guitalele-c3.mp3', 'C4': 'guitalele-c4.mp3', 'C5': 'guitalele-c5.mp3' },
+                baseUrl: samplesBaseUrl,
+                options: { release: 2, attack: 0.05 }
+            };
+        case 'ocarina':
+            return {
+                urls: { 'C3': 'ocarina-c3.mp3', 'C4': 'ocarina-c4.mp3', 'C5': 'ocarina-c5.mp3' },
+                baseUrl: samplesBaseUrl,
+                options: { release: 2, attack: 0.05 }
+            };
+        case 'harmonica':
+            return {
+                urls: { 'C3': 'harmonica-c3.mp3', 'C4': 'harmonica-c4.mp3', 'C5': 'harmonica-c5.mp3' },
+                baseUrl: samplesBaseUrl,
+                options: { release: 2, attack: 0.05 }
+            };
+        case 'melodica':
+            return {
+                urls: { 'C3': 'melodica-c3.mp3', 'C4': 'melodica-c4.mp3', 'C5': 'melodica-c5.mp3' },
+                baseUrl: samplesBaseUrl,
+                options: { release: 2, attack: 0.05 }
+            };
+        case 'wine-glass':
+            return {
+                urls: { 'C3': 'wine-glass-c3.mp3', 'C4': 'wine-glass-c4.mp3', 'C5': 'wine-glass-c5.mp3' },
+                baseUrl: samplesBaseUrl,
+                options: { release: 2, attack: 0.5 }
+            };
+        default:
+            return null; // PolySynth instruments don't need sample config
+    }
+};
+
+/**
+ * Create a PolySynth for instruments that don't use samplers
+ */
+const createPolySynthForExport = (instrumentType: InstrumentType, destination: Tone.ToneAudioNode): Tone.PolySynth => {
+    let synth: Tone.PolySynth;
+
+    switch (instrumentType) {
+        case 'organ':
+            synth = new Tone.PolySynth(Tone.AMSynth, {
+                harmonicity: 3,
+                oscillator: { type: 'sine' },
+                envelope: { attack: 0.01, decay: 0.01, sustain: 1, release: 0.5 },
+                modulation: { type: 'square' },
+                modulationEnvelope: { attack: 0.5, decay: 0, sustain: 1, release: 0.5 },
+            });
+            break;
+        case 'epiano':
+            synth = new Tone.PolySynth(Tone.AMSynth, {
+                harmonicity: 2,
+                oscillator: { type: 'triangle' },
+                envelope: { attack: 0.01, decay: 0.2, sustain: 0.7, release: 0.8 },
+                modulation: { type: 'sine' },
+                modulationEnvelope: { attack: 0.2, decay: 0.1, sustain: 0.6, release: 0.6 },
+            });
+            break;
+        case 'pad':
+            synth = new Tone.PolySynth(Tone.FMSynth, {
+                harmonicity: 1.5,
+                modulationIndex: 8,
+                oscillator: { type: 'sine' },
+                envelope: { attack: 0.5, decay: 0.3, sustain: 0.9, release: 1.5 },
+                modulation: { type: 'triangle' },
+                modulationEnvelope: { attack: 0.8, decay: 0.3, sustain: 0.8, release: 1.2 },
+            });
+            break;
+        default:
+            synth = new Tone.PolySynth(Tone.Synth, {
+                oscillator: { type: 'triangle' },
+                envelope: { attack: 0.02, decay: 0.2, sustain: 0.5, release: 0.5 },
+            });
+    }
+
+    synth.connect(destination);
+    return synth;
+};
+
+/**
  * Export a song as a WAV audio file
  */
 export const exportSongAsAudio = async (
@@ -296,6 +337,30 @@ export const exportSongAsAudio = async (
         pitchShift: store.pitchShift,
     };
 
+    // Check if this instrument uses samples
+    const sampleConfig = getInstrumentSampleConfig(instrumentType);
+
+    // If it's a sampler instrument, pre-load samples in main context first
+    if (sampleConfig) {
+        console.log(`Pre-loading samples for ${instrumentType}...`);
+
+        // Create a temporary sampler to pre-load samples into browser cache
+        const preloader = new Tone.Sampler({
+            urls: sampleConfig.urls,
+            baseUrl: sampleConfig.baseUrl,
+            ...sampleConfig.options,
+        });
+
+        // Wait for samples to load with timeout
+        await Promise.race([
+            Tone.loaded(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Sample preload timeout')), 20000))
+        ]);
+
+        preloader.dispose();
+        console.log(`Samples loaded for ${instrumentType}`);
+    }
+
     // Use Tone.Offline to render audio
     const buffer = await Tone.Offline(async ({ transport, destination }) => {
         let effectsChain: ReturnType<typeof createEffectsChain> | null = null;
@@ -305,8 +370,41 @@ export const exportSongAsAudio = async (
             ? (effectsChain = createEffectsChain(effectSettings, destination)).input
             : destination;
 
-        // Create instrument
-        const instrument = await createInstrumentForExport(instrumentType, instrumentDest);
+        // Create instrument for offline context
+        let instrument: Tone.Sampler | Tone.PolySynth;
+
+        if (sampleConfig) {
+            // For sampler instruments, create a new sampler (samples should now be cached)
+            instrument = new Tone.Sampler({
+                urls: sampleConfig.urls,
+                baseUrl: sampleConfig.baseUrl,
+                ...sampleConfig.options,
+            }).connect(instrumentDest);
+
+            // Wait for sampler to be ready
+            await new Promise<void>((resolve) => {
+                const sampler = instrument as Tone.Sampler;
+                if (sampler.loaded) {
+                    resolve();
+                } else {
+                    // Use setTimeout polling as fallback since onload may not work in offline context
+                    const checkLoaded = setInterval(() => {
+                        if (sampler.loaded) {
+                            clearInterval(checkLoaded);
+                            resolve();
+                        }
+                    }, 50);
+                    // Failsafe timeout
+                    setTimeout(() => {
+                        clearInterval(checkLoaded);
+                        resolve();
+                    }, 2000);
+                }
+            });
+        } else {
+            // For synth instruments
+            instrument = createPolySynthForExport(instrumentType, instrumentDest);
+        }
 
         // Schedule all chords
         let currentTime = 0;
@@ -316,11 +414,12 @@ export const exportSongAsAudio = async (
                 measure.beats.forEach((beat) => {
                     if (beat.chord && beat.chord.notes && beat.chord.notes.length > 0) {
                         const durationSeconds = beat.duration * secondsPerBeat;
-                        const notes = beat.chord.notes;
+                        // Add octaves to notes (chord.notes doesn't have octaves)
+                        const voicedNotes = addOctavesToNotes(beat.chord.notes, 3);
 
                         // Schedule chord
                         transport.schedule((time) => {
-                            instrument.triggerAttackRelease(notes, durationSeconds, time);
+                            instrument.triggerAttackRelease(voicedNotes, durationSeconds, time);
                         }, currentTime);
                     }
 
@@ -332,11 +431,8 @@ export const exportSongAsAudio = async (
         // Start transport
         transport.start(0);
 
-        // Cleanup after rendering
-        return () => {
-            instrument.dispose();
-            effectsChain?.dispose();
-        };
+        // Note: We don't return a cleanup function here since Tone.Offline
+        // expects void. The instrument will be garbage collected after rendering.
     }, duration, 2, sampleRate);
 
     // Convert AudioBuffer to WAV

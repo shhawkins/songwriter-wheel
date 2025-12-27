@@ -28,19 +28,19 @@ interface ExportModalProps {
     onClose: () => void;
 }
 
-// Built-in instruments available for export
+// Built-in instruments available for export (matches VoiceSelector.tsx)
 const AVAILABLE_INSTRUMENTS: InstrumentType[] = [
     'piano',
-    'epiano',
-    'guitar',
     'guitar-jazzmaster',
-    'organ',
-    'synth',
-    'strings',
-    'pad',
-    'brass',
+    'acoustic-archtop',
+    'nylon-string',
+    'ocarina',
     'harmonica',
     'melodica',
+    'wine-glass',
+    'organ',
+    'epiano',
+    'pad',
 ];
 
 type ExportFormat = 'audio' | 'midi';
@@ -222,8 +222,8 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose }) => 
                                 onClick={() => setExportAudio(!exportAudio)}
                                 disabled={isExporting}
                                 className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${exportAudio
-                                        ? 'bg-emerald-600/20 border-emerald-500/50 text-emerald-400'
-                                        : 'bg-gray-800/50 border-gray-700/50 text-gray-400 hover:border-gray-600'
+                                    ? 'bg-emerald-600/20 border-emerald-500/50 text-emerald-400'
+                                    : 'bg-gray-800/50 border-gray-700/50 text-gray-400 hover:border-gray-600'
                                     }`}
                             >
                                 <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${exportAudio ? 'bg-emerald-500 border-emerald-500' : 'border-gray-500'
@@ -238,8 +238,8 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose }) => 
                                 onClick={() => setExportMidi(!exportMidi)}
                                 disabled={isExporting}
                                 className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${exportMidi
-                                        ? 'bg-purple-600/20 border-purple-500/50 text-purple-400'
-                                        : 'bg-gray-800/50 border-gray-700/50 text-gray-400 hover:border-gray-600'
+                                    ? 'bg-purple-600/20 border-purple-500/50 text-purple-400'
+                                    : 'bg-gray-800/50 border-gray-700/50 text-gray-400 hover:border-gray-600'
                                     }`}
                             >
                                 <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${exportMidi ? 'bg-purple-500 border-purple-500' : 'border-gray-500'
@@ -260,8 +260,8 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose }) => 
                                     onClick={() => setIncludeDry(!includeDry)}
                                     disabled={isExporting}
                                     className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${includeDry
-                                            ? 'bg-gray-700/50 text-white'
-                                            : 'text-gray-500 hover:text-gray-300'
+                                        ? 'bg-gray-700/50 text-white'
+                                        : 'text-gray-500 hover:text-gray-300'
                                         }`}
                                 >
                                     <VolumeX className="w-4 h-4" />
@@ -272,8 +272,8 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose }) => 
                                     onClick={() => setIncludeWet(!includeWet)}
                                     disabled={isExporting}
                                     className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${includeWet
-                                            ? 'bg-gray-700/50 text-white'
-                                            : 'text-gray-500 hover:text-gray-300'
+                                        ? 'bg-gray-700/50 text-white'
+                                        : 'text-gray-500 hover:text-gray-300'
                                         }`}
                                 >
                                     <Sparkles className="w-4 h-4" />
@@ -310,8 +310,8 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose }) => 
                                             onClick={() => toggleInstrument(instrument)}
                                             disabled={isExporting}
                                             className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${isSelected
-                                                    ? 'bg-emerald-600/20 border border-emerald-500/50 text-emerald-400'
-                                                    : 'bg-gray-800/50 border border-gray-700/30 text-gray-400 hover:border-gray-600 hover:text-gray-300'
+                                                ? 'bg-emerald-600/20 border border-emerald-500/50 text-emerald-400'
+                                                : 'bg-gray-800/50 border border-gray-700/30 text-gray-400 hover:border-gray-600 hover:text-gray-300'
                                                 }`}
                                         >
                                             <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${isSelected ? 'bg-emerald-500 border-emerald-500' : 'border-gray-500'

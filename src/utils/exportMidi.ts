@@ -13,13 +13,63 @@ export interface MidiExportOptions {
     velocity?: number;
 }
 
+// Note names for octave calculation
+const NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
 /**
- * Convert a note name like "C4", "F#3" to MIDI pitch
+ * Convert flat notation to sharps for consistent indexing
  */
-const noteToMidiPitch = (note: string): string => {
-    // midi-writer-js accepts note names directly like 'C4', 'D#5', etc.
-    // We just need to ensure the format is correct
-    return note.replace('♯', '#').replace('♭', 'b');
+const normalizeToSharp = (note: string): string => {
+    const flatToSharp: Record<string, string> = {
+        'Db': 'C#', 'Eb': 'D#', 'Gb': 'F#', 'Ab': 'G#', 'Bb': 'A#',
+        'D♭': 'C#', 'E♭': 'D#', 'G♭': 'F#', 'A♭': 'G#', 'B♭': 'A#'
+    };
+    return flatToSharp[note] || note.replace('♯', '#').replace('♭', 'b');
+};
+
+/**
+ * Add octave numbers to chord notes
+ * Matches the voicing logic from audioEngine.playChord
+ */
+const addOctavesToNotes = (notes: string[], baseOctave: number = 3): string[] => {
+    if (!notes || notes.length === 0) return [];
+
+    // Get root note info
+    const rootNote = normalizeToSharp(notes[0].replace(/\d/, ''));
+    const rootIndex = NOTES.indexOf(rootNote);
+
+    return notes.map((note, i) => {
+        // If note already has octave, normalize and return it
+        if (/\d/.test(note)) {
+            return normalizeToSharp(note);
+        }
+
+        const noteName = normalizeToSharp(note);
+        const noteIndex = NOTES.indexOf(noteName);
+
+        if (i === 0) {
+            // Root note in base octave
+            return `${noteName}${baseOctave}`;
+        }
+
+        // Other notes: if they're "below" the root in the chromatic scale, put them an octave up
+        let octave = baseOctave;
+        if (rootIndex !== -1 && noteIndex !== -1) {
+            if (noteIndex < rootIndex || (noteIndex - rootIndex > 6)) {
+                octave = baseOctave + 1;
+            }
+        }
+
+        // For extended chords (9, 11, 13), put those even higher
+        if (i >= 4) {
+            octave = baseOctave + 1;
+        }
+        if (i >= 5) {
+            octave = baseOctave + 2;
+        }
+
+        return `${noteName}${octave}`;
+    });
 };
 
 /**
@@ -65,8 +115,9 @@ export const exportSongAsMidi = (song: Song, options: MidiExportOptions = {}): B
         section.measures.forEach((measure: Measure) => {
             measure.beats.forEach((beat) => {
                 if (beat.chord && beat.chord.notes && beat.chord.notes.length > 0) {
-                    // Convert notes to MIDI format
-                    const pitches = beat.chord.notes.map(noteToMidiPitch);
+                    // Add octaves to notes (chord.notes doesn't have octaves)
+                    // Then normalize for MIDI format
+                    const pitches = addOctavesToNotes(beat.chord.notes, 3);
 
                     // Calculate duration in ticks
                     const durationTicks = durationToTicks(beat.duration);
