@@ -341,12 +341,12 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
             dragExcludeSelectors={['button', '.touch-none', '.voice-selector-dropdown', 'input', 'select', '.no-scrollbar']}
             dataAttribute="voicing-picker"
             className={clsx(
-                isLandscapeMobile ? "!px-3 !pt-1 !gap-2" : "!px-3 !pt-1 !gap-3"
+                isLandscapeMobile ? "!px-3 !pt-2 !gap-2" : "!px-3 !pt-3 !gap-3"
             )}
             zIndex={120}
         >
             {/* ROW 1: VOICINGS & QUICK ACTIONS */}
-            <div className={clsx("flex items-center gap-2 w-full shrink-0", isLandscapeMobile ? "h-10" : "h-11")}>
+            <div className={clsx("flex items-center gap-2 w-full shrink-0 pr-6", isLandscapeMobile ? "h-10" : "h-11")}>
                 <div
                     onWheel={(e) => e.stopPropagation()}
                     className="flex flex-row items-center overflow-x-auto no-scrollbar mask-linear-fade flex-1 min-w-0 gap-1.5 h-full touch-pan-x"

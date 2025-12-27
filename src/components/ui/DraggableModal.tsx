@@ -131,13 +131,18 @@ export const DraggableModal: React.FC<DraggableModalProps> = ({
                         e.stopPropagation();
                         onClose();
                     }}
+                    onTouchEnd={(e) => {
+                        e.stopPropagation();
+                        if (e.cancelable) e.preventDefault();
+                        onClose();
+                    }}
                     className={clsx(
-                        "absolute p-1 text-text-muted hover:text-text-primary",
-                        "rounded-full hover:bg-white/10 transition-colors",
-                        compact ? "-top-1 -right-1" : "top-1 right-1"
+                        "absolute p-2.5 text-text-muted hover:text-text-primary",
+                        "rounded-full hover:bg-white/10 transition-colors z-50",
+                        compact ? "top-0.5 right-0.5" : "top-1 right-1"
                     )}
                 >
-                    <X size={16} />
+                    <X size={18} />
                 </button>
             )}
 

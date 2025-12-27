@@ -122,9 +122,14 @@ export function useDraggablePosition(options: UseDraggablePositionOptions): UseD
     }, [handleDragStart, shouldExclude]);
 
     const handleTouchStart = useCallback((e: React.TouchEvent) => {
-        // Don't prevent default to allow child touch interactions
-        handleDragStart(e.touches[0].clientX, e.touches[0].clientY, e.target as HTMLElement);
-    }, [handleDragStart]);
+        const target = e.target as HTMLElement;
+        // Prevent touch from propagating to elements underneath (like wheel)
+        // but only if we're not touching an excluded element (like a button)
+        if (!shouldExclude(target) && e.cancelable) {
+            e.preventDefault();
+        }
+        handleDragStart(e.touches[0].clientX, e.touches[0].clientY, target);
+    }, [handleDragStart, shouldExclude]);
 
     // Global move/up handlers
     useEffect(() => {
