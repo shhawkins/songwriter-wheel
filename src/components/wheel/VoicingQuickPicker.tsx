@@ -1,11 +1,11 @@
-import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { createPortal } from 'react-dom';
-import clsx from 'clsx';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { clsx } from 'clsx';
 import { playChord } from '../../utils/audioEngine';
 import { useMobileLayout } from '../../hooks/useIsMobile';
-import { Info, Plus, ChevronLeft, ChevronRight, MoveRight, X } from 'lucide-react';
+import { Info, Plus, ChevronLeft, ChevronRight, MoveRight } from 'lucide-react';
 import { VoiceSelector } from '../playback/VoiceSelector';
 import { useSongStore } from '../../store/useSongStore';
+import DraggableModal from '../ui/DraggableModal';
 import {
     getInversionName,
     invertChord,
@@ -31,25 +31,17 @@ interface VoicingQuickPickerProps {
     onClose: () => void;
     onSelect: (quality: string) => void;
     onChangeChord?: (chord: Chord, suggestion: string, baseQuality: string) => void;
-    onAddToTimeline?: (quality: string) => void;  // Add current chord with current quality to timeline
-    onDoubleTapInKeyChord?: (chord: Chord, quality: string) => void; // Quick add specific in-key chord
-    onOpenDetails?: () => void;  // Open chord details panel
+    onAddToTimeline?: (quality: string) => void;
+    onDoubleTapInKeyChord?: (chord: Chord, quality: string) => void;
+    onOpenDetails?: () => void;
     chordRoot: string;
     voicings: VoicingOption[];
     selectedQuality?: string;
-    portraitWithPanel?: boolean; // Special positioning for portrait mode with chord panel open
+    portraitWithPanel?: boolean;
 }
 
-// Auto-fade timeout in milliseconds
 const AUTO_FADE_TIMEOUT = 60000;
 
-/**
- * VoicingQuickPicker - A clean modal for selecting chord voicings, in-key chords, and inversions.
- * Enhanced with:
- * - Repositionable drag handle (lower right)
- * - Auto-advance toggle
- * - Double-tap to add without closing
- */
 export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
     isOpen,
     onClose,
@@ -63,18 +55,12 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
     selectedQuality,
     portraitWithPanel = false
 }) => {
-    const modalRef = useRef<HTMLDivElement>(null);
     const { isMobile, isLandscape } = useMobileLayout();
     const isLandscapeMobile = isMobile && isLandscape;
     const [currentQuality, setCurrentQuality] = useState<string | undefined>(selectedQuality);
 
-    // Position state for drag & drop
+    // Position state for drag & drop persistence
     const [modalPosition, setModalPosition] = useState<{ x: number; y: number } | null>(null);
-    const isDraggingModal = useRef(false);
-    const dragOffset = useRef({ x: 0, y: 0 });
-    const rafRef = useRef<number | null>(null);
-    const dragStartPos = useRef<{ x: number; y: number } | null>(null);
-    const hasDragged = useRef(false);
 
     const {
         chordInversion,
@@ -85,24 +71,20 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
         setChordPanelScrollTarget,
         timelineVisible,
         autoAdvance,
-        toggleAutoAdvance,
-        setIsDraggingVoicingPicker
+        toggleAutoAdvance
     } = useSongStore();
 
     const lastTapRef = useRef<{ quality: string; time: number } | null>(null);
     const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+    const fadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const handleTouchStart = (e: React.TouchEvent) => {
-        // Find the touch that is actually on this element (the one that just started)
-        // We need to use the touch that targets this element, not touches on other elements like piano
-        // The most reliable way is to find a touch whose target is within the current element
         const currentTarget = e.currentTarget as HTMLElement;
         let relevantTouch: React.Touch | undefined;
 
         for (let i = 0; i < e.touches.length; i++) {
             const touch = e.touches[i];
             const target = touch.target as HTMLElement;
-            // Check if the touch target is within the current target (the picker button)
             if (currentTarget.contains(target)) {
                 relevantTouch = touch;
                 break;
@@ -131,13 +113,11 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
         touchStartRef.current = null;
     };
 
-    const fadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
     useEffect(() => {
         if (selectedQuality) {
             setCurrentQuality(selectedQuality);
         }
-    }, [selectedQuality, isOpen, chordRoot]); // Removed chordInversion from deps to prevent voicing resets during inversion changes
+    }, [selectedQuality, isOpen, chordRoot]);
 
     const resetFadeTimer = useCallback(() => {
         if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current);
@@ -149,26 +129,18 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
         return () => { if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current); };
     }, [isOpen, resetFadeTimer]);
 
-    // Reset position when orientation changes to prevent being stuck off-screen
+    // Reset position when orientation changes
     useEffect(() => {
-        setModalPosition(null); // Reset to default position for new orientation
-    }, [isLandscape]);
+        setModalPosition(null);
+    }, [isLandscapeMobile]);
 
+    // Handle outside clicks using data attribute
     useEffect(() => {
         if (!isOpen) return;
         const handleClickOutside = (e: MouseEvent | TouchEvent) => {
-            // Exceptions for click-outside: don't close if clicking on areas where
-            // the user may be simultaneously interacting (e.g., playing piano while picking chords)
             const target = e.target as HTMLElement;
             if (!target || !(target instanceof Element)) return;
 
-            // Allow simultaneous interactions with these elements without closing the picker:
-            // - Piano keyboard (for playing notes while picking chords)
-            // - Chord wheel (for selecting different chords)
-            // - Chord details drawer (for viewing/selecting voicings)
-            // - Timeline controls
-            // - Voice selector menu
-            // - Instrument controls modal (for adjusting audio settings)
             if (
                 target.closest('.piano-keyboard') ||
                 target.closest('[data-chord-wheel]') ||
@@ -179,7 +151,8 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
                 target.closest('[data-instrument-controls]')
             ) return;
 
-            if (modalRef.current && !modalRef.current.contains(target)) onClose();
+            // Check if click is inside the picker
+            if (!target.closest('[data-voicing-picker]')) onClose();
         };
         const timeoutId = setTimeout(() => {
             document.addEventListener('mousedown', handleClickOutside);
@@ -200,121 +173,6 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
         document.addEventListener('keydown', handleKeyDown);
         return () => document.removeEventListener('keydown', handleKeyDown);
     }, [isOpen, onClose]);
-
-
-    // Repositioning logic
-    const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
-        if (!modalRef.current) return;
-
-        // Prevent event from reaching the wheel behind it
-        if (e.cancelable) e.preventDefault();
-        e.stopPropagation();
-
-        isDraggingModal.current = true;
-        hasDragged.current = false;
-        setIsDraggingVoicingPicker(true);
-        const rect = modalRef.current.getBoundingClientRect();
-        const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-        const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-
-        // Store start position for tap detection
-        dragStartPos.current = { x: clientX, y: clientY };
-
-        dragOffset.current = {
-            x: clientX - rect.left,
-            y: clientY - rect.top
-        };
-
-        // Performance optimizations for drag
-        if (modalRef.current) {
-            modalRef.current.style.willChange = 'transform';
-            // Temporarily disable transitions during drag to prevent fighting with JS
-            modalRef.current.style.transition = 'none';
-        }
-
-        // Add class to body to disable text selection globally during drag
-        document.body.classList.add('dragging-modal');
-    };
-
-    useEffect(() => {
-        if (!isOpen) return;
-
-        const handleMove = (e: MouseEvent | TouchEvent) => {
-            if (!isDraggingModal.current || !modalRef.current) return;
-
-            // Prevent wheel from moving and page scrolling
-            if (e.cancelable) e.preventDefault();
-
-            if (rafRef.current) cancelAnimationFrame(rafRef.current);
-
-            const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-            const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-
-            // Check if we've moved enough to consider this a drag (not a tap)
-            if (dragStartPos.current && !hasDragged.current) {
-                const deltaX = Math.abs(clientX - dragStartPos.current.x);
-                const deltaY = Math.abs(clientY - dragStartPos.current.y);
-                if (deltaX > 10 || deltaY > 10) {
-                    hasDragged.current = true;
-                }
-            }
-
-            rafRef.current = requestAnimationFrame(() => {
-                if (!isDraggingModal.current || !modalRef.current) return;
-
-                const x = clientX - dragOffset.current.x;
-                const y = clientY - dragOffset.current.y;
-
-                // Use translate3d for GPU acceleration
-                modalRef.current.style.transform = `translate3d(${x}px, ${y}px, 0)`;
-                // Removed redundant left/top/bottom setting for performance
-            });
-        };
-
-        const handleUp = () => {
-            if (isDraggingModal.current && modalRef.current) {
-                // Check if this was a tap (minimal movement) or a drag
-                const wasTap = !hasDragged.current;
-
-                if (wasTap) {
-                    // Tap detected - close the modal
-                    onClose();
-                } else {
-                    // Drag detected - save final position to React state to persist it
-                    const rect = modalRef.current.getBoundingClientRect();
-                    setModalPosition({ x: rect.left, y: rect.top });
-                }
-
-                // Cleanup performance optimizations
-                modalRef.current.style.willChange = 'auto';
-                modalRef.current.style.transition = ''; // Restore transitions
-
-                document.body.classList.remove('dragging-modal');
-            }
-            isDraggingModal.current = false;
-            hasDragged.current = false;
-            dragStartPos.current = null;
-            setIsDraggingVoicingPicker(false);
-            if (rafRef.current) {
-                cancelAnimationFrame(rafRef.current);
-                rafRef.current = null;
-            }
-        };
-
-        document.addEventListener('mousemove', handleMove, { passive: false });
-        document.addEventListener('mouseup', handleUp);
-        document.addEventListener('touchmove', handleMove, { passive: false });
-        document.addEventListener('touchend', handleUp);
-        return () => {
-            document.removeEventListener('mousemove', handleMove);
-            document.removeEventListener('mouseup', handleUp);
-            document.removeEventListener('touchmove', handleMove);
-            document.removeEventListener('touchend', handleUp);
-            if (rafRef.current) cancelAnimationFrame(rafRef.current);
-            document.body.classList.remove('dragging-modal');
-            setIsDraggingVoicingPicker(false);
-        };
-    }, [isOpen]);
 
     const inKeyChords = useMemo(() => {
         const diatonic = getDiatonicChords(selectedKey);
@@ -341,14 +199,11 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
         return [...diatonic, II_chord, III_chord];
     }, [selectedKey]);
 
-    if (!isOpen) return null;
-
     const handleVoicingClick = (quality: string) => {
         const now = Date.now();
         resetFadeTimer();
         if (lastTapRef.current && lastTapRef.current.quality === quality && now - lastTapRef.current.time < 400) {
             if (onAddToTimeline) onAddToTimeline(quality);
-            // DO NOT close modal anymore on double tap!
             lastTapRef.current = null;
             return;
         }
@@ -403,7 +258,6 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
         const now = Date.now();
         resetFadeTimer();
 
-        // Handle double-tap to add to timeline
         if (lastTapRef.current && lastTapRef.current.quality === `inkey-${chord.root}` && now - lastTapRef.current.time < 400) {
             if (onDoubleTapInKeyChord) {
                 const effectiveQuality = chord.root === chordRoot
@@ -411,7 +265,6 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
                     : chord.quality;
                 onDoubleTapInKeyChord(chord, effectiveQuality);
             }
-            // DO NOT close modal anymore!
             lastTapRef.current = null;
             return;
         }
@@ -450,87 +303,53 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
         return base;
     };
 
-    return createPortal(
-        <div
-            ref={modalRef}
-            onWheel={(e) => e.stopPropagation()}
+    // Calculate default position based on layout mode
+    const getDefaultPosition = useCallback(() => {
+        if (typeof window === 'undefined') return { x: 12, y: 100 };
+        const safeBottom = 34; // approximate
+
+        if (isLandscapeMobile) {
+            return { x: 16, y: window.innerHeight - 210 - safeBottom };
+        } else if (portraitWithPanel) {
+            return { x: 12, y: window.innerHeight - 450 - safeBottom };
+        } else if (timelineVisible) {
+            return { x: 12, y: window.innerHeight - 480 - safeBottom };
+        } else {
+            return { x: 12, y: window.innerHeight - 400 - safeBottom };
+        }
+    }, [isLandscapeMobile, portraitWithPanel, timelineVisible]);
+
+    const initialPosition = useMemo(() => getDefaultPosition(), [getDefaultPosition]);
+    const modeKey = `${isLandscapeMobile ? 'land' : 'port'}-${portraitWithPanel}-${timelineVisible}`;
+
+    if (!isOpen) return null;
+
+    return (
+        <DraggableModal
+            isOpen={isOpen}
+            onClose={onClose}
+            position={modalPosition || initialPosition}
+            onPositionChange={setModalPosition}
+            key={modeKey}
+            tapToClose={true}
+            showDragHandle={true}
+            showCloseButton={true}
+            compact={isLandscapeMobile}
+            minWidth={isMobile
+                ? (isLandscapeMobile ? '280px' : 'calc(100vw - 24px)')
+                : '520px'}
+            dragExcludeSelectors={['button', '.touch-none', '.voice-selector-dropdown', 'input', 'select', '.no-scrollbar']}
+            dataAttribute="voicing-picker"
             className={clsx(
-                "fixed bg-bg-elevated/65 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl select-none",
-                isLandscapeMobile ? "flex flex-col p-3 pt-1 gap-2" : "flex flex-col p-3 pt-1 gap-3",
-                "animate-in fade-in zoom-in-95 duration-200",
-                isLandscapeMobile ? "min-w-[200px]" : "min-w-[320px]",
-                "touch-none"
+                isLandscapeMobile ? "!px-3 !pt-1 !gap-2" : "!px-3 !pt-1 !gap-3"
             )}
-            onMouseDown={(e) => e.stopPropagation()}
-            onTouchStart={(e) => {
-                // Only stop propagation if not on the drag handle
-                if (!(e.target as HTMLElement).closest('.drag-handle')) {
-                    e.stopPropagation();
-                }
-            }}
-            style={{
-                zIndex: 99999,
-                position: 'fixed',
-                left: 0,
-                top: 0,
-                transform: modalPosition
-                    ? `translate3d(${modalPosition.x}px, ${modalPosition.y}px, 0)`
-                    : (isLandscapeMobile
-                        // Mobile landscape: position near bottom-left with safe area padding
-                        ? `translate3d(max(env(safe-area-inset-left), 16px), calc(100dvh - 210px - env(safe-area-inset-bottom)), 0)`
-                        : (portraitWithPanel
-                            // Portrait with panel: higher position
-                            ? `translate3d(12px, calc(100dvh - 450px - env(safe-area-inset-bottom)), 0)`
-                            : (timelineVisible
-                                // Portrait with timeline: even higher
-                                ? `translate3d(12px, calc(100dvh - 480px - env(safe-area-inset-bottom)), 0)`
-                                // Portrait without timeline: default position
-                                : `translate3d(12px, calc(100dvh - 400px - env(safe-area-inset-bottom)), 0)`))),
-                maxWidth: isMobile
-                    ? (isLandscape ? '280px' : 'calc(100vw - 24px)')
-                    : '520px',
-                width: isMobile
-                    ? (isLandscape ? '280px' : 'calc(100vw - 24px)')
-                    : '520px'
-            }}
+            zIndex={120}
         >
-            {/* Centered Top Drag Handle - Redundant, matching drawer style */}
-            <div
-                onMouseDown={handleDragStart}
-                onTouchStart={handleDragStart}
-                className="drag-handle flex flex-col items-center justify-center py-2 -mx-3 cursor-move shrink-0"
-                title="Drag to reposition"
-            >
-                <div className="w-12 h-1.5 rounded-full bg-text-muted/40" />
-            </div>
-
-            {/* Close Button */}
-            <button
-                onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onClose();
-                }}
-                onPointerDown={(e) => e.stopPropagation()}
-                onTouchEnd={(e) => {
-                    if (e.cancelable) e.preventDefault();
-                    e.stopPropagation();
-                    onClose();
-                }}
-                className={clsx(
-                    "absolute right-0.5 w-7 h-7 flex items-center justify-center text-text-muted hover:text-text-primary hover:bg-white/10 rounded-full transition-colors z-20",
-                    isLandscapeMobile ? "-top-1" : "top-0.5"
-                )}
-                aria-label="Close"
-            >
-                <X size={14} />
-            </button>
-
             {/* ROW 1: VOICINGS & QUICK ACTIONS */}
             <div className={clsx("flex items-center gap-2 w-full shrink-0", isLandscapeMobile ? "h-10" : "h-11")}>
                 <div
                     onWheel={(e) => e.stopPropagation()}
-                    className="flex flex-row items-center overflow-x-auto no-scrollbar mask-linear-fade flex-1 min-w-0 gap-1.5 h-full"
+                    className="flex flex-row items-center overflow-x-auto no-scrollbar mask-linear-fade flex-1 min-w-0 gap-1.5 h-full touch-pan-x"
                 >
                     {voicings.map((voicing) => {
                         const isSelected = voicing.quality === currentQuality;
@@ -577,7 +396,7 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
                 <div className="w-px h-8 bg-white/10 shrink-0 mx-1" />
 
                 <div className="flex items-center gap-1 shrink-0 h-full">
-                    {/* Auto-Advance Toggle - Vertically stacked icon/dot */}
+                    {/* Auto-Advance Toggle */}
                     <button
                         onClick={(e) => { e.stopPropagation(); toggleAutoAdvance(); resetFadeTimer(); }}
                         onTouchEnd={(e) => {
@@ -626,7 +445,7 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
                 </div>
             </div>
 
-            {/* ROW 2: IN-KEY CHORD BADGES (Single scrollable row) */}
+            {/* ROW 2: IN-KEY CHORD BADGES */}
             <div
                 onWheel={(e) => e.stopPropagation()}
                 className={clsx(
@@ -733,9 +552,7 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
                     />
                 )}
             </div>
-
-        </div>,
-        document.body
+        </DraggableModal>
     );
 };
 

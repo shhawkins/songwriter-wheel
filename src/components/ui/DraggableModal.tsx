@@ -1,0 +1,149 @@
+import React, { useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { X } from 'lucide-react';
+import { clsx } from 'clsx';
+import { useDraggablePosition } from '../../hooks/useDraggablePosition';
+
+export interface DraggableModalProps {
+    /** Whether the modal is visible */
+    isOpen: boolean;
+    /** Callback when modal should close */
+    onClose: () => void;
+    /** Modal content */
+    children: React.ReactNode;
+    /** Persisted position from store/localStorage */
+    position?: { x: number; y: number } | null;
+    /** Callback when position changes (for persistence) */
+    onPositionChange?: (pos: { x: number; y: number }) => void;
+    /** Additional class names for the modal container */
+    className?: string;
+    /** Use compact styling (smaller padding, different rounding) */
+    compact?: boolean;
+    /** Minimum width of the modal */
+    minWidth?: string;
+    /** z-index for stacking */
+    zIndex?: number;
+    /** Show the close (X) button */
+    showCloseButton?: boolean;
+    /** Show the top drag handle indicator */
+    showDragHandle?: boolean;
+    /** If true, tapping the background (without dragging) closes the modal */
+    tapToClose?: boolean;
+    /** CSS selectors for elements that should NOT trigger drag */
+    dragExcludeSelectors?: string[];
+    /** Data attribute for CSS targeting */
+    dataAttribute?: string;
+}
+
+/**
+ * A reusable draggable modal component with glassmorphism styling.
+ * Based on the InstrumentControls.tsx pattern (touch-anywhere-to-drag).
+ * 
+ * Features:
+ * - Drag from anywhere in the modal background
+ * - Position persistence via callback
+ * - Glassmorphism styling
+ * - Optional tap-to-close behavior
+ * - Portal rendering to document.body
+ */
+export const DraggableModal: React.FC<DraggableModalProps> = ({
+    isOpen,
+    onClose,
+    children,
+    position: persistedPosition,
+    onPositionChange,
+    className,
+    compact = false,
+    minWidth = '320px',
+    zIndex = 120,
+    showCloseButton = true,
+    showDragHandle = true,
+    tapToClose = false,
+    dragExcludeSelectors,
+    dataAttribute
+}) => {
+    const modalRef = useRef<HTMLDivElement>(null);
+
+    const { position, isInitialized, handlers } = useDraggablePosition({
+        elementRef: modalRef,
+        initialPosition: persistedPosition || 'center',
+        onPositionChange,
+        enabled: isOpen,
+        dragExcludeSelectors,
+        tapToClose,
+        onTapClose: onClose
+    });
+
+    // Reinitialize position if persistedPosition changes while closed
+    useEffect(() => {
+        // This effect intentionally empty - hooks handles initialization
+    }, [persistedPosition]);
+
+    if (!isOpen) return null;
+
+    // Don't render until position is initialized
+    if (!isInitialized || position.x === -999) return null;
+
+    const dataProps = dataAttribute ? { [`data-${dataAttribute}`]: true } : {};
+
+    return createPortal(
+        <div
+            ref={modalRef}
+            {...dataProps}
+            className={clsx(
+                "fixed flex flex-col items-center",
+                compact
+                    ? "p-3 glass-panel-compact"
+                    : "p-4 glass-panel",
+                "select-none touch-none",
+                "animate-in fade-in zoom-in-95 duration-200",
+                className
+            )}
+            style={{
+                left: 0,
+                top: 0,
+                zIndex,
+                width: 'auto',
+                minWidth,
+                maxWidth: 'calc(100vw - 24px)',
+                transform: `translate3d(${position.x}px, ${position.y}px, 0)`,
+                willChange: 'transform'
+            }}
+            onMouseDown={(e) => {
+                e.stopPropagation();
+                handlers.onMouseDown(e);
+            }}
+            onTouchStart={(e) => {
+                e.stopPropagation();
+                handlers.onTouchStart(e);
+            }}
+        >
+            {/* Top Drag Handle */}
+            {showDragHandle && (
+                <div className="w-12 h-1.5 rounded-full bg-white/20 mb-2 cursor-move" />
+            )}
+
+            {/* Close Button */}
+            {showCloseButton && (
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onClose();
+                    }}
+                    className={clsx(
+                        "absolute right-2 p-1 text-text-muted hover:text-text-primary",
+                        "rounded-full hover:bg-white/10 transition-colors",
+                        compact ? "-top-1" : "top-2"
+                    )}
+                >
+                    <X size={16} />
+                </button>
+            )}
+
+            {children}
+        </div>,
+        document.body
+    );
+};
+
+export default DraggableModal;

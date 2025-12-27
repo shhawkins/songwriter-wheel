@@ -342,3 +342,21 @@ The pattern is clear: components that handle multiple layout variants and/or com
 ---
 
 *Report ends. Ready for implementation planning.*
+
+## Progress Update: Refactoring Modals and Hooks (Dec 27, 2024)
+
+### Completed Tasks
+1.  **Modal Refactor**:
+    -   Created reusable `DraggableModal` component and `useDraggablePosition` hook.
+    -   Refactored `InstrumentControls.tsx` to use the new reusable modal, deleting ~150 lines of duplicate code.
+    -   Refactored `VoicingQuickPicker.tsx` to use `DraggableModal`, unifying the drag behavior and styling.
+    -   Added consistent glassmorphism utility classes (`.glass-panel`, `.glass-panel-compact`) to `index.css`.
+
+2.  **Hook Extraction**:
+    -   Created `useKeyboardShortcuts` hook to extract keyboard logic from `App.tsx`.
+    -   Integrated this hook into `App.tsx`, reducing complexity and improving separation of concerns.
+
+### Next Steps Recommendation
+-   Continue extracting hooks from `App.tsx` (e.g., `useLayoutManager`, `useModalOrchestrator`).
+-   Address the `useSongStore` bloat by splitting into smaller slices.
+-   Refactor `MobileTimeline` to separate drag-and-drop logic.

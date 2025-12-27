@@ -29,6 +29,7 @@ import { AuthModal } from './components/auth/AuthModal';
 import { useAuthStore } from './stores/authStore';
 import { User as UserIcon } from 'lucide-react';
 import { useAudioSync } from './hooks/useAudioSync';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 
 
 // Mobile Portrait Drawers Component - handles combined toggle bar with drag gesture
@@ -197,7 +198,7 @@ const MobilePortraitDrawers: React.FC<MobilePortraitDrawersProps> = ({
 
 
 function App() {
-  const { currentSong, selectedKey, timelineVisible, toggleTimeline, timelineZoom, setTimelineZoom, selectedSectionId, selectedSlotId, clearSlot, clearTimeline, setTitle, setArtist, setTags, setSongTimeSignature, loadSong: loadSongToStore, newSong, instrument, volume, isMuted, undo, redo, canUndo, canRedo, chordPanelVisible, isPlaying, songInfoModalVisible, toggleSongInfoModal, instrumentManagerModalVisible, toggleInstrumentManagerModal, cloudSongs, loadCloudSongs, saveToCloud, deleteFromCloud, isLoadingCloud } = useSongStore();
+  const { currentSong, selectedKey, timelineVisible, toggleTimeline, setTitle, setArtist, setTags, setSongTimeSignature, loadSong: loadSongToStore, newSong, instrument, volume, isMuted, chordPanelVisible, isPlaying, songInfoModalVisible, toggleSongInfoModal, instrumentManagerModalVisible, toggleInstrumentManagerModal, cloudSongs, loadCloudSongs, saveToCloud, deleteFromCloud, isLoadingCloud } = useSongStore();
 
   // Audio Sync Logic
   useEffect(() => {
@@ -219,6 +220,7 @@ function App() {
   // conditionally renders based on UI state (mobile immersive mode, etc.),
   // causing audio settings to stop syncing when it was unmounted.
   useAudioSync();
+  useKeyboardShortcuts();
 
   const [showHelp, setShowHelp] = useState(false);
   const [showKeySelector, setShowKeySelector] = useState(false);
@@ -890,43 +892,7 @@ function App() {
     };
   }, [audioReady]);
 
-  // Keyboard shortcut for delete (Task 22)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedSectionId && selectedSlotId) {
-        // Don't delete if user is editing an input
-        if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') {
-          return;
-        }
-        e.preventDefault();
-        clearSlot(selectedSectionId, selectedSlotId);
-      }
-    };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedSectionId, selectedSlotId, clearSlot]);
-
-  // Undo/redo keyboard shortcuts
-  useEffect(() => {
-    const handleUndoRedo = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null;
-      const isFormElement = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable;
-      if (isFormElement) return;
-
-      if (e.metaKey && e.key.toLowerCase() === 'z') {
-        e.preventDefault();
-        if (e.shiftKey) {
-          if (canRedo) redo();
-        } else {
-          if (canUndo) undo();
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleUndoRedo);
-    return () => window.removeEventListener('keydown', handleUndoRedo);
-  }, [undo, redo, canUndo, canRedo]);
 
   // Save/Load state (Task 30)
   const [showSaveMenu, setShowSaveMenu] = useState(false);

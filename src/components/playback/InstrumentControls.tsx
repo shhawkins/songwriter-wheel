@@ -1,11 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { useSongStore } from '../../store/useSongStore';
-import { X, Volume2, Music, Waves, Play, Radio, Disc3, ChevronLeft, ChevronRight, RotateCcw, Folder, Save } from 'lucide-react';
+import { Volume2, Music, Waves, Play, Radio, Disc3, ChevronLeft, ChevronRight, RotateCcw, Folder, Save } from 'lucide-react';
 import { clsx } from 'clsx';
 import { playChord, setInstrument as setAudioInstrument } from '../../utils/audioEngine';
 import { VoiceSelector } from './VoiceSelector';
 import { PatchManager } from './PatchManager';
+import DraggableModal from '../ui/DraggableModal';
 import type { InstrumentType } from '../../types';
 import { useMobileLayout } from '../../hooks/useIsMobile';
 import {
@@ -240,7 +240,6 @@ export const InstrumentControls: React.FC = () => {
         resetInstrumentControls,
         selectedChord,
         chordInversion,
-        voicingPickerState,
         instrument,
         setInstrument,
         customInstruments,
@@ -299,154 +298,6 @@ export const InstrumentControls: React.FC = () => {
     const { isMobile, isLandscape } = useMobileLayout();
     const isCompact = isMobile && isLandscape;
 
-    // -- Draggable Logic (Copied/Adapted from VoicingQuickPicker) --
-    const modalRef = useRef<HTMLDivElement>(null);
-    // Initialize position to persisted value or sensible default (centered)
-    const [modalPosition, setModalPosition] = useState<{ x: number; y: number }>({ x: -999, y: -999 });
-    const [initialized, setInitialized] = useState(false);
-    const isDraggingModal = useRef(false);
-    const dragOffset = useRef({ x: 0, y: 0 });
-    const rafRef = useRef<number | null>(null);
-
-    // Initialize position after first render to avoid jitter
-    useEffect(() => {
-        if (instrumentControlsModalVisible && !initialized) {
-            if (instrumentControlsPosition) {
-                // Use persisted position but clamp it to be safe
-                const estimatedWidth = isMobile ? 280 : 320;
-                const rightEdge = window.innerWidth - 10;
-                let x = instrumentControlsPosition.x;
-
-                // If it goes off the right edge, snap it back
-                if (x + estimatedWidth > rightEdge) {
-                    x = Math.max(10, window.innerWidth - estimatedWidth - 10);
-                }
-                // If it's too far left
-                if (x < 10) x = 10;
-
-                setModalPosition({ ...instrumentControlsPosition, x });
-            } else {
-                // Calculate smart position based on context
-                // Update width estimate (Standard is ~320px+ now, Mobile is ~280px)
-                const estimatedWidth = isMobile ? 280 : 320;
-                const width = Math.min(window.innerWidth - 20, estimatedWidth);
-
-                // Compact height is approx 220px, standard is 380px
-                const estimatedHeight = isCompact ? 220 : 380;
-
-                const initialX = Math.max(10, (window.innerWidth - width) / 2);
-
-                // If VoicingQuickPicker is open, position near the top to avoid overlap (if possible)
-                let initialY: number;
-
-                if (isCompact) {
-                    // In compact landscape, prioritize vertical centering but respect safe areas
-                    initialY = Math.max(20, (window.innerHeight - estimatedHeight) / 2);
-                } else if (voicingPickerState.isOpen) {
-                    // Position near the top with some padding for header
-                    initialY = Math.max(60, 100);
-                } else {
-                    // Center vertically when no picker is open
-                    initialY = Math.max(80, (window.innerHeight - estimatedHeight) / 2);
-                }
-
-                setModalPosition({ x: initialX, y: initialY });
-            }
-            setInitialized(true);
-        }
-    }, [instrumentControlsModalVisible, initialized, instrumentControlsPosition, voicingPickerState.isOpen, isCompact, isMobile]);
-
-    // Reset initialization on orientation change to trigger re-calculation/clamping
-    useEffect(() => {
-        setInitialized(false);
-    }, [isCompact, isMobile]);
-
-    // Reset initialization when modal closes so it reopens fresh?
-    // Actually, we want to KEEP the position state alive if possible, or just rely on 'instrumentControlsPosition'
-    // If we close and reopen, 'initialized' resets to false, then useEffect runs -> checks store -> sets position. Correct.
-    useEffect(() => {
-        if (!instrumentControlsModalVisible) {
-            setInitialized(false);
-        }
-    }, [instrumentControlsModalVisible]);
-
-    const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
-        if (!modalRef.current) return;
-        // Don't drag if clicking buttons/knobs (handled by propagation stop, but safety check)
-        if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('.touch-none') || (e.target as HTMLElement).closest('.voice-selector-dropdown')) return;
-
-        if (e.cancelable) e.preventDefault();
-
-        isDraggingModal.current = true;
-        const rect = modalRef.current.getBoundingClientRect();
-        const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-        const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-
-        dragOffset.current = {
-            x: clientX - rect.left,
-            y: clientY - rect.top
-        };
-
-        if (modalRef.current) {
-            modalRef.current.style.willChange = 'transform';
-            modalRef.current.style.transition = 'none';
-        }
-        document.body.classList.add('dragging-modal');
-    };
-
-    useEffect(() => {
-        if (!instrumentControlsModalVisible) return;
-
-        const handleMove = (e: MouseEvent | TouchEvent) => {
-            if (!isDraggingModal.current || !modalRef.current) return;
-            if (e.cancelable) e.preventDefault();
-
-            const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-            const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-
-            if (rafRef.current) cancelAnimationFrame(rafRef.current);
-            rafRef.current = requestAnimationFrame(() => {
-                if (!modalRef.current) return;
-                const x = clientX - dragOffset.current.x;
-                const y = clientY - dragOffset.current.y;
-                modalRef.current.style.transform = `translate3d(${x}px, ${y}px, 0)`;
-            });
-        };
-
-        const handleUp = () => {
-            if (isDraggingModal.current && modalRef.current) {
-                const rect = modalRef.current.getBoundingClientRect();
-                const newPos = { x: rect.left, y: rect.top };
-                setModalPosition(newPos);
-                // Save to store for persistence
-                setInstrumentControlsPosition(newPos);
-
-                modalRef.current.style.willChange = 'auto';
-                modalRef.current.style.transition = '';
-                document.body.classList.remove('dragging-modal');
-            }
-            isDraggingModal.current = false;
-            if (rafRef.current) cancelAnimationFrame(rafRef.current);
-        };
-
-        document.addEventListener('mousemove', handleMove, { passive: false });
-        document.addEventListener('mouseup', handleUp);
-        document.addEventListener('touchmove', handleMove, { passive: false });
-        document.addEventListener('touchend', handleUp);
-
-        return () => {
-            document.removeEventListener('mousemove', handleMove);
-            document.removeEventListener('mouseup', handleUp);
-            document.removeEventListener('touchmove', handleMove);
-            document.removeEventListener('touchend', handleUp);
-
-            if (rafRef.current) cancelAnimationFrame(rafRef.current);
-            document.body.classList.remove('dragging-modal');
-        };
-    }, [instrumentControlsModalVisible, setInstrumentControlsPosition]);
-
-
-
     if (!instrumentControlsModalVisible) return null;
 
     // Get chord colors for badge
@@ -461,16 +312,11 @@ export const InstrumentControls: React.FC = () => {
         }
     };
 
-    // Don't render until position is initialized and valid
-    if (!initialized || modalPosition.x === -999) return null;
-
     // Compact Layout (Mobile Landscape) vs Standard Layout
     const modalContent = isCompact ? (
         // --- Compact Layout ---
         <>
-            {/* Title / Instrument Selector */}
             {/* Title / Instrument Selector - HIDDEN in Compact Mode to save space */}
-            {/* <div className="flex items-center gap-2 mb-1 w-full justify-center">...</div> */}
 
             {/* Knobs Grid - Compact Layout (2 Rows of 6 or flexible) */}
             <div className="grid grid-cols-6 gap-x-1 gap-y-2 mb-1">
@@ -553,44 +399,19 @@ export const InstrumentControls: React.FC = () => {
         </>
     );
 
-    return createPortal(
-        <div
-            ref={modalRef}
-            data-instrument-controls
-            className={clsx(
-                "fixed z-[120] flex flex-col items-center gap-4",
-                isCompact ? "p-3 bg-bg-elevated/90 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl" :
-                    "p-4 bg-bg-elevated/80 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl"
-            )}
-            style={{
-                left: 0,
-                top: 0,
-                width: 'auto',
-                minWidth: isMobile ? '280px' : '320px',
-                maxWidth: 'calc(100vw - 24px)', // Prevent cutoff on small screens
-                transform: `translate3d(${modalPosition.x}px, ${modalPosition.y}px, 0)`,
-                willChange: 'transform'
-            }}
-            onMouseDown={handleDragStart}
-            onTouchStart={handleDragStart}
+    return (
+        <DraggableModal
+            isOpen={instrumentControlsModalVisible}
+            onClose={() => toggleInstrumentControlsModal(false)}
+            position={instrumentControlsPosition}
+            onPositionChange={setInstrumentControlsPosition}
+            compact={isCompact}
+            minWidth={isMobile ? '280px' : '320px'}
+            dragExcludeSelectors={['button', '.touch-none', 'input', 'select', '.voice-selector-dropdown']}
+            dataAttribute="instrument-controls"
+        // Reconstruct the specific background styles from original if needed, 
+        // but DraggableModal's default glass styles should be sufficient and consistant.
         >
-            {/* Top Drag Handle */}
-            <div className="w-12 h-1.5 rounded-full bg-white/20 mb-1 cursor-move" />
-
-            {/* Close Button */}
-            <button
-                onClick={(e) => {
-                    e.stopPropagation();
-                    toggleInstrumentControlsModal(false);
-                }}
-                className={clsx(
-                    "absolute right-2 p-1 text-text-muted hover:text-text-primary rounded-full hover:bg-white/10 transition-colors",
-                    isCompact ? "-top-1" : "top-2"
-                )}
-            >
-                <X size={16} />
-            </button>
-
             {modalContent}
 
             {/* Chord Preview Badge */}
@@ -600,7 +421,9 @@ export const InstrumentControls: React.FC = () => {
                     onTouchEnd={(e) => { e.stopPropagation(); if (e.cancelable) e.preventDefault(); handlePlayChord(); }}
                     className={clsx(
                         "flex items-center gap-2 rounded-xl transition-all active:scale-95 border border-white/20 shadow-lg hover:shadow-xl relative z-10",
-                        isCompact ? "px-3 py-1.5 text-xs" : "px-4 py-2"
+                        isCompact ? "px-3 py-1.5 text-xs" : "px-4 py-2",
+                        // Add top margin to separate from controls
+                        "mt-2"
                     )}
                     style={{ background: chordColor, color: contrastColor }}
                     title="Tap to preview chord with current settings"
@@ -637,7 +460,7 @@ export const InstrumentControls: React.FC = () => {
                 <RotateCcw size={14} />
             </button>
 
-            {/* Patch Manager Toggle (Header Left) */}
+            {/* Patch Manager Toggle (Header Left) - Adjust position for DraggableModal */}
             <div className={clsx(
                 "absolute left-2 flex items-center gap-1 z-50",
                 isCompact ? "-top-1" : "top-2"
@@ -662,9 +485,6 @@ export const InstrumentControls: React.FC = () => {
                     initialView={patchManagerInitialView}
                 />
             )}
-
-        </div>,
-        document.body
+        </DraggableModal>
     );
 };
-
