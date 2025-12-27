@@ -478,3 +478,54 @@ export function getContrastingTextColor(backgroundColor: string): string {
     // Default to black if unknown format
     return '#000000';
 }
+
+export function getAbsoluteDegree(note: string, root: string): string {
+    if (!root) return '-';
+
+    const normalize = (n: string) => n.replace(/[\d]/g, '').replace(/♭/, 'b').replace(/♯/, '#');
+    const semitoneMap: Record<string, number> = {
+        'C': 0,
+        'B#': 0,
+        'C#': 1,
+        'Db': 1,
+        'D': 2,
+        'D#': 3,
+        'Eb': 3,
+        'E': 4,
+        'Fb': 4,
+        'E#': 5,
+        'F': 5,
+        'F#': 6,
+        'Gb': 6,
+        'G': 7,
+        'G#': 8,
+        'Ab': 8,
+        'A': 9,
+        'A#': 10,
+        'Bb': 10,
+        'B': 11,
+        'Cb': 11,
+    };
+
+    const rootPc = semitoneMap[normalize(root)];
+    const notePc = semitoneMap[normalize(note)];
+    if (rootPc === undefined || notePc === undefined) return '-';
+
+    const interval = (notePc - rootPc + 12) % 12;
+    const degreeMap: Record<number, string> = {
+        0: 'R',
+        1: '♭2',
+        2: '2',
+        3: '♭3',
+        4: '3',
+        5: '4',
+        6: '♭5',
+        7: '5',
+        8: '♭6',
+        9: '6',
+        10: '♭7',
+        11: '7',
+    };
+
+    return degreeMap[interval] ?? '-';
+}

@@ -1,14 +1,18 @@
 import { useSongStore } from '../../store/useSongStore';
 import { PianoKeyboard } from './PianoKeyboard';
-import { GuitarChord } from './GuitarChord';
-import { MusicStaff } from './MusicStaff';
 import { VoiceSelector } from '../playback/VoiceSelector';
-import { getWheelColors, getChordNotes, getIntervalFromKey, invertChord, getMaxInversion, getInversionName, getChordSymbolWithInversion, formatChordForDisplay, getQualitySymbol, getMajorScale } from '../../utils/musicTheory';
-import { PanelRightClose, PanelRight, GripVertical, ChevronDown, ChevronLeft, ChevronRight, Plus, MoveRight } from 'lucide-react';
+import { getWheelColors, getChordNotes, getIntervalFromKey, invertChord, getMaxInversion, getInversionName, getChordSymbolWithInversion, formatChordForDisplay, getQualitySymbol, getAbsoluteDegree } from '../../utils/musicTheory';
+import { PanelRightClose, PanelRight, GripVertical, ChevronLeft, ChevronRight, Plus, MoveRight } from 'lucide-react';
 import { playChord, playNote } from '../../utils/audioEngine';
 import { useState, useCallback, useEffect, useRef } from 'react';
 
 import { useMobileLayout } from '../../hooks/useIsMobile';
+import { ChordGuitarSection } from './ChordGuitarSection';
+import { ChordVoicingsList } from './ChordVoicingsList';
+import { ChordTheory } from './ChordTheory';
+import { ChordScales } from './ChordScales';
+import { ChordNotesGrid } from './ChordNotesGrid';
+
 
 interface ChordDetailsProps {
     variant?: 'sidebar' | 'drawer' | 'landscape-panel' | 'landscape-expanded';
@@ -162,109 +166,7 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
         playNote(note, octave);
     }, []);
 
-    const voicingTooltips: Record<string, string> = {
-        // Major voicings
-        'maj': 'The classic major triad: bright, stable, and universally resolved. The foundation of Western harmony and the sound of "home."',
-        'major': 'The classic major triad: bright, stable, and universally resolved. The foundation of Western harmony and the sound of "home."',
-        'maj7': 'Smooth and sophisticated, the major 7th adds a dreamy, floating quality. Think Burt Bacharach, neo-soul, and late-night jazz.',
-        'maj9': 'Builds on maj7 with a crystalline 9th. Modern, airy, and introspective — perfect for R&B ballads and ambient textures.',
-        'maj13': 'The full major palette: lush, orchestral, and complex. Great for endings or when you want maximum harmonic richness.',
-        '6': 'Warm and vintage — the major 6th has an old-Hollywood or country sweetness. Softer resolution than maj7.',
-        'add9': 'A major triad with added sparkle from the 9th, but no 7th. Clean, modern, and ubiquitous in pop and worship music.',
 
-        // Dominant voicings
-        '7': 'The dominant 7th creates bluesy tension begging for resolution. The engine behind the ii-V-I and the soul of rock & blues.',
-        '9': 'Dominant 7 with a colorful 9th. Funky, jazzy, and sophisticated — think Stevie Wonder, Earth Wind & Fire, and neo-soul.',
-        '11': 'Suspended, modal quality over dominant function. Creates an open, unresolved tension that floats before landing.',
-        '13': 'The dominant chord at its richest: soulful 13th on top of bluesy 7th. Perfect for jazz turnarounds and R&B grooves.',
-
-        // Minor voicings
-        'm7': 'The workhorse minor chord: soulful, laid-back, and endlessly versatile. The default for jazz ii chords and R&B grooves.',
-        'minor': 'The basic minor triad: melancholic, introspective, and emotionally direct. Minor keys are built on this sound.',
-        'm9': 'Lush and cinematic — adds depth and width to the minor sound. Evokes late-night cityscapes and emotional introspection.',
-        'm11': 'Spacious and modal, with an open 11th suspension. Great for grooves, vamps, and creating atmospheric tension.',
-        'm6': 'Bittersweet with a film-noir quality. The 6th adds sophistication to minor — a nice alternative to m7 for tonic chords.',
-
-        // Suspended voicings
-        'sus2': 'Neither major nor minor — the open 2nd creates an ambient, neutral quality. Ubiquitous in pop, rock, and modern worship.',
-        'sus4': 'Suspended tension from the 4th wants to fall to the 3rd. Creates expectation and movement — classic resolution technique.',
-
-        // Diminished voicings
-        'dim': 'Highly unstable and tense — every note pushes somewhere else. Perfect as a passing chord or chromatic approach.',
-        'diminished': 'Highly unstable and tense — every note pushes somewhere else. Perfect as a passing chord or chromatic approach.',
-        'm7b5': 'Half-diminished: dark and sophisticated. The natural ii chord in minor keys, essential for minor ii-V-i progressions.',
-    };
-    const voicingOptions = [
-        'maj',
-        '7',
-        'maj7',
-        'maj9',
-        'maj13',
-        '6',
-        '13',
-        'm7',
-        'm9',
-        'm11',
-        'm6',
-        'sus2',
-        'sus4',
-        'dim',
-        'm7b5',
-        'add9',
-        '9',
-        '11',
-    ];
-
-    const getAbsoluteDegree = (note: string): string => {
-        if (!chord?.root) return '-';
-
-        const normalize = (n: string) => n.replace(/[\d]/g, '').replace(/♭/, 'b').replace(/♯/, '#');
-        const semitoneMap: Record<string, number> = {
-            'C': 0,
-            'B#': 0,
-            'C#': 1,
-            'Db': 1,
-            'D': 2,
-            'D#': 3,
-            'Eb': 3,
-            'E': 4,
-            'Fb': 4,
-            'E#': 5,
-            'F': 5,
-            'F#': 6,
-            'Gb': 6,
-            'G': 7,
-            'G#': 8,
-            'Ab': 8,
-            'A': 9,
-            'A#': 10,
-            'Bb': 10,
-            'B': 11,
-            'Cb': 11,
-        };
-
-        const rootPc = semitoneMap[normalize(chord.root)];
-        const notePc = semitoneMap[normalize(note)];
-        if (rootPc === undefined || notePc === undefined) return '-';
-
-        const interval = (notePc - rootPc + 12) % 12;
-        const degreeMap: Record<number, string> = {
-            0: 'R',
-            1: '♭2',
-            2: '2',
-            3: '♭3',
-            4: '3',
-            5: '4',
-            6: '♭5',
-            7: '5',
-            8: '♭6',
-            9: '6',
-            10: '♭7',
-            11: '7',
-        };
-
-        return degreeMap[interval] ?? '-';
-    };
 
     // Handle resize drag (sidebar only) - supports both mouse and touch
     const handleResizeStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
@@ -543,63 +445,7 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
         }
     }, [chord, handleDiagramClick, handleDiagramDoubleClick]);
 
-    // Get suggested voicings based on chord function
-    const getSuggestedVoicings = (): { extensions: string[], description: string } => {
-        if (!chord) return { extensions: [], description: '' };
-        let numeral = chord.numeral;
 
-        // Extract base numeral if it contains parentheses (e.g., "II (V of V)" -> "II")
-        if (numeral && numeral.includes('(')) {
-            const match = numeral.match(/^(.+?)\s*\(/);
-            if (match) {
-                numeral = match[1].trim();
-            }
-        }
-
-        const suggestions: Record<string, { extensions: string[], description: string }> = {
-            'I': {
-                extensions: ['maj', 'maj7', 'maj9', 'maj13', '6'],
-                description: 'The tonic — your home base and resting point. This is where phrases resolve and songs often begin and end. Its stability makes it perfect for choruses and moments of arrival.'
-            },
-            'IV': {
-                extensions: ['maj', 'maj7', 'maj9', 'maj13', '6'],
-                description: 'The subdominant — warm, hopeful, and slightly floating. It gently pulls away from home without creating urgency. Great for pre-choruses and that "lifting" feeling before a chorus.'
-            },
-            'V': {
-                extensions: ['maj', '7', '9', '11', 'sus4', '13'],
-                description: 'The dominant — maximum tension wanting to resolve back to I. This chord creates expectation and forward motion. It\'s the "question" that begs for an "answer."'
-            },
-            'ii': {
-                extensions: ['m', 'm7', 'm9', 'm11', 'm6'],
-                description: 'The supertonic — a natural setup chord that leads smoothly to V or IV. It\'s the workhorse of the ii-V-I progression and adds sophistication to any verse.'
-            },
-            'iii': {
-                extensions: ['m', 'm7'],
-                description: 'The mediant — mysterious and chameleon-like. It can substitute for I (they share two notes) or lead to vi. Use it for unexpected color and emotional complexity.'
-            },
-            'vi': {
-                extensions: ['m', 'm7', 'm9', 'm11'],
-                description: 'The relative minor — emotional depth and melancholy without leaving the key. This is the "sad" chord in major keys and the foundation of countless pop progressions (vi-IV-I-V).'
-            },
-            'vii°': {
-                extensions: ['dim', 'm7♭5'],
-                description: 'The leading tone chord — highly unstable and restless. Every note wants to move somewhere, making it a powerful passing chord that pulls strongly toward I.'
-            },
-            'II': {
-                extensions: ['maj', '7', 'sus4'],
-                description: 'A secondary dominant (V of V) — borrowed tension that points toward V. Use it to create a dramatic runway before landing on V.'
-            },
-            'III': {
-                extensions: ['maj', '7', 'sus4'],
-                description: 'A secondary dominant (V of vi) — creates an unexpected dramatic pull toward vi. Perfect for adding tension before a minor chord moment.'
-            },
-        };
-
-        return suggestions[numeral || ''] || {
-            extensions: [],
-            description: `This chord doesn't fit in the key of ${selectedKey}, but it may add color and interest to your progression.`
-        };
-    };
 
     // Collapsed state - show appropriate reopen control
     // forceVisible overrides store state (used for drag preview)
@@ -917,50 +763,12 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
                                 />
                                 {/* Notes display - ONLY show if not in compact landscape */}
                                 {!isCompactLandscape && (
-                                    <div className={`${isMobile ? 'mt-4' : 'mt-5'} w-full`}>
-                                        <div
-                                            className="grid gap-1"
-                                            style={{
-                                                gridTemplateColumns: `${isMobile ? '56px' : '72px'} repeat(${displayNotes.length}, minmax(0, 1fr))`
-                                            }}
-                                        >
-                                            {/* Notes row - fixed height to prevent layout shift */}
-                                            <div className="text-[10px] font-semibold uppercase tracking-wide text-text-muted flex items-center" style={{ height: '16px' }}>Notes</div>
-                                            {displayNotes.map((note, i) => (
-                                                <div
-                                                    key={`note-${i}`}
-                                                    className={`text-center ${isMobile ? 'text-xs' : 'text-sm'} font-bold text-text-primary flex items-center justify-center`}
-                                                    style={{ height: '16px' }}
-                                                >
-                                                    {note}
-                                                </div>
-                                            ))}
-
-                                            {/* Absolute row - fixed height to prevent layout shift */}
-                                            <div className="text-[10px] font-semibold uppercase tracking-wide text-text-muted flex items-center" style={{ height: '16px' }}>Absolute</div>
-                                            {displayNotes.map((note, i) => (
-                                                <div
-                                                    key={`abs-${i}`}
-                                                    className={`text-center ${isMobile ? 'text-[11px]' : 'text-xs'} text-text-primary font-semibold flex items-center justify-center`}
-                                                    style={{ height: '16px' }}
-                                                >
-                                                    {getAbsoluteDegree(note)}
-                                                </div>
-                                            ))}
-
-                                            {/* Relative to Key row - fixed height to prevent layout shift */}
-                                            <div className="text-[10px] font-semibold uppercase tracking-wide text-text-muted flex items-center" style={{ height: '16px' }}>Relative</div>
-                                            {displayNotes.map((note, i) => (
-                                                <div
-                                                    key={`rel-${i}`}
-                                                    className={`text-center ${isMobile ? 'text-[11px]' : 'text-xs'} text-text-secondary flex items-center justify-center`}
-                                                    style={{ height: '16px' }}
-                                                >
-                                                    {getIntervalFromKey(selectedKey, note).replace(/^1/, 'R')}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
+                                    <ChordNotesGrid
+                                        isMobile={isMobile}
+                                        displayNotes={displayNotes}
+                                        chordRoot={chord?.root}
+                                        selectedKey={selectedKey}
+                                    />
                                 )}
                             </div>
                         )}
@@ -969,306 +777,85 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
                         <div className="flex flex-col w-full min-w-0">
 
                             {/* Combined Guitar / Suggested section */}
-                            <div
-                                ref={guitarSectionRef}
-                                className={`${isLandscapeVariant ? 'px-2 py-1' : isMobile ? 'px-5 py-1' : 'px-5 py-1'} rounded-none`}
-                                style={{ backgroundColor: '#1e1e28', borderBottom: '1px solid #3a3a4a', scrollMarginTop: '60px' }}
-                            >
-                                <button
-                                    onClick={() => {
+                            <div ref={guitarSectionRef}>
+                                <ChordGuitarSection
+                                    chord={chord}
+                                    selectedKey={selectedKey}
+                                    previewVariant={previewVariant}
+                                    showGuitar={showGuitar}
+                                    isCompactLandscape={isCompactLandscape}
+                                    isMobile={isMobile}
+                                    isNarrowPanel={isNarrowPanel}
+                                    chordColor={chordColor}
+                                    displayNotes={displayNotes}
+                                    onToggle={() => {
                                         const newState = !showGuitar;
                                         setShowGuitar(newState);
                                         if (newState) {
                                             setTimeout(() => scrollSectionIntoView(guitarSectionRef), 50);
                                         }
                                     }}
-                                    className={`w-full flex items-center justify-between ${showGuitar ? 'mb-2' : 'mb-0'} cursor-pointer rounded-none`}
-                                    style={{ backgroundColor: 'transparent' }}
-                                >
-                                    <h3 className={`${isCompactLandscape ? 'text-[9px]' : isMobile ? 'text-[11px]' : 'text-[10px]'} font-semibold text-text-secondary uppercase tracking-wide whitespace-nowrap`}>
-                                        {isCompactLandscape ? 'Guitar & Suggested' : `Guitar & Suggested Voicings for ${formatChordForDisplay(chord.numeral || chord.symbol)}`}
-                                    </h3>
-                                    <ChevronDown
-                                        size={isCompactLandscape ? 8 : isMobile ? 14 : 12}
-                                        className={`text-text-secondary transition-transform ${showGuitar ? 'rotate-180' : ''}`}
-                                    />
-                                </button>
-                                {showGuitar && (
-                                    <>
-                                        <div className={`flex ${isCompactLandscape ? 'flex-col gap-2' : 'flex-row items-start gap-2'} px-3`} style={{ marginTop: isCompactLandscape ? '4px' : '8px' }}>
-                                            {/* Left: Guitar diagram + voicing description below */}
-                                            <div className="flex flex-col items-center shrink-0" style={{ minWidth: isCompactLandscape ? '70px' : '100px' }}>
-                                                <GuitarChord
-                                                    root={chord.root}
-                                                    quality={previewVariant || chord.quality}
-                                                    color={chordColor}
-                                                    onClick={handleDiagramClick}
-                                                    onDoubleClick={handleDiagramDoubleClick}
-                                                />
-                                                {/* Voicing description below guitar chord - hide in landscape mode */}
-                                                {!isCompactLandscape && (
-                                                    <p className={`${isMobile ? 'text-[10px]' : 'text-[9px]'} text-text-muted leading-relaxed text-center ${isMobile ? 'mb-1 px-1' : 'mb-1 px-0.5'}`} style={{ maxWidth: isCompactLandscape ? '70px' : '100px' }}>
-                                                        {voicingTooltips[previewVariant || chord.quality] || 'Select a voicing to see its description.'}
-                                                    </p>
-                                                )}
-                                            </div>
-                                            {/* Vertical divider */}
-                                            <div className="w-px bg-border-subtle self-stretch" />
-                                            {/* Right: Suggested Voicings + Compact Music Staff below */}
-                                            <div className={`flex-1 flex flex-col ${isNarrowPanel ? 'justify-start' : 'justify-between'} pl-1`}>
-                                                {getSuggestedVoicings().extensions.length > 0 ? (
-                                                    <>
-                                                        <div className={`grid ${isCompactLandscape ? 'grid-cols-1' : isNarrowPanel ? 'grid-cols-1' : 'grid-cols-2'}`} style={{ gap: isCompactLandscape ? '2px' : isNarrowPanel ? '4px' : isMobile ? '6px' : '5px', marginBottom: isCompactLandscape ? '2px' : '4px', marginRight: isNarrowPanel ? '12px' : undefined }}>
-                                                            {getSuggestedVoicings().extensions.map((ext) => (
-                                                                <button
-                                                                    key={ext}
-                                                                    className={`relative group ${isCompactLandscape ? 'px-1 py-1 text-[9px] min-h-[24px]' : isNarrowPanel ? 'px-2 py-1.5 text-[9px] min-h-[26px]' : isMobile ? 'px-2 py-2 text-xs min-h-[36px]' : 'px-1.5 py-1 text-[10px]'} rounded font-semibold transition-colors touch-feedback text-center w-full`}
-                                                                    style={{
-                                                                        ...(previewVariant === ext
-                                                                            ? { backgroundColor: '#4f46e5', color: '#ffffff', border: '1px solid #4f46e5' }
-                                                                            : { backgroundColor: '#282833', color: '#f0f0f5', border: '1px solid rgba(255,255,255,0.08)' })
-                                                                    }}
-                                                                    onClick={() => handleVariationClick(ext)}
-                                                                    onDoubleClick={() => handleVariationDoubleClick(ext)}
-                                                                >
-                                                                    {formatChordForDisplay(`${chord.root}${ext}`)}
-                                                                    {!isMobile && voicingTooltips[ext] && (
-                                                                        <span
-                                                                            className="pointer-events-none absolute -top-6 -translate-y-full left-1/2 -translate-x-1/2 whitespace-normal text-[10px] leading-tight bg-black text-white px-3 py-2 rounded border border-white/10 shadow-xl opacity-0 group-hover:opacity-100 group-active:opacity-0 group-focus:opacity-0 transition-opacity duration-150 group-hover:delay-1000 z-50 w-44 text-left"
-                                                                            style={{
-                                                                                backgroundColor: '#000',
-                                                                                color: '#fff',
-                                                                                padding: '8px 10px'
-                                                                            }}
-                                                                        >
-                                                                            {voicingTooltips[ext] ? (
-                                                                                <>
-                                                                                    {voicingTooltips[ext]}
-                                                                                    <div className="h-px bg-white/20 my-1.5" />
-                                                                                </>
-                                                                            ) : null}
-                                                                            Double-click to add to timeline
-                                                                        </span>
-                                                                    )}
-                                                                </button>
-                                                            ))}
-                                                        </div>
-                                                        {/* Compact Musical Staff - below voicings, hidden when panel is narrow or compact landscape */}
-                                                        {!isNarrowPanel && !isCompactLandscape && (
-                                                            <div className="mt-auto" style={{ paddingTop: isCompactLandscape ? '2px' : '6px' }}>
-                                                                <MusicStaff
-                                                                    notes={displayNotes}
-                                                                    rootNote={chord.root}
-                                                                    color={chordColor}
-                                                                    numerals={displayNotes.map(note => getAbsoluteDegree(note))}
-                                                                    onNotePlay={handleNotePlay}
-                                                                    compact={true}
-                                                                />
-                                                            </div>
-                                                        )}
-                                                    </>
-                                                ) : (
-                                                    /* Out-of-key: show message inline with a larger, centered music staff */
-                                                    <div className="flex flex-col items-center justify-center flex-1">
-                                                        <MusicStaff
-                                                            notes={displayNotes}
-                                                            rootNote={chord.root}
-                                                            color={chordColor}
-                                                            numerals={displayNotes.map(note => getAbsoluteDegree(note))}
-                                                            onNotePlay={handleNotePlay}
-                                                            compact={false}
-                                                        />
-                                                        <p className={`${isCompactLandscape ? 'text-[8px]' : isMobile ? 'text-[10px]' : 'text-[9px]'} text-text-muted italic text-center mt-1`}>
-                                                            Out of key — see <span className="font-semibold text-text-secondary">Voicings</span> below
-                                                        </p>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </>
-                                )}
+                                    onVariationClick={handleVariationClick}
+                                    onVariationDoubleClick={handleVariationDoubleClick}
+                                    onDiagramClick={handleDiagramClick}
+                                    onDiagramDoubleClick={handleDiagramDoubleClick}
+                                    onNotePlay={handleNotePlay}
+                                />
                             </div>
 
                             {/* Variations */}
-                            <div
-                                ref={voicingsSectionRef}
-                                className={`${isLandscapeExpanded ? 'px-3 py-1' : isMobile ? 'px-5 py-1 mt-2' : 'px-5 py-1'} rounded-none`}
-                                style={{ backgroundColor: '#1e1e28', borderBottom: '1px solid #3a3a4a', scrollMarginTop: '60px' }}
-                            >
-                                <button
-                                    onClick={() => {
+                            <div ref={voicingsSectionRef}>
+                                <ChordVoicingsList
+                                    showVariations={showVariations}
+                                    isCompactLandscape={isCompactLandscape}
+                                    isMobile={isMobile}
+                                    onToggle={() => {
                                         const newState = !showVariations;
                                         setShowVariations(newState);
                                         if (newState) {
                                             setTimeout(() => scrollSectionIntoView(voicingsSectionRef), 50);
                                         }
                                     }}
-                                    className={`w-full flex items-center justify-between ${showVariations ? 'mb-2' : 'mb-0'} cursor-pointer rounded-none`}
-                                    style={{ backgroundColor: 'transparent' }}
-                                >
-                                    <h3 className={`${isCompactLandscape ? 'text-[9px]' : isMobile ? 'text-[11px]' : 'text-[10px]'} font-semibold text-text-secondary uppercase tracking-wide`}>
-                                        Voicings
-                                    </h3>
-                                    <ChevronDown
-                                        size={isCompactLandscape ? 8 : isMobile ? 14 : 12}
-                                        className={`text-text-secondary transition-transform ${showVariations ? 'rotate-180' : ''}`}
-                                    />
-                                </button>
-                                {showVariations && (
-                                    <div className={`grid ${isCompactLandscape ? 'grid-cols-2 gap-1' : isMobile ? 'grid-cols-3 gap-3' : 'grid-cols-2 sm:grid-cols-3 gap-2.5'}`}>
-                                        {voicingOptions.map((ext, idx) => {
-                                            const isLeftCol = idx % 2 === 0;
-                                            const tooltipPositionStyle = isLeftCol
-                                                ? { left: 'calc(100% + 10px)' }
-                                                : { right: 'calc(100% + 10px)' };
-
-                                            return (
-                                                <button
-                                                    key={ext}
-                                                    className={`relative group ${isCompactLandscape ? 'px-1 py-0.5 min-h-[18px] text-[7px]' : isMobile ? 'px-3 py-3 min-h-[48px] text-xs' : 'px-2 py-1.5 text-[10px]'} rounded font-medium transition-colors touch-feedback truncate`}
-                                                    style={previewVariant === ext
-                                                        ? { backgroundColor: '#4f46e5', color: '#ffffff', border: '1px solid #4f46e5' }
-                                                        : { backgroundColor: '#282833', color: '#9898a6', border: '1px solid rgba(255,255,255,0.08)' }
-                                                    }
-                                                    onClick={() => handleVariationClick(ext)}
-                                                    onDoubleClick={() => handleVariationDoubleClick(ext)}
-                                                >
-                                                    {ext}
-                                                    {!isMobile && voicingTooltips[ext] && (
-                                                        <span
-                                                            className="pointer-events-none absolute top-1/2 -translate-y-1/2 whitespace-normal text-[10px] leading-tight bg-black text-white px-3 py-2 rounded border border-white/10 shadow-xl opacity-0 group-hover:opacity-100 group-active:opacity-0 group-focus:opacity-0 transition-opacity duration-150 group-hover:delay-1000 z-50 w-44 text-left"
-                                                            style={{
-                                                                ...tooltipPositionStyle,
-                                                                backgroundColor: '#000',
-                                                                color: '#fff',
-                                                                padding: '8px 10px'
-                                                            }}
-                                                        >
-                                                            {voicingTooltips[ext] ? (
-                                                                <>
-                                                                    {voicingTooltips[ext]}
-                                                                    <div className="h-px bg-white/20 my-1.5" />
-                                                                </>
-                                                            ) : null}
-                                                            Double-click to add to timeline
-                                                        </span>
-                                                    )}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                )}
+                                    previewVariant={previewVariant}
+                                    onVariationClick={handleVariationClick}
+                                    onVariationDoubleClick={handleVariationDoubleClick}
+                                />
                             </div>
 
-                            {/* Theory Note - with proper text wrapping - Hide in compact landscape */}
-                            {!isCompactLandscape && (
-                                <div
-                                    ref={theorySectionRef}
-                                    className={`${isLandscapeExpanded ? 'px-3 py-1' : isMobile ? 'px-5 py-1 mt-2' : 'px-5 py-1'} rounded-none`}
-                                    style={{ backgroundColor: '#1e1e28', borderBottom: '1px solid #3a3a4a', scrollMarginTop: '60px' }}
-                                >
-                                    <button
-                                        onClick={() => {
-                                            const newState = !showTheory;
-                                            setShowTheory(newState);
-                                            if (newState) {
-                                                setTimeout(() => scrollSectionIntoView(theorySectionRef), 50);
-                                            }
-                                        }}
-                                        className={`w-full flex items-center justify-between cursor-pointer ${showTheory ? 'mb-3' : 'mb-0'} rounded-none`}
-                                        style={{ backgroundColor: 'transparent' }}
-                                    >
-                                        <h3 className={`${isCompactLandscape ? 'text-[9px]' : isMobile ? 'text-[11px]' : 'text-[10px]'} font-semibold text-text-secondary uppercase tracking-wide`}>
-                                            Theory
-                                        </h3>
-                                        <ChevronDown
-                                            size={isCompactLandscape ? 8 : isMobile ? 14 : 12}
-                                            className={`text-text-secondary transition-transform ${showTheory ? 'rotate-180' : ''}`}
-                                        />
-                                    </button>
-                                    {showTheory && (
-                                        <div className={`${isMobile ? 'p-3 pr-4' : 'p-4'} bg-bg-elevated rounded-none overflow-hidden`}>
-                                            <p className={`${isMobile ? 'text-sm' : 'text-xs'} text-text-secondary leading-relaxed break-words`}>
-                                                {getSuggestedVoicings().description}
-                                            </p>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
+                            {/* Theory Note */}
+                            <div ref={theorySectionRef}>
+                                <ChordTheory
+                                    chord={chord}
+                                    selectedKey={selectedKey}
+                                    isCompactLandscape={isCompactLandscape}
+                                    isMobile={isMobile}
+                                    showTheory={showTheory}
+                                    onToggle={() => {
+                                        const newState = !showTheory;
+                                        setShowTheory(newState);
+                                        if (newState) {
+                                            setTimeout(() => scrollSectionIntoView(theorySectionRef), 50);
+                                        }
+                                    }}
+                                />
+                            </div>
 
-                            {/* Scales - All modes in the current key - Hide in compact landscape */}
-                            {!isCompactLandscape && (
-                                <div
-                                    ref={scalesSectionRef}
-                                    className={`${isLandscapeExpanded ? 'px-3 py-1' : isMobile ? 'px-5 py-1 mt-2' : 'px-5 py-1'} rounded-none`}
-                                    style={{ backgroundColor: '#1e1e28', borderBottom: '1px solid #3a3a4a', scrollMarginTop: '60px' }}
-                                >
-                                    <button
-                                        onClick={() => {
-                                            const newState = !showScales;
-                                            setShowScales(newState);
-                                            if (newState) {
-                                                setTimeout(() => scrollSectionIntoView(scalesSectionRef), 50);
-                                            }
-                                        }}
-                                        className={`w-full flex items-center justify-between ${showScales ? 'mb-2' : 'mb-0'} cursor-pointer rounded-none`}
-                                        style={{ backgroundColor: 'transparent' }}
-                                    >
-                                        <h3 className={`${isCompactLandscape ? 'text-[9px]' : isMobile ? 'text-[11px]' : 'text-[10px]'} font-semibold text-text-secondary uppercase tracking-wide`}>
-                                            Scales in {formatChordForDisplay(selectedKey)}
-                                        </h3>
-                                        <ChevronDown
-                                            size={isCompactLandscape ? 8 : isMobile ? 14 : 12}
-                                            className={`text-text-secondary transition-transform ${showScales ? 'rotate-180' : ''}`}
-                                        />
-                                    </button>
-                                    {showScales && (() => {
-                                        const scale = getMajorScale(selectedKey);
-                                        const getModeScale = (startDegree: number) => {
-                                            const rotated = [...scale.slice(startDegree), ...scale.slice(0, startDegree)];
-                                            return rotated.map(n => formatChordForDisplay(n)).join(' – ');
-                                        };
-                                        const modes = [
-                                            { name: 'Ionian (I)', degree: 0, quality: 'MAJ', color: '#EAB308', desc: 'Bright, happy' },
-                                            { name: 'Dorian (ii)', degree: 1, quality: 'min', color: '#8B5CF6', desc: 'Hopeful minor, jazzy' },
-                                            { name: 'Phrygian (iii)', degree: 2, quality: 'min', color: '#F97316', desc: 'Spanish, exotic' },
-                                            { name: 'Lydian (IV)', degree: 3, quality: 'MAJ', color: '#06B6D4', desc: 'Dreamy, floating' },
-                                            { name: 'Mixolydian (V)', degree: 4, quality: 'MAJ', color: '#10B981', desc: 'Bluesy, rock' },
-                                            { name: 'Aeolian (vi)', degree: 5, quality: 'min', color: '#3B82F6', desc: 'Sad, melancholic' },
-                                            { name: 'Locrian (vii°)', degree: 6, quality: 'dim', color: '#EF4444', desc: 'Dark, unstable' },
-                                        ];
-                                        return (
-                                            <div className="space-y-1.5 pb-2">
-                                                {modes.map((mode) => (
-                                                    <div
-                                                        key={mode.name}
-                                                        className="bg-bg-tertiary/50 p-2 rounded"
-                                                        style={{ borderLeft: `2px solid ${mode.color}` }}
-                                                    >
-                                                        <div className="flex items-center justify-between mb-0.5">
-                                                            <span className={`${isMobile ? 'text-[11px]' : 'text-[10px]'} font-medium text-white`}>
-                                                                {formatChordForDisplay(scale[mode.degree])} {mode.name.split(' ')[0]}
-                                                            </span>
-                                                            <span
-                                                                className="text-[8px] px-1 py-0.5 rounded"
-                                                                style={{ color: mode.color, backgroundColor: `${mode.color}15` }}
-                                                            >
-                                                                {mode.quality}
-                                                            </span>
-                                                        </div>
-                                                        <p className={`${isMobile ? 'text-[9px]' : 'text-[8px]'} text-gray-400 mb-1`}>
-                                                            {mode.desc}
-                                                        </p>
-                                                        <p className={`${isMobile ? 'text-[10px]' : 'text-[9px]'} text-gray-500 font-mono tracking-wide`}>
-                                                            {getModeScale(mode.degree)}
-                                                        </p>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        );
-                                    })()}
-                                </div>
-                            )}
+                            {/* Scales */}
+                            <div ref={scalesSectionRef}>
+                                <ChordScales
+                                    selectedKey={selectedKey}
+                                    isCompactLandscape={isCompactLandscape}
+                                    isMobile={isMobile}
+                                    showScales={showScales}
+                                    onToggle={() => {
+                                        const newState = !showScales;
+                                        setShowScales(newState);
+                                        if (newState) {
+                                            setTimeout(() => scrollSectionIntoView(scalesSectionRef), 50);
+                                        }
+                                    }}
+                                />
+                            </div>
 
                             {/* End of Collapsible Sections Container */}
                         </div>

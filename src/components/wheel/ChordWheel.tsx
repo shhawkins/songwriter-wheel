@@ -1071,12 +1071,23 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
                         })}
                     </g>
 
-                    {/* Center Clickable Area - transparent overlay for tapping the center */}
-                    {/* Only the key text area should be clickable for modal, not the whole circle */}
-                    {/* This prevents accidental modal opening when tapping lock */}
+                    {/* Center Circle Visual - now captures hits to prevent UI toggle */}
+                    {/* The KEY text area below still handles its own clicks for the modal */}
 
                     {/* Center Circle Visual */}
-                    <circle cx={cx} cy={cy} r={centerRadius} fill="#1a1a24" stroke="#3a3a4a" strokeWidth="2" style={{ pointerEvents: 'none' }} />
+                    <circle
+                        cx={cx} cy={cy} r={centerRadius}
+                        fill="#1a1a24" stroke="#3a3a4a" strokeWidth="2"
+                        style={{ pointerEvents: 'all' }}
+                        onClick={(e) => e.stopPropagation()}
+                        onTouchEnd={(e) => {
+                            // Only stop propagation if we didn't drag
+                            if (!hasMoved.current) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                            }
+                        }}
+                    />
 
                     {/* KEY Label + Key Name + Key Sig - Grouped for click target */}
                     <g

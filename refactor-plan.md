@@ -1,6 +1,6 @@
 # Code Refactor Plan - Songwriter Wheel
 
-**Status**: In Progress  
+**Status**: Testing & Verification  
 **Started**: 2025-12-27  
 **Based on**: `consultant.md` recommendations + user requirements
 
@@ -76,7 +76,7 @@ Reduce App.tsx complexity from 2000+ lines and extract reusable patterns.
 - [x] Extract `generatePdfDocument` to `utils/pdfGenerator.ts` (~400 lines)
 - [x] App.tsx reduced to ~1100 lines (from >2000)
 
-### Phase 2: Store Splitting (Started)
+### Phase 2: Store Splitting ✅
 - [x] FIX: Drag/drop of song section badges in timeline (broken) (Fixed by updating sensor logic)
 - [x] Create `src/store/slices/playbackSlice.ts`
 - [x] Integrate `PlaybackSlice` into `useSongStore.ts`
@@ -86,11 +86,17 @@ Reduce App.tsx complexity from 2000+ lines and extract reusable patterns.
 - [x] Integrate `SelectionSlice` into `useSongStore.ts`
 - [x] Move more logic to slices (CloudSlice)
 
-### Phase 3: Testing & Documentation
+### Phase 3: Testing & Documentation 🔲
 - [ ] Verify modal dragging works on mobile touch devices
 - [ ] Verify landscape/portrait transitions
 - [ ] Verify zoom/pan behavior
 - [ ] Verify immersive mode auto-timer
+
+### Phase 4: Component Deep-Clean (Recommended) 🔲
+*Items not in original plan but critical for "100%" maintainability per consultant report.*
+- [x] **Refactor `MobileTimeline.tsx`**: Extract `SortableSectionTab` and `useTimelineDragDrop` hook.
+- [x] **Refactor `ChordDetails.tsx`**: Extracted logic to `src/utils/chordSuggestions.ts` and UI components (`ChordGuitarSection`, `ChordVoicingsList`, `ChordTheory`, `ChordScales`, `ChordNotesGrid`).
+- [x] **Extract `UI Slice`**: Move UI/Modal state out of `useSongStore` into `createUISlice`.
 
 ---
 
@@ -102,14 +108,14 @@ Reduce App.tsx complexity from 2000+ lines and extract reusable patterns.
 | ✅ NEW | `src/components/ui/DraggableModal.tsx` | Reusable modal component |
 | ✅ NEW | `src/hooks/useKeyboardShortcuts.ts` | Keyboard shortcuts hook |
 | ✅ NEW | `src/hooks/useLayoutManager.ts` | Layout/responsive state hook |
-| ✅ NEW | `src/store/slices/playbackSlice.ts` | Store slice for playback |
+| ✅ NEW | `src/store/slices/*` | Playback, Instrument, Selection, Cloud slices |
 | ✅ MOD | `src/index.css` | Added `.glass-panel` utilities |
 | ✅ MOD | `src/components/playback/InstrumentControls.tsx` | Uses DraggableModal |
 | ✅ MOD | `src/components/wheel/VoicingQuickPicker.tsx` | Uses DraggableModal |
 | ✅ NEW | `src/components/layout/MobilePortraitDrawers.tsx` | Extracted drawer component |
 | ✅ NEW | `src/utils/pdfGenerator.ts` | PDF generation logic |
 | ✅ MOD | `src/App.tsx` | Layout hook integrated, comp. extracted |
-| ✅ MOD | `src/store/useSongStore.ts` | Integrated PlaybackSlice |
+| ✅ MOD | `src/store/useSongStore.ts` | Integrated Slices |
 
 
 ---
@@ -129,5 +135,3 @@ Reduce App.tsx complexity from 2000+ lines and extract reusable patterns.
 - [ ] Desktop with sidebar
 - [ ] Immersive mode auto-timer
 - [ ] Zoom/pan gestures
-
----

@@ -3,11 +3,12 @@ import { persist } from 'zustand/middleware';
 import type { Song, Section, InstrumentType, Measure } from '../types';
 import { CIRCLE_OF_FIFTHS, type Chord } from '../utils/musicTheory';
 import { v4 as uuidv4 } from 'uuid';
-import { v4 as uuidv4 } from 'uuid';
+
 import { createPlaybackSlice, type PlaybackSlice } from './slices/playbackSlice';
 import { createInstrumentSlice, type InstrumentSlice } from './slices/instrumentSlice';
 import { createSelectionSlice, type SelectionSlice } from './slices/selectionSlice';
 import { createCloudSlice, type CloudSlice } from './slices/cloudSlice';
+import { createUISlice, type UISlice } from './slices/uiSlice';
 import {
     createEmptyMeasure,
     ensureSelectionStillExists,
@@ -120,30 +121,8 @@ function suggestNextSectionType(sections: Section[]): Section['type'] {
 }
 
 
-interface SongState extends PlaybackSlice, InstrumentSlice, SelectionSlice, CloudSlice {
-    // Wheel state
-    selectedKey: string;
-    wheelRotation: number;        // Cumulative rotation (not reset at 360°)
-    wheelMode: 'rotating' | 'fixed';  // Rotating = wheel spins, Fixed = highlights move
-    chordPanelVisible: boolean;   // Toggle chord panel visibility
-    timelineVisible: boolean;     // Toggle timeline visibility
-    timelineZoom: number;         // Zoom level for timeline slots
-    songMapVisible: boolean;      // Toggle Song Map visibility
-    songInfoModalVisible: boolean; // Toggle Song Info Modal visibility
-    instrumentManagerModalVisible: boolean; // Toggle Instrument Manager Modal visibility
-    instrumentManagerInitialView: 'list' | 'create'; // Initial view for Instrument Manager Modal
-    instrumentControlsModalVisible: boolean; // Toggle Instrument Controls Modal
-    instrumentControlsPosition: { x: number; y: number } | null; // Persisted position
-    collapsedSections: Record<string, boolean>; // Per-section collapsed UI state
-
-    // Chord panel sections state (for portrait mode voicing picker logic)
-    chordPanelGuitarExpanded: boolean;
-    chordPanelVoicingsExpanded: boolean;
-    chordPanelAttention: boolean;  // Triggers attention animation on chord panel
-
-    // Key Lock State
-    isKeyLocked: boolean;
-    toggleKeyLock: () => void;
+interface SongState extends PlaybackSlice, InstrumentSlice, SelectionSlice, CloudSlice, UISlice {
+    // UI State has been moved to UISlice
 
     // Core State (Restoring missing properties)
     currentSong: Song;
@@ -167,23 +146,8 @@ interface SongState extends PlaybackSlice, InstrumentSlice, SelectionSlice, Clou
     toggleAutoAdvance: () => void;
 
     // Actions
-    setKey: (key: string, options?: { skipRotation?: boolean }) => void;
-    rotateWheel: (direction: 'cw' | 'ccw') => void;  // Cumulative rotation
-    toggleWheelMode: () => void;
-    toggleChordPanel: () => void;
-    toggleTimeline: () => void;
-    setTimelineZoom: (zoom: number) => void;
-    openTimeline: () => void;  // Opens timeline if not already open (for double-tap from wheel/details)
-    toggleSongMap: (force?: boolean) => void;
-    toggleSongInfoModal: (force?: boolean) => void;
-    toggleInstrumentManagerModal: (force?: boolean, view?: 'list' | 'create') => void;
-    toggleInstrumentControlsModal: (force?: boolean) => void;
-    setInstrumentControlsPosition: (position: { x: number; y: number } | null) => void;
-    resetInstrumentControls: () => void;
-    toggleSectionCollapsed: (sectionId: string) => void;
-    setChordPanelGuitarExpanded: (expanded: boolean) => void;
-    setChordPanelVoicingsExpanded: (expanded: boolean) => void;
-    pulseChordPanel: () => void;  // Trigger attention animation on chord panel
+    // Actions
+    // UI Actions moved to UISlice
 
     // Patch Actions
 
@@ -284,30 +248,14 @@ export const useSongStore = create<SongState>()(
             ...createInstrumentSlice(set, get, api),
             ...createSelectionSlice(set, get, api),
             ...createCloudSlice(set, get, api),
+            ...createUISlice(set, get, api),
 
             currentSong: DEFAULT_SONG,
             historyPast: [] as Song[],
             historyFuture: [] as Song[],
             canUndo: false,
             canRedo: false,
-            selectedKey: 'C',
-            wheelRotation: 0,
-            wheelMode: 'fixed' as SongState['wheelMode'],
-            chordPanelVisible: true,
-            timelineVisible: true,
-            timelineZoom: 1,
-            songMapVisible: false,
-            songInfoModalVisible: false,
-            instrumentManagerModalVisible: false,
-            instrumentManagerInitialView: 'list' as 'list' | 'create',
-            instrumentControlsModalVisible: false,
-            instrumentControlsPosition: null, // null = centered, otherwise {x, y}
-            collapsedSections: {},
-            chordPanelGuitarExpanded: false,  // Collapsed by default on mobile
-            chordPanelVoicingsExpanded: false,
-            chordPanelAttention: false,
-            isKeyLocked: false,
-            toggleKeyLock: () => set((state) => ({ isKeyLocked: !state.isKeyLocked })),
+            // UI State Initialized in UISlice
 
             // isPlaying, playingSectionId, playingSlotId, isLooping removed (in slice)
             tempo: 120,
@@ -319,10 +267,6 @@ export const useSongStore = create<SongState>()(
             autoAdvance: true,
 
             resetState: () => set({
-                cloudSongs: [], // This might need to check if cloudSlice handles reset?
-                // Actually resetState implementation needs to clear cloudSongs which is now in slice.
-                // But cloudSongs is initialized by slice.
-                // We should probably just call a reset action if we had one, or set it directly since we can set slice state.
                 cloudSongs: [],
                 customInstruments: [],
                 currentSong: DEFAULT_SONG,
@@ -338,125 +282,7 @@ export const useSongStore = create<SongState>()(
 
             setChordInversion: (inversion) => set({ chordInversion: inversion }),
 
-            setKey: (key, options) => set((state) => {
-                if (state.isKeyLocked) return {};
-
-                // In rotating mode, also update the wheel rotation to snap this key to the top
-                if (state.wheelMode === 'rotating' && !options?.skipRotation) {
-                    const keyIndex = CIRCLE_OF_FIFTHS.indexOf(key);
-                    if (keyIndex !== -1) {
-                        // Smart rotation: find the closest rotation angle to the current one
-                        // that matches the target key position. This prevents "spinning back"
-                        // when crossing the 0/360 boundary or when the wheel is wound up.
-                        const currentRotation = state.wheelRotation;
-                        const targetBaseRotation = -(keyIndex * 30);
-
-                        // Calculate shortest path to the target rotation
-                        const delta = targetBaseRotation - currentRotation;
-                        // Normalize delta to [-180, 180]
-                        const normalizedDelta = delta - 360 * Math.round(delta / 360);
-
-                        return {
-                            selectedKey: key,
-                            wheelRotation: currentRotation + normalizedDelta
-                        };
-                    }
-                }
-                return { selectedKey: key };
-            }),
-
-            // Cumulative rotation to avoid wrap-around animation issues
-            rotateWheel: (direction) => set((state) => {
-                if (state.isKeyLocked) return {}; // Do not change rotation if locked
-
-                return {
-                    wheelRotation: state.wheelMode === 'rotating' && !state.isDraggingVoicingPicker
-                        ? state.wheelRotation + (direction === 'cw' ? -30 : 30)
-                        : 0  // In fixed mode, wheel doesn't rotate, or if dragging voicing picker
-                };
-            }),
-
-            toggleWheelMode: () => set((state) => {
-                const newMode = state.wheelMode === 'rotating' ? 'fixed' : 'rotating';
-
-                // When unlocking (switching to rotating), snap the selected key to the top
-                // When locking (switching to fixed), snap the wheel to 0 (C at top)
-                let newRotation = 0;
-
-                if (newMode === 'rotating') {
-                    const keyIndex = CIRCLE_OF_FIFTHS.indexOf(state.selectedKey);
-                    if (keyIndex !== -1) {
-                        newRotation = -(keyIndex * 30);
-                    }
-                }
-
-                return {
-                    wheelMode: newMode,
-                    wheelRotation: newRotation
-                };
-            }),
-
-            toggleChordPanel: () => set((state) => ({ chordPanelVisible: !state.chordPanelVisible })),
-            toggleTimeline: () => set((state) => ({ timelineVisible: !state.timelineVisible })),
-            setTimelineZoom: (zoom) => set({ timelineZoom: Math.max(0.1, Math.min(2, zoom)) }),
-            openTimeline: () => set((state) => {
-                // Dispatch custom event for mobile to open its timeline drawer
-                if (typeof window !== 'undefined') {
-                    window.dispatchEvent(new CustomEvent('openMobileTimeline'));
-                }
-
-                // If no slot is selected, auto-select the first slot of the current section
-                // (or first section if none is selected)
-                if (!state.selectedSectionId || !state.selectedSlotId) {
-                    const sections = state.currentSong.sections;
-                    if (sections.length > 0) {
-                        // Use currently selected section if valid, otherwise first section
-                        const targetSection = state.selectedSectionId
-                            ? sections.find(s => s.id === state.selectedSectionId) || sections[0]
-                            : sections[0];
-
-                        if (targetSection.measures.length > 0 && targetSection.measures[0].beats.length > 0) {
-                            const firstSlot = targetSection.measures[0].beats[0];
-                            const slot = { sectionId: targetSection.id, slotId: firstSlot.id };
-                            const chord = firstSlot.chord ?? null;
-
-                            return {
-                                timelineVisible: true,
-                                selectedSectionId: targetSection.id,
-                                selectedSlotId: firstSlot.id,
-                                selectedSlots: [slot],
-                                selectionAnchor: slot,
-                                selectedChord: chord
-                            };
-                        }
-                    }
-                }
-
-                return { timelineVisible: true };
-            }),
-            toggleSongMap: (force?: boolean) => set((state) => ({
-                songMapVisible: force !== undefined ? force : !state.songMapVisible
-            })),
-            toggleSongInfoModal: (force?: boolean) => set((state) => ({
-                songInfoModalVisible: force !== undefined ? force : !state.songInfoModalVisible
-            })),
-            toggleInstrumentManagerModal: (force, view) => set((state) => ({
-                instrumentManagerModalVisible: force !== undefined ? force : !state.instrumentManagerModalVisible,
-                instrumentManagerInitialView: view || 'list'
-            })),
-            toggleSectionCollapsed: (sectionId) => set((state) => {
-                const next = { ...state.collapsedSections, [sectionId]: !state.collapsedSections?.[sectionId] };
-                if (!next[sectionId]) {
-                    delete next[sectionId];
-                }
-                return { collapsedSections: next };
-            }),
-            setChordPanelGuitarExpanded: (expanded) => set({ chordPanelGuitarExpanded: expanded }),
-            setChordPanelVoicingsExpanded: (expanded) => set({ chordPanelVoicingsExpanded: expanded }),
-            pulseChordPanel: () => {
-                set({ chordPanelAttention: true });
-                setTimeout(() => set({ chordPanelAttention: false }), 600);
-            },
+            // UI Actions moved to UISlice
 
             toggleAutoAdvance: () => set((state) => ({ autoAdvance: !state.autoAdvance })),
 

@@ -1,6 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useSongStore } from '../../store/useSongStore';
-import { playChord } from '../../utils/audioEngine';
 import { Plus, Minus, ChevronLeft, ChevronRight, Map as MapIcon, Settings2, RotateCcw, RotateCw } from 'lucide-react';
 import { SectionOptionsPopup } from './SectionOptionsPopup';
 import { useMobileLayout } from '../../hooks/useIsMobile';
@@ -8,176 +7,15 @@ import { NoteValueSelector } from './NoteValueSelector';
 import { getSectionDisplayName, type Section } from '../../types';
 import { ChordSlot } from './ChordSlot';
 import clsx from 'clsx';
-import {
-    DndContext,
-    DragOverlay,
-    KeyboardSensor,
-    PointerSensor,
-    TouchSensor,
-    useSensor,
-    useSensors,
-    closestCenter,
-    type DragEndEvent,
-    type DragMoveEvent,
-    type CollisionDetection,
-    MeasuringStrategy,
-} from '@dnd-kit/core';
-import {
-    arrayMove,
-    SortableContext,
-    sortableKeyboardCoordinates,
-    horizontalListSortingStrategy,
-    useSortable,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { type Modifier } from '@dnd-kit/core';
+import { DndContext, DragOverlay, MeasuringStrategy, closestCenter, type Modifier } from '@dnd-kit/core';
+import { SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable';
+import { useTimelineDragDrop } from './useTimelineDragDrop';
+import { SortableSectionTab } from './SortableSectionTab';
 
 const restrictToHorizontalAxis: Modifier = ({ transform }) => ({
     ...transform,
     y: 0,
 });
-
-// Sortable section tab component for drag-and-drop reordering
-interface SortableSectionTabProps {
-    section: Section;
-    allSections: Section[];
-    isActive: boolean;
-    isDesktop: boolean;
-    onActivate: () => void;
-    onEdit: () => void;
-    onDelete: () => void;
-}
-
-const SortableSectionTab: React.FC<SortableSectionTabProps> = ({
-    section,
-    allSections,
-    isActive,
-    isDesktop,
-    onActivate,
-    onEdit,
-}) => {
-    const {
-        attributes,
-        listeners,
-        setNodeRef,
-        transform,
-        transition,
-        isDragging,
-    } = useSortable({
-        id: section.id,
-        data: { type: 'section' }
-    });
-
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-    };
-
-    const displayName = getSectionDisplayName(section, allSections) || '?';
-    const firstLetter = (displayName && displayName.length > 0) ? displayName.charAt(0).toUpperCase() : '?';
-
-    return (
-        <div
-            ref={setNodeRef}
-            data-section-id={section.id}
-            className={clsx(
-                "relative shrink-0",
-                isDragging && "opacity-50 scale-95 z-50"
-            )}
-            style={style}
-        >
-            {/* TODO: X badge for deleting section - needs styling work
-            {isActive && (
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onDelete();
-                    }}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    className="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-black/70 backdrop-blur-sm hover:bg-white/20 flex items-center justify-center transition-all z-30 border border-white/30 hover:border-white/50"
-                    title="Delete section"
-                >
-                    <span className="text-white/90 text-[10px] font-bold leading-none">×</span>
-                </button>
-            )}
-            */}
-
-            {/* Outer button handles clicks/taps - NOT draggable, allows scroll gestures to pass through */}
-            <button
-                onClick={() => {
-                    if (isDragging) return;
-                    if (isActive) {
-                        onEdit();
-                    } else {
-                        onActivate();
-                    }
-                }}
-                className={clsx(
-                    "no-touch-enlarge relative font-semibold transition-all touch-feedback",
-                    "flex items-center justify-center select-none",
-                    isActive
-                        ? clsx(
-                            "rounded-full text-white shadow-lg whitespace-nowrap overflow-hidden",
-                            isDesktop ? "w-32 h-9 text-xs" : "w-24 h-8 text-[11px]"
-                        )
-                        : clsx(
-                            "rounded-full text-text-secondary hover:text-text-primary border border-border-medium hover:border-border-subtle hover:bg-bg-tertiary",
-                            isDesktop ? "w-9 h-9 text-sm" : "w-8 h-8 text-xs"
-                        )
-                )}
-                style={{
-                    WebkitTouchCallout: 'none',
-                    WebkitUserSelect: 'none',
-                    ...(isActive ? {
-                        background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #6366f1 100%)',
-                        boxShadow: '0 0 16px rgba(99, 102, 241, 0.5), inset 0 1px 0 rgba(255,255,255,0.2)',
-                        border: '1px solid rgba(255,255,255,0.2)',
-                    } : undefined)
-                }}
-                title={`${displayName} - Hold to drag`}
-            >
-                {isActive ? (
-                    <span className="flex items-center gap-1 px-2 truncate pointer-events-none">
-                        <span className="truncate">{displayName}</span>
-                        <span
-                            className="pointer-events-auto cursor-pointer hover:opacity-100 p-0.5 -m-0.5 rounded transition-opacity"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onEdit();
-                            }}
-                        >
-                            <Settings2 size={isDesktop ? 14 : 12} className="opacity-70 hover:opacity-100 shrink-0" />
-                        </span>
-                    </span>
-                ) : (
-                    firstLetter
-                )}
-            </button>
-
-            {/* Drag handle - covers the entire element for easier touch */}
-            {/* Handles taps via onClick (passed through if not dragging) and drag via hold */}
-            <div
-                {...attributes}
-                {...listeners}
-                onClick={() => {
-                    if (isDragging) return;
-                    if (isActive) {
-                        onEdit();
-                    } else {
-                        onActivate();
-                    }
-                }}
-                className="absolute inset-0 touch-none draggable-element cursor-grab active:cursor-grabbing"
-                style={{
-                    WebkitTouchCallout: 'none',
-                    WebkitUserSelect: 'none',
-                    touchAction: 'none'
-                }}
-                title="Hold to drag"
-            />
-        </div>
-    );
-};
 
 interface MobileTimelineProps {
     isOpen: boolean;
@@ -216,7 +54,6 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
         duplicateSection,
         clearSection,
         setMeasureSubdivision,
-        selectedChord,
         toggleSongMap,
         updateSection,
         undo,
@@ -255,323 +92,28 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
 
 
 
-    // Drag-and-drop state
-    const [activeDragId, setActiveDragId] = useState<string | null>(null);
-    const [activeDragType, setActiveDragType] = useState<'section' | 'chord' | null>(null);
-
-    // Edge scroll state for custom auto-scroll behavior
-    const edgeScrollRef = useRef<number | null>(null);
-    const scrollDirectionRef = useRef<'left' | 'right' | 'up' | 'down' | null>(null);
-    const dragStartScrollLeft = useRef<number>(0); // Scroll position when chord drag started (horizontal)
-    const dragStartScrollTop = useRef<number>(0); // Scroll position when chord drag started (vertical - for landscape)
-    const sectionDragStartScrollLeft = useRef<number>(0); // Scroll position when section drag started
-    const [scrollOffsetX, setScrollOffsetX] = useState(0); // Accumulated horizontal scroll during drag
-    const [scrollOffsetY, setScrollOffsetY] = useState(0); // Accumulated vertical scroll during drag (for landscape)
-    const EDGE_THRESHOLD = 35; // pixels from edge to trigger scroll - reduced from 50 to avoid accidental triggers
-    const SCROLL_SPEED = 12; // max pixels per frame - increases as you get closer to edge
-    const scrollIntensityRef = useRef<number>(0);
-
-    // Custom collision detection using native DOM hit-testing for CHORDS
-    // This bypasses dnd-kit's internal coordinate cache which can get out of sync during manual scrolling
-    const chordCollisionDetection: CollisionDetection = ({ pointerCoordinates }) => {
-        if (!pointerCoordinates) return [];
-
-        // Use native elementFromPoint to find what's actually under the finger on screen
-        const element = document.elementFromPoint(pointerCoordinates.x, pointerCoordinates.y);
-
-        if (!element) return [];
-
-        // Find the closest parent that is a droppable slot
-        const slotElement = element.closest('[data-slot-id]');
-
-        if (slotElement) {
-            const slotId = slotElement.getAttribute('data-slot-id');
-            if (slotId) {
-                // Return a collision with the specific slot ID
-                return [{
-                    id: `slot-${slotId}`, // Matches the ID format in useDroppable
-                    data: { value: slotId }
-                }];
-            }
-        }
-
-        return [];
-    };
-
-    // Separate sensors for sections and chords to prevent cross-context interference
-    const sectionSensors = useSensors(
-        useSensor(PointerSensor, {
-            activationConstraint: {
-                distance: 8,
-            },
-        }),
-        useSensor(TouchSensor, {
-            activationConstraint: {
-                delay: 150,
-                tolerance: 15,
-            },
-        }),
-        useSensor(KeyboardSensor, {
-            coordinateGetter: sortableKeyboardCoordinates,
-        })
-    );
-
-    const chordSensors = useSensors(
-        useSensor(PointerSensor, {
-            activationConstraint: {
-                distance: 8,
-            },
-        }),
-        useSensor(TouchSensor, {
-            activationConstraint: {
-                delay: 150,
-                tolerance: 15,
-            },
-        }),
-        useSensor(KeyboardSensor, {
-            coordinateGetter: sortableKeyboardCoordinates,
-        })
-    );
-
-    // Stop edge scrolling helper
-    const stopEdgeScroll = () => {
-        if (edgeScrollRef.current) {
-            cancelAnimationFrame(edgeScrollRef.current);
-            edgeScrollRef.current = null;
-        }
-        scrollDirectionRef.current = null;
-    };
-
-    // Start edge scrolling in a direction with variable intensity (speed)
-    // Supports both horizontal (left/right) and vertical (up/down) scrolling
-    const startEdgeScroll = (direction: 'left' | 'right' | 'up' | 'down', type: 'chord' | 'section', intensity: number) => {
-        scrollIntensityRef.current = intensity;
-
-        if (scrollDirectionRef.current === direction) return; // Already scrolling this way, just update intensity
-
-        stopEdgeScroll();
-        scrollDirectionRef.current = direction;
-
-        const isVertical = direction === 'up' || direction === 'down';
-
-        const scroll = () => {
-            const container = type === 'chord' ? scrollRef.current : sectionTabsRef.current;
-            if (!container || !scrollDirectionRef.current) return;
-
-            if (isVertical) {
-                // Vertical scrolling (for landscape mode)
-                const canScrollUp = container.scrollTop > 0;
-                const maxScrollY = container.scrollHeight - container.clientHeight;
-                const canScrollDown = container.scrollTop < maxScrollY - 1;
-
-                if (scrollDirectionRef.current === 'up' && !canScrollUp) {
-                    stopEdgeScroll();
-                    return;
-                }
-                if (scrollDirectionRef.current === 'down' && !canScrollDown) {
-                    stopEdgeScroll();
-                    return;
-                }
-
-                const speed = SCROLL_SPEED * scrollIntensityRef.current;
-                const delta = scrollDirectionRef.current === 'up' ? -speed : speed;
-                container.scrollTop += delta;
-
-                // Update vertical scroll offset for drag preview
-                const startScroll = dragStartScrollTop.current;
-                const currentOffset = container.scrollTop - startScroll;
-                setScrollOffsetY(currentOffset);
-            } else {
-                // Horizontal scrolling (for portrait mode)
-                const canScrollLeft = container.scrollLeft > 0;
-                const maxScrollX = container.scrollWidth - container.clientWidth;
-                const canScrollRight = container.scrollLeft < maxScrollX - 1;
-
-                if (scrollDirectionRef.current === 'left' && !canScrollLeft) {
-                    stopEdgeScroll();
-                    return;
-                }
-                if (scrollDirectionRef.current === 'right' && !canScrollRight) {
-                    stopEdgeScroll();
-                    return;
-                }
-
-                const speed = SCROLL_SPEED * scrollIntensityRef.current;
-                const delta = scrollDirectionRef.current === 'left' ? -speed : speed;
-                container.scrollLeft += delta;
-
-                // Update horizontal scroll offset for drag preview
-                const startScroll = type === 'chord' ? dragStartScrollLeft.current : sectionDragStartScrollLeft.current;
-                const currentOffset = container.scrollLeft - startScroll;
-                setScrollOffsetX(currentOffset);
-            }
-
-            edgeScrollRef.current = requestAnimationFrame(scroll);
-        };
-
-        edgeScrollRef.current = requestAnimationFrame(scroll);
-    };
-
-    // Section drag start handler
-    const handleSectionDragStart = (event: any) => {
-        setActiveDragId(event.active.id);
-        setActiveDragType('section');
-        if (sectionTabsRef.current) {
-            sectionDragStartScrollLeft.current = sectionTabsRef.current.scrollLeft;
-        }
-        setScrollOffset(0);
-    };
-
-    // Chord drag start handler
-    const handleChordDragStart = (event: any) => {
-        setActiveDragId(event.active.id);
-        setActiveDragType('chord');
-        // Capture initial scroll position of chords area for auto-scroll calc (both directions)
-        if (scrollRef.current) {
-            dragStartScrollLeft.current = scrollRef.current.scrollLeft;
-            dragStartScrollTop.current = scrollRef.current.scrollTop;
-        }
-        setScrollOffsetX(0);
-        setScrollOffsetY(0);
-    };
-
-    // Chord drag move handles edge scrolling - supports both horizontal (portrait) and vertical (landscape) modes
-    const handleChordDragMove = (event: DragMoveEvent) => {
-        if (!scrollRef.current) return;
-        if (event.active.data.current?.type !== 'chord') return;
-
-        const containerRect = scrollRef.current.getBoundingClientRect();
-
-        // Calculate current pointer position using activator event and delta
-        const getPointerPosition = () => {
-            if (event.activatorEvent instanceof MouseEvent) {
-                return {
-                    x: event.activatorEvent.clientX + event.delta.x,
-                    y: event.activatorEvent.clientY + event.delta.y
-                };
-            } else if (event.activatorEvent instanceof TouchEvent && event.activatorEvent.touches.length > 0) {
-                return {
-                    x: event.activatorEvent.touches[0].clientX + event.delta.x,
-                    y: event.activatorEvent.touches[0].clientY + event.delta.y
-                };
-            }
-            return {
-                x: containerRect.left + containerRect.width / 2,
-                y: containerRect.top + containerRect.height / 2
-            };
-        };
-
-        const pointer = getPointerPosition();
-
-        // In landscape mode, use vertical edge scrolling (up/down)
-        // In portrait mode, use horizontal edge scrolling (left/right)
-        if (isLandscape) {
-            // Vertical edge scrolling for landscape grid layout
-            const distTop = pointer.y - containerRect.top;
-            const distBottom = containerRect.bottom - pointer.y;
-
-            if (distTop < EDGE_THRESHOLD) {
-                const intensity = Math.max(0.1, 1 - Math.max(0, distTop) / EDGE_THRESHOLD);
-                startEdgeScroll('up', 'chord', intensity);
-            } else if (distBottom < EDGE_THRESHOLD) {
-                const intensity = Math.max(0.1, 1 - Math.max(0, distBottom) / EDGE_THRESHOLD);
-                startEdgeScroll('down', 'chord', intensity);
-            } else {
-                stopEdgeScroll();
-            }
-        } else {
-            // Horizontal edge scrolling for portrait horizontal scroll
-            const distLeft = pointer.x - containerRect.left;
-            const distRight = containerRect.right - pointer.x;
-
-            if (distLeft < EDGE_THRESHOLD) {
-                const intensity = Math.max(0.1, 1 - Math.max(0, distLeft) / EDGE_THRESHOLD);
-                startEdgeScroll('left', 'chord', intensity);
-            } else if (distRight < EDGE_THRESHOLD) {
-                const intensity = Math.max(0.1, 1 - Math.max(0, distRight) / EDGE_THRESHOLD);
-                startEdgeScroll('right', 'chord', intensity);
-            } else {
-                stopEdgeScroll();
-            }
-        }
-    };
-
-    // Section drag move handles edge scrolling
-    const handleSectionDragMove = (event: DragMoveEvent) => {
-        if (!sectionTabsRef.current) return;
-        if (event.active.data.current?.type !== 'section') return;
-
-        const containerRect = sectionTabsRef.current.getBoundingClientRect();
-
-        // Calculate current pointer position using activator event and delta
-        const pointerX = event.activatorEvent instanceof MouseEvent
-            ? event.activatorEvent.clientX + event.delta.x
-            : (event.activatorEvent instanceof TouchEvent && event.activatorEvent.touches.length > 0)
-                ? event.activatorEvent.touches[0].clientX + event.delta.x
-                : containerRect.left + containerRect.width / 2;
-
-        const distLeft = pointerX - containerRect.left;
-        const distRight = containerRect.right - pointerX;
-
-        if (distLeft < EDGE_THRESHOLD) {
-            // Speed increases as we get closer to or past the edge
-            const intensity = Math.max(0.1, 1 - Math.max(0, distLeft) / EDGE_THRESHOLD);
-            startEdgeScroll('left', 'section', intensity);
-        } else if (distRight < EDGE_THRESHOLD) {
-            const intensity = Math.max(0.1, 1 - Math.max(0, distRight) / EDGE_THRESHOLD);
-            startEdgeScroll('right', 'section', intensity);
-        } else {
-            stopEdgeScroll();
-        }
-    };
-
-    // Section drag end handler
-    const handleSectionDragEnd = (event: DragEndEvent) => {
-        stopEdgeScroll();
-        setActiveDragId(null);
-        setActiveDragType(null);
-        const { active, over } = event;
-
-        if (over && active.id !== over.id) {
-            const oldIndex = currentSong.sections.findIndex((s) => s.id === active.id);
-            const newIndex = currentSong.sections.findIndex((s) => s.id === over.id);
-
-            if (oldIndex !== -1 && newIndex !== -1) {
-                const newSections = arrayMove(currentSong.sections, oldIndex, newIndex);
-                reorderSections(newSections);
-                setActiveSectionIndex(newIndex);
-
-                // Auto-select the first slot of the moved section
-                const draggedSection = currentSong.sections[oldIndex];
-                if (draggedSection && draggedSection.measures[0]?.beats[0]) {
-                    setSelectedSlot(draggedSection.id, draggedSection.measures[0].beats[0].id);
-                }
-            }
-        }
-    };
-
-    // Chord drag end handler
-    const handleChordDragEnd = (event: DragEndEvent) => {
-        stopEdgeScroll();
-        setActiveDragId(null);
-        setActiveDragType(null);
-        const { active, over } = event;
-
-        if (active.data.current?.type === 'chord' && over?.data.current?.type === 'slot') {
-            const fromSectionId = active.data.current.originSectionId;
-            const fromSlotId = active.data.current.originSlotId;
-            const toSectionId = over.data.current.sectionId;
-            const toSlotId = over.data.current.slotId;
-
-            if (fromSectionId && fromSlotId && toSectionId && toSlotId) {
-                if (fromSectionId === toSectionId && fromSlotId === toSlotId) return;
-                const state = useSongStore.getState();
-                state.moveChord(fromSectionId, fromSlotId, toSectionId, toSlotId);
-                playChord(selectedChord?.notes || []);
-                selectSlotOnly(toSectionId, toSlotId);
-            }
-        }
-    };
+    // Use the extracted drag-and-drop hook
+    const {
+        sectionSensors,
+        chordSensors,
+        activeDragId,
+        activeDragType,
+        scrollOffsetX,
+        scrollOffsetY,
+        handleSectionDragStart,
+        handleSectionDragMove,
+        handleSectionDragEnd,
+        handleChordDragStart,
+        handleChordDragMove,
+        handleChordDragEnd,
+        chordCollisionDetection
+    } = useTimelineDragDrop({
+        isLandscape,
+        setActiveSectionIndex,
+        currentSong,
+        scrollRef,
+        sectionTabsRef
+    });
 
 
     // Auto-scroll to selected section when it changes (only when not playing)

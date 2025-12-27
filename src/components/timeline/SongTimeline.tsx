@@ -17,7 +17,7 @@ import {
     DndContext,
     closestCenter,
     KeyboardSensor,
-    PointerSensor,
+    MouseSensor,
     TouchSensor,
     useSensor,
     useSensors,
@@ -291,15 +291,15 @@ export const SongTimeline: React.FC<SongTimelineProps> = ({
 
     // Configure sensors for both mouse and touch
     const sensors = useSensors(
-        useSensor(PointerSensor, {
+        useSensor(MouseSensor, {
             activationConstraint: {
-                distance: 5, // Balanced for both tap and drag
+                distance: 10,
             },
         }),
         useSensor(TouchSensor, {
             activationConstraint: {
-                delay: 150, // Reduced delay for more responsive taps
-                tolerance: 3, // Tighter tolerance for better click detection
+                delay: 150,
+                tolerance: 5,
             },
         }),
         useSensor(KeyboardSensor, {
