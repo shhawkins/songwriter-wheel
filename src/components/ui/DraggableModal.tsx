@@ -95,7 +95,7 @@ export const DraggableModal: React.FC<DraggableModalProps> = ({
                 compact
                     ? "p-3 glass-panel-compact"
                     : "p-4 glass-panel",
-                "select-none touch-none",
+                "select-none",
                 "animate-in fade-in zoom-in-95 duration-200",
                 className
             )}
@@ -107,7 +107,8 @@ export const DraggableModal: React.FC<DraggableModalProps> = ({
                 minWidth,
                 maxWidth: 'calc(100vw - 24px)',
                 transform: `translate3d(${position.x}px, ${position.y}px, 0)`,
-                willChange: 'transform'
+                willChange: 'transform',
+                touchAction: 'none'
             }}
             onMouseDown={(e) => {
                 e.stopPropagation();
