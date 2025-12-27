@@ -139,7 +139,7 @@ export const DraggableModal: React.FC<DraggableModalProps> = ({
                     className={clsx(
                         "absolute p-2.5 text-text-muted hover:text-text-primary",
                         "rounded-full hover:bg-white/10 transition-colors z-50",
-                        compact ? "top-0.5 right-0.5" : "top-1 right-1"
+                        compact ? "-top-1.75 -right-0.5" : "-top-1.75 -right-0.5"
                     )}
                 >
                     <X size={18} />

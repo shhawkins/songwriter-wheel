@@ -167,6 +167,7 @@ const SortableSectionSegment: React.FC<SortableSectionSegmentProps> = ({
         transition,
         width: `${widthPercent}%`,
         minWidth: '16px',
+        touchAction: 'none' as const, // Prevent browser from capturing touch for scroll
     };
 
     // Handle both mouse and touch interactions uniformly
@@ -191,7 +192,7 @@ const SortableSectionSegment: React.FC<SortableSectionSegmentProps> = ({
         }
     };
 
-    const handleInteractionEnd = (e: React.MouseEvent | React.TouchEvent) => {
+    const handleInteractionEnd = (e: React.MouseEvent | React.TouchEvent | React.PointerEvent) => {
         const duration = Date.now() - interactionStartTime.current;
 
         setIsTapping(false);
@@ -213,18 +214,17 @@ const SortableSectionSegment: React.FC<SortableSectionSegmentProps> = ({
             style={style}
             {...attributes}
             {...listeners}
-            onMouseDown={(e) => handleInteractionStart(e.clientX, e.clientY)}
-            onMouseMove={(e) => handleInteractionMove(e.clientX, e.clientY)}
-            onMouseUp={handleInteractionEnd}
-            onTouchStart={(e) => {
-                const touch = e.touches[0];
-                handleInteractionStart(touch.clientX, touch.clientY);
+            onPointerDown={(e) => {
+                // Call dnd-kit's handler first
+                listeners?.onPointerDown?.(e);
+                handleInteractionStart(e.clientX, e.clientY);
             }}
-            onTouchMove={(e) => {
-                const touch = e.touches[0];
-                handleInteractionMove(touch.clientX, touch.clientY);
+            onPointerMove={(e) => {
+                handleInteractionMove(e.clientX, e.clientY);
             }}
-            onTouchEnd={handleInteractionEnd}
+            onPointerUp={(e) => {
+                handleInteractionEnd(e);
+            }}
             className={clsx(
                 // Base styles
                 "relative h-full flex items-center justify-center overflow-hidden",

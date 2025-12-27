@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
+import { X, Lock, Unlock } from 'lucide-react';
 import { CIRCLE_OF_FIFTHS, getWheelColors, formatChordForDisplay, getKeySignature, getChordNotes } from '../utils/musicTheory';
 import { useSongStore } from '../store/useSongStore';
 
@@ -22,7 +22,7 @@ export const KeySelectorModal: React.FC<KeySelectorModalProps> = ({
     onClose,
 }) => {
     const modalRef = useRef<HTMLDivElement>(null);
-    const { selectedKey, setKey, setSelectedChord } = useSongStore();
+    const { selectedKey, setKey, setSelectedChord, isKeyLocked, toggleKeyLock } = useSongStore();
 
     // Get wheel colors for display
     const colors = getWheelColors();
@@ -103,12 +103,21 @@ export const KeySelectorModal: React.FC<KeySelectorModalProps> = ({
                             Select Key
                         </span>
                     </div>
-                    <button
-                        onClick={onClose}
-                        className="p-1.5 rounded-full hover:bg-bg-tertiary text-text-muted hover:text-text-primary transition-colors shrink-0"
-                    >
-                        <X size={14} />
-                    </button>
+                    <div className="flex items-center gap-1">
+                        <button
+                            onClick={toggleKeyLock}
+                            className={`p-1.5 rounded-full hover:bg-bg-tertiary transition-colors shrink-0 ${isKeyLocked ? 'text-amber-400' : 'text-text-muted hover:text-text-primary'}`}
+                            title={isKeyLocked ? "Unlock Key" : "Lock Key"}
+                        >
+                            {isKeyLocked ? <Lock size={14} /> : <Unlock size={14} />}
+                        </button>
+                        <button
+                            onClick={onClose}
+                            className="p-1.5 rounded-full hover:bg-bg-tertiary text-text-muted hover:text-text-primary transition-colors shrink-0"
+                        >
+                            <X size={14} />
+                        </button>
+                    </div>
                 </div>
 
                 {/* Content - Key Grid */}
@@ -139,14 +148,17 @@ export const KeySelectorModal: React.FC<KeySelectorModalProps> = ({
                             return (
                                 <button
                                     key={key}
-                                    onClick={() => handleKeySelect(key)}
+                                    onClick={() => !isKeyLocked && handleKeySelect(key)}
+                                    disabled={isKeyLocked}
                                     className={`
                                         relative flex flex-col items-center justify-center
                                         py-3 px-2 rounded-lg
-                                        transition-all duration-150 active:scale-95
+                                        transition-all duration-150
+                                        ${isKeyLocked && !isSelected ? 'opacity-50 cursor-not-allowed grayscale' : ''}
+                                        ${!isKeyLocked ? 'active:scale-95 hover:bg-bg-tertiary' : ''}
                                         ${isSelected
                                             ? 'ring-2 ring-offset-2 ring-offset-bg-elevated shadow-lg'
-                                            : 'hover:bg-bg-tertiary'
+                                            : ''
                                         }
                                     `}
                                     style={{
@@ -154,6 +166,7 @@ export const KeySelectorModal: React.FC<KeySelectorModalProps> = ({
                                         borderColor: keyColor,
                                         border: `2px solid ${isSelected ? keyColor : 'rgba(255,255,255,0.1)'}`,
                                         '--tw-ring-color': isSelected ? keyColor : undefined,
+                                        cursor: isKeyLocked ? (isSelected ? 'default' : 'not-allowed') : 'pointer'
                                     } as React.CSSProperties}
                                 >
                                     {/* Key Name */}

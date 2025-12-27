@@ -54,6 +54,16 @@ Reduce App.tsx complexity from 2000+ lines and extract reusable patterns.
 - Integrated hook into `App.tsx`
 - Verified build passes
 
+### 8. Extracted `MobilePortraitDrawers` Component ✅
+- Moved ~160 lines of drawer/toggle-bar logic
+- New file: `src/components/layout/MobilePortraitDrawers.tsx`
+- Handles drag gestures for opening/closing drawers
+
+### 9. Extracted PDF Generation Logic ✅
+- Moved ~400 lines to `src/utils/pdfGenerator.ts`
+- Includes `generatePdfDocument()` and `drawChordDiagram()`
+- Cleaned up `jsPDF` and guitar chord imports from `App.tsx`
+
 ---
 
 ## Remaining Tasks 🔲

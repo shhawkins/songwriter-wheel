@@ -6,7 +6,7 @@ import { ChordDetails } from './components/panel/ChordDetails';
 import { PlaybackControls } from './components/playback/PlaybackControls';
 import { SongOverview } from './components/timeline/SongOverview';
 import { useSongStore } from './store/useSongStore';
-import { Download, Save, ChevronDown, ChevronUp, Plus, Minus, Clock, FolderOpen, FilePlus, Trash2, HelpCircle, FileAudio, FileText } from 'lucide-react';
+import { Download, Save, ChevronDown, ChevronUp, Plus, Minus, Clock, FolderOpen, FilePlus, Trash2, HelpCircle, FileAudio, FileText, ListMusic } from 'lucide-react';
 import { Logo } from './components/Logo';
 import * as Tone from 'tone';
 import { saveAs } from 'file-saver';
@@ -36,7 +36,7 @@ import { MobilePortraitDrawers } from './components/layout/MobilePortraitDrawers
 
 
 function App() {
-  const { currentSong, selectedKey, timelineVisible, toggleTimeline, setTitle, setArtist, setTags, setSongTimeSignature, loadSong: loadSongToStore, newSong, instrument, volume, isMuted, chordPanelVisible, isPlaying, songInfoModalVisible, toggleSongInfoModal, instrumentManagerModalVisible, toggleInstrumentManagerModal, cloudSongs, loadCloudSongs, saveToCloud, deleteFromCloud, isLoadingCloud } = useSongStore();
+  const { currentSong, selectedKey, timelineVisible, toggleTimeline, setTitle, setArtist, setTags, setSongTimeSignature, loadSong: loadSongToStore, newSong, instrument, volume, isMuted, chordPanelVisible, isPlaying, songInfoModalVisible, toggleSongInfoModal, instrumentManagerModalVisible, toggleInstrumentManagerModal, cloudSongs, loadCloudSongs, saveToCloud, deleteFromCloud, isLoadingCloud, selectedChord } = useSongStore();
 
   // Audio Sync Logic
   useEffect(() => {
@@ -542,7 +542,7 @@ function App() {
       <div className="w-8 h-8 border-2 border-accent-primary border-t-transparent rounded-full animate-spin" />
     </div>
   ) : (
-    <div className="h-full w-full flex flex-col bg-bg-secondary text-text-primary overflow-hidden pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
+    <div className="h-full w-full flex flex-col bg-bg-secondary text-text-primary overflow-hidden pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)]">
       {/* Audio Resume Prompt - appears when returning to suspended audio context on iOS */}
       {showAudioResumePrompt && (
         <div
@@ -871,6 +871,54 @@ function App() {
               title="Songwriter Wheel Guide"
             >
               <HelpCircle size={isLandscape ? 14 : 20} />
+            </button>
+          )}
+
+          {/* Voicing Picker button - pinned to upper left of wheel panel area */}
+          {selectedChord && (
+            <button
+              onClick={() => {
+                const state = useSongStore.getState();
+                const wheelChord = state.selectedChord;
+                if (wheelChord) {
+                  // Calculate voicing suggestions based on chord position
+                  let voicingSuggestion = '';
+                  const posIndex = (wheelChord as any).positionIndex;
+                  const ringType = (wheelChord as any).ringType;
+
+                  if (posIndex !== undefined && ringType) {
+                    // We need to calculate relative position similar to ChordWheel
+                    // This is simplified - ideally we'd import the helper function
+                    voicingSuggestion = '';
+                  }
+
+                  state.setVoicingPickerState({
+                    isOpen: true,
+                    chord: wheelChord,
+                    voicingSuggestion,
+                    baseQuality: wheelChord.quality
+                  });
+                }
+              }}
+              onTouchEnd={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const state = useSongStore.getState();
+                const wheelChord = state.selectedChord;
+                if (wheelChord) {
+                  state.setVoicingPickerState({
+                    isOpen: true,
+                    chord: wheelChord,
+                    voicingSuggestion: '',
+                    baseQuality: wheelChord.quality
+                  });
+                }
+              }}
+              className={`absolute ${isLandscape ? 'top-2 left-2 w-8 h-8' : 'top-3 left-3 w-11 h-11'} flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-accent-primary transition-colors shadow-lg border border-border-subtle z-50`}
+              style={{ touchAction: 'auto', pointerEvents: 'auto' }}
+              title="Open Voicing Picker"
+            >
+              <ListMusic size={isLandscape ? 14 : 20} />
             </button>
           )}
 

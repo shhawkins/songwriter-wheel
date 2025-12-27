@@ -14,7 +14,7 @@ import {
     type Chord
 } from '../../utils/musicTheory';
 import { WheelSegment } from './WheelSegment';
-import { RotateCw, RotateCcw } from 'lucide-react';
+import { Lock, Unlock, RotateCw, RotateCcw } from 'lucide-react';
 import { playChord } from '../../utils/audioEngine';
 import { useIsMobile, useMobileLayout } from '../../hooks/useIsMobile';
 import { VoicingQuickPicker, parseVoicingSuggestions } from './VoicingQuickPicker';
@@ -78,7 +78,9 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
         setChordInversion,
         voicingPickerState,
         setVoicingPickerState,
-        isDraggingVoicingPicker
+        isDraggingVoicingPicker,
+        isKeyLocked,
+        toggleKeyLock
     } = useSongStore();
 
     // Calculate wheel rotation
@@ -561,31 +563,7 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
         setSelectedSegmentId(wheelChord.segmentId ?? null);
         setSelectedChord(chord);
 
-        // Get voicing suggestions if this is a diatonic chord
-        let voicingSuggestion = '';
-        if (wheelChord.positionIndex !== undefined && wheelChord.ringType) {
-            const relPos = getRelativePosition(wheelChord.positionIndex);
-            voicingSuggestion = getVoicingSuggestion(
-                relPos,
-                wheelChord.ringType === 'major' ? 'major' :
-                    wheelChord.ringType === 'minor' ?
-                        (wheelChord.numeral === 'ii' || wheelChord.numeral === 'vi' ? 'ii' : 'iii') :
-                        'dim'
-            );
-        }
-
-        // Show voicing picker for ALL chords (with or without suggestions)
-        // - Always show on desktop and landscape mobile
-        // - In mobile portrait with chord panel open: DON'T show (as requested)
-        const shouldShowPicker = !isMobile || isLandscape || !chordPanelVisible;
-        if (shouldShowPicker) {
-            setVoicingPickerState({
-                isOpen: true,
-                chord: wheelChord,
-                voicingSuggestion, // May be empty for out-of-key chords
-                baseQuality: wheelChord.quality
-            });
-        }
+        // Voicing picker no longer opens automatically - use the manual button instead
     };
 
     const handleChordDoubleClick = (chord: Chord) => {
@@ -884,6 +862,18 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
                             // Always toggle UI
                             onToggleUI?.();
                         }}
+                        onTouchEnd={(e) => {
+                            // Handle touch taps for mobile
+                            e.preventDefault();
+
+                            const state = useSongStore.getState();
+                            if (state.voicingPickerState.isOpen) {
+                                state.closeVoicingPicker();
+                            }
+
+                            // Always toggle UI
+                            onToggleUI?.();
+                        }}
                         style={{ pointerEvents: 'all' }}
                     />
 
@@ -1082,11 +1072,14 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
                     </g>
 
                     {/* Center Clickable Area - transparent overlay for tapping the center */}
-                    <circle
-                        cx={cx}
-                        cy={cy}
-                        r={centerRadius}
-                        fill="transparent"
+                    {/* Only the key text area should be clickable for modal, not the whole circle */}
+                    {/* This prevents accidental modal opening when tapping lock */}
+
+                    {/* Center Circle Visual */}
+                    <circle cx={cx} cy={cy} r={centerRadius} fill="#1a1a24" stroke="#3a3a4a" strokeWidth="2" style={{ pointerEvents: 'none' }} />
+
+                    {/* KEY Label + Key Name + Key Sig - Grouped for click target */}
+                    <g
                         className="cursor-pointer"
                         onClick={(e) => {
                             e.stopPropagation();
@@ -1097,59 +1090,95 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
                             e.stopPropagation();
                             onOpenKeySelector?.();
                         }}
-                    />
+                        style={{ pointerEvents: 'all' }}
+                    >
+                        {/* Invisible hit rect for the text area - narrower to allow room for side buttons */}
+                        <rect x={cx - 30} y={cy - 35} width="60" height="70" fill="transparent" />
 
-                    {/* Center Circle Visual */}
-                    <circle cx={cx} cy={cy} r={centerRadius} fill="#1a1a24" stroke="#3a3a4a" strokeWidth="2" style={{ pointerEvents: 'none' }} />
+                        <text x={cx} y={cy - 25} textAnchor="middle" fill="#6366f1" fontSize="9" fontWeight="bold" letterSpacing="2" style={{ pointerEvents: 'none' }}>
+                            KEY
+                        </text>
 
-                    {/* KEY Label */}
-                    <text x={cx} y={cy - 25} textAnchor="middle" fill="#6366f1" fontSize="9" fontWeight="bold" letterSpacing="2" style={{ pointerEvents: 'none' }}>
-                        KEY
-                    </text>
+                        <text x={cx} y={cy + 3} textAnchor="middle" fill="white" fontSize="26" fontWeight="bold" style={{ pointerEvents: 'none' }}>
+                            {formatChordForDisplay(selectedKey)}
+                        </text>
 
-                    {/* Key Name */}
-                    <text x={cx} y={cy + 3} textAnchor="middle" fill="white" fontSize="26" fontWeight="bold" style={{ pointerEvents: 'none' }}>
-                        {formatChordForDisplay(selectedKey)}
-                    </text>
+                        <text x={cx} y={cy + 21} textAnchor="middle" fill="#9898a6" fontSize="11" style={{ pointerEvents: 'none' }}>
+                            {keySigDisplay || 'No ♯/♭'}
+                        </text>
+                    </g>
 
-                    {/* Key Signature */}
-                    <text x={cx} y={cy + 21} textAnchor="middle" fill="#9898a6" fontSize="11" style={{ pointerEvents: 'none' }}>
-                        {keySigDisplay || 'No ♯/♭'}
-                    </text>
 
-                    {/* Rotation Controls - larger on mobile */}
+                    {/* Rotation Controls - Left/Right of Key */}
                     <g
-                        transform={`translate(${cx - 22}, ${cy + 40})`}
-                        onClick={() => handleRotate('ccw')}
+                        transform={`translate(${cx - 40}, ${cy + 10})`}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (!isKeyLocked) handleRotate('ccw');
+                        }}
                         onTouchEnd={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            handleRotate('ccw');
+                            if (!isKeyLocked) handleRotate('ccw');
                         }}
-                        className="cursor-pointer"
-                        style={{ pointerEvents: 'all', cursor: 'pointer' }}
+                        className={`transition-opacity ${isKeyLocked ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer hover:opacity-80'}`}
+                        style={{ pointerEvents: 'all' }}
                     >
-                        <circle r={isMobile ? 14 : 9} fill="#282833" className="hover:fill-[#3a3a4a] transition-colors" style={{ pointerEvents: 'all' }} />
-                        <g transform={isMobile ? "translate(-6, -6)" : "translate(-4.5, -4.5)"} style={{ pointerEvents: 'none' }}>
-                            <RotateCcw size={isMobile ? 12 : 9} color="#9898a6" />
+                        {/* Larger touch target */}
+                        <circle r={18} fill="transparent" />
+                        <circle r={12} fill="#282833" className={`transition-colors ${!isKeyLocked && 'hover:fill-[#3a3a4a]'}`} style={{ pointerEvents: 'none' }} />
+                        <g transform="translate(-6, -6)" style={{ pointerEvents: 'none' }}>
+                            <RotateCcw size={12} color={isKeyLocked ? "#666" : "#9898a6"} />
                         </g>
                     </g>
+
                     <g
-                        transform={`translate(${cx + 22}, ${cy + 40})`}
-                        onClick={() => handleRotate('cw')}
+                        transform={`translate(${cx + 40}, ${cy + 10})`}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (!isKeyLocked) handleRotate('cw');
+                        }}
                         onTouchEnd={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            handleRotate('cw');
+                            if (!isKeyLocked) handleRotate('cw');
                         }}
-                        className="cursor-pointer"
-                        style={{ pointerEvents: 'all', cursor: 'pointer' }}
+                        className={`transition-opacity ${isKeyLocked ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer hover:opacity-80'}`}
+                        style={{ pointerEvents: 'all' }}
                     >
-                        <circle r={isMobile ? 14 : 9} fill="#282833" className="hover:fill-[#3a3a4a] transition-colors" style={{ pointerEvents: 'all' }} />
-                        <g transform={isMobile ? "translate(-6, -6)" : "translate(-4.5, -4.5)"} style={{ pointerEvents: 'none' }}>
-                            <RotateCw size={isMobile ? 12 : 9} color="#9898a6" />
+                        {/* Larger touch target */}
+                        <circle r={18} fill="transparent" />
+                        <circle r={12} fill="#282833" className={`transition-colors ${!isKeyLocked && 'hover:fill-[#3a3a4a]'}`} style={{ pointerEvents: 'none' }} />
+                        <g transform="translate(-6, -6)" style={{ pointerEvents: 'none' }}>
+                            <RotateCw size={12} color={isKeyLocked ? "#666" : "#9898a6"} />
                         </g>
                     </g>
+
+
+                    {/* Lock Button (Center Top) */}
+                    <g
+                        transform={`translate(${cx}, ${cy - 46})`}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            toggleKeyLock();
+                        }}
+                        onTouchEnd={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            toggleKeyLock();
+                        }}
+                        className="cursor-pointer"
+                        style={{ pointerEvents: 'all' }}
+                    >
+                        {/* Touch target backing */}
+                        <circle r={20} fill="transparent" />
+                        {isKeyLocked ? (
+                            <Lock size={12} x={-6} y={-6} className="text-amber-500" strokeWidth={2.5} />
+                        ) : (
+                            <Unlock size={12} x={-6} y={-6} className="text-[#3a3a4a] hover:text-[#5a5a6a] transition-colors" strokeWidth={2.5} />
+                        )}
+                    </g>
+
 
                     {/* Wheel Mode Toggle - Google Maps style compass */}
                     <g
@@ -1283,7 +1312,7 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
             />
 
             {/* Floating chord indicator - shows on mobile portrait when chord panel is closed */}
-            {isMobile && !isLandscape && !chordPanelVisible && selectedChord && (() => {
+            {(!chordPanelVisible && (isMobile || !isLandscape)) && selectedChord && (() => {
                 const chordColor = colors[selectedChord.root as keyof typeof colors] || '#6366f1';
                 // Get short chord name (similar to ChordDetails.getShortChordName)
                 const quality = selectedChord.quality;
@@ -1341,7 +1370,6 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
                     </div>
                 );
             })()}
-
 
         </div>
     );

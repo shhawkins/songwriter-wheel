@@ -372,3 +372,26 @@ The pattern is clear: components that handle multiple layout variants and/or com
 **Next Immediate Step:**
 -   Address the `saveSong`/`savedSongs` unused variable warnings in `App.tsx` (likely vestigial code).
 -   Continue with `useModalOrchestrator` extraction to further simplify `App.tsx`.
+
+### Progress Update: Major Component Extraction (Dec 27, 2024, Session 3)
+
+**Completed:**
+-   **Extracted `MobilePortraitDrawers`**: Moved ~160 lines of drawer/toggle-bar logic to `src/components/layout/MobilePortraitDrawers.tsx`.
+-   **Extracted PDF Generation**: Moved ~400 lines of PDF generation logic to `src/utils/pdfGenerator.ts`, including `generatePdfDocument()` and `drawChordDiagram()`.
+-   **Cleaned Up Imports**: Removed unused `jsPDF`, `getGuitarChord`, `getSectionDisplayName` imports from `App.tsx`.
+-   **App.tsx Now ~1100 Lines**: Reduced from 2000+ lines to approximately half. The remaining code is core app orchestration.
+
+**Summary of Refactor (Dec 27)**:
+| Extraction | Lines Saved | New Location |
+|------------|-------------|--------------|
+| `useLayoutManager` | ~300 | `src/hooks/useLayoutManager.ts` |
+| `useKeyboardShortcuts` | ~50 | `src/hooks/useKeyboardShortcuts.ts` |
+| `MobilePortraitDrawers` | ~160 | `src/components/layout/MobilePortraitDrawers.tsx` |
+| `generatePdfDocument` | ~400 | `src/utils/pdfGenerator.ts` |
+| Modal drag logic | ~500 | `DraggableModal` + `useDraggablePosition` |
+| **Total** | **~1400** | |
+
+**Next Steps:**
+-   Split `useSongStore` into focused slices (UI, playback, cloud sync).
+-   Consider extracting remaining modal orchestration logic.
+-   Refactor `MobileTimeline` and `ChordDetails` for better maintainability.

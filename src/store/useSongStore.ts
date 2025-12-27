@@ -136,6 +136,10 @@ interface SongState {
     chordPanelVoicingsExpanded: boolean;
     chordPanelAttention: boolean;  // Triggers attention animation on chord panel
 
+    // Key Lock State
+    isKeyLocked: boolean;
+    toggleKeyLock: () => void;
+
     // Selection state
     selectedChord: Chord | null;
     selectedSectionId: string | null;
@@ -539,6 +543,9 @@ export const useSongStore = create<SongState>()(
                 voicingSuggestion: '',
                 baseQuality: ''
             },
+            isKeyLocked: false,
+            toggleKeyLock: () => set((state) => ({ isKeyLocked: !state.isKeyLocked })),
+
             selectedChord: DEFAULT_C_CHORD as Chord | null,
             selectedSectionId: null as string | null,
             selectedSlotId: null as string | null,
@@ -823,6 +830,8 @@ export const useSongStore = create<SongState>()(
             setChordInversion: (inversion) => set({ chordInversion: inversion }),
 
             setKey: (key, options) => set((state) => {
+                if (state.isKeyLocked) return {};
+
                 // In rotating mode, also update the wheel rotation to snap this key to the top
                 if (state.wheelMode === 'rotating' && !options?.skipRotation) {
                     const keyIndex = CIRCLE_OF_FIFTHS.indexOf(key);
@@ -848,11 +857,15 @@ export const useSongStore = create<SongState>()(
             }),
 
             // Cumulative rotation to avoid wrap-around animation issues
-            rotateWheel: (direction) => set((state) => ({
-                wheelRotation: state.wheelMode === 'rotating' && !state.isDraggingVoicingPicker
-                    ? state.wheelRotation + (direction === 'cw' ? -30 : 30)
-                    : 0  // In fixed mode, wheel doesn't rotate, or if dragging voicing picker
-            })),
+            rotateWheel: (direction) => set((state) => {
+                if (state.isKeyLocked) return {}; // Do not change rotation if locked
+
+                return {
+                    wheelRotation: state.wheelMode === 'rotating' && !state.isDraggingVoicingPicker
+                        ? state.wheelRotation + (direction === 'cw' ? -30 : 30)
+                        : 0  // In fixed mode, wheel doesn't rotate, or if dragging voicing picker
+                };
+            }),
 
             toggleWheelMode: () => set((state) => {
                 const newMode = state.wheelMode === 'rotating' ? 'fixed' : 'rotating';

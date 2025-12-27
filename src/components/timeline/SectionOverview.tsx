@@ -275,16 +275,8 @@ export const SectionOverview: React.FC<SectionPreviewProps> = ({
                                                     <div
                                                         key={beat.id}
                                                         data-beat-id={beat.id}
-                                                        draggable={hasChord ? true : false}
-                                                        onDragStart={(e) => {
-                                                            if (!hasChord) {
-                                                                e.preventDefault();
-                                                                return;
-                                                            }
-                                                            // Use the dnd-kit sensor instead
-                                                        }}
                                                         className="flex-1 min-w-0"
-                                                        style={{ touchAction: hasChord ? 'none' : 'auto' }}
+                                                        style={{ touchAction: 'none' }}
                                                     >
                                                         <DroppableSlot
                                                             id={beat.id}
