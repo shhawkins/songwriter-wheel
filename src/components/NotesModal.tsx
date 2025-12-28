@@ -138,11 +138,13 @@ export const NotesModal: React.FC<NotesModalProps> = ({ isOpen, onClose }) => {
     const handleClose = useCallback(() => {
         // Save song notes if changed
         if (songNotes !== currentSong.notes) {
+            console.log('[NotesModal] Saving notes on close:', songNotes);
             setNotes(songNotes);
         }
 
         // Save section lyrics if changed
         if (localSelectedSectionId && selectedSection && sectionLyrics !== (selectedSection.lyrics || '')) {
+            console.log('[NotesModal] Saving section lyrics on close');
             setSectionLyrics(localSelectedSectionId, sectionLyrics);
         }
 
@@ -153,6 +155,7 @@ export const NotesModal: React.FC<NotesModalProps> = ({ isOpen, onClose }) => {
     // Save both on blur as well for immediate persistence
     const handleSongNotesBlur = useCallback(() => {
         if (songNotes !== currentSong.notes) {
+            console.log('[NotesModal] Saving notes on blur:', songNotes);
             setNotes(songNotes);
         }
     }, [songNotes, currentSong.notes, setNotes]);

@@ -338,6 +338,7 @@ export const useSongStore = create<SongState>()(
 
             setNotes: (notes) => set((state) => {
                 const history = buildHistoryState(state.currentSong, state.historyPast);
+                console.log('[useSongStore.setNotes] Setting notes, isDirty from history:', history.isDirty);
                 return {
                     ...history,
                     currentSong: { ...state.currentSong, notes }

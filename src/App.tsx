@@ -459,10 +459,13 @@ function App() {
 
   const handleLoad = (song: Song) => {
     // Check if there are unsaved changes
+    console.log('[handleLoad] isDirty:', isDirty, 'currentSong.notes:', currentSong.notes);
     if (isDirty) {
+      console.log('[handleLoad] Showing unsaved changes dialog');
       setPendingAction({ type: 'load', song });
       setUnsavedChangesOpen(true);
     } else {
+      console.log('[handleLoad] Loading song directly (no dirty state)');
       loadSongToStore(song);
       setShowSaveMenu(false);
     }
@@ -508,6 +511,7 @@ function App() {
 
   // Handle save from unsaved changes dialog
   const handleUnsavedSave = async () => {
+    console.log('[handleUnsavedSave] Starting save...', 'currentSong:', currentSong.title, 'notes:', currentSong.notes);
     if (!user) {
       // If not signed in, prompt to sign in
       setUnsavedChangesOpen(false);
@@ -519,10 +523,11 @@ function App() {
     setUnsavedChangesSaving(true);
     try {
       await saveToCloud(currentSong);
+      console.log('[handleUnsavedSave] Save successful');
       setNotification({ message: `"${currentSong.title}" has been saved!` });
       executePendingAction();
     } catch (err) {
-      console.error('Failed to save:', err);
+      console.error('[handleUnsavedSave] Failed to save:', err);
       setNotification({ message: '⚠️ Failed to save. Please try again.' });
     } finally {
       setUnsavedChangesSaving(false);
