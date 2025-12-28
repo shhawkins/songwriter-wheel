@@ -194,10 +194,14 @@ export const PlaybackControls: React.FC = () => {
     return (
         <div
             data-playback-controls
-            className="flex flex-col w-full bg-bg-elevated border-t border-border-subtle"
+            className="flex flex-col w-full bg-bg-elevated border-t border-border-subtle transition-all duration-300"
+            style={{
+                // Fixed padding to keep controls above home indicator area
+                paddingBottom: isMobile ? '6px' : 0
+            }}
         >
             {/* Active Controls Row */}
-            <div className={`${isMobile && isLandscape ? 'h-8' : isMobile ? 'h-11' : 'h-12'} flex items-center justify-between ${isMobile ? 'px-2 gap-1' : 'px-6'} relative z-20`}>
+            <div className={`${isMobile && isLandscape ? 'h-8' : isMobile ? 'h-11' : 'h-12'} flex items-center justify-between ${isMobile ? 'px-3 gap-2' : 'px-6'} relative z-20`}>
                 {/* Transport Controls - Compact */}
                 <div className="flex items-center gap-0.5">
                     <button
@@ -343,14 +347,6 @@ export const PlaybackControls: React.FC = () => {
                     </div>
                 </div>
             </div>
-
-            {/* Safe Area Status Bar - only needed on mobile PWA */}
-            {isMobile && (
-                <div
-                    className="w-full bg-bg-elevated flex justify-center items-start"
-                    style={{ height: 'env(safe-area-inset-bottom)', minHeight: 'env(safe-area-inset-bottom)' }}
-                />
-            )}
         </div>
     );
 };

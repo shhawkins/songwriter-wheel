@@ -166,7 +166,6 @@ export const MobilePortraitDrawers: React.FC<MobilePortraitDrawersProps> = ({
                     />
                 </div>
             </div>
-
         </div>
     );
 };

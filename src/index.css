@@ -157,8 +157,10 @@ a,
 
   html,
   body {
-    /* In standalone mode, we have the full viewport including safe areas */
-    background-color: var(--bg-secondary);
+    /* In standalone mode, use footer color so safe area blends with playback controls */
+    background-color: var(--bg-elevated);
+    /* Prevent scrolling */
+    overflow: hidden;
   }
 
   #root {
@@ -167,6 +169,7 @@ a,
     height: 100dvh;
     min-height: 100vh;
     min-height: 100dvh;
+    overflow: hidden;
   }
 }
 
@@ -389,6 +392,14 @@ button:active {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 1rem;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+@media (min-width: 768px) {
+  .glass-panel {
+    background: rgba(40, 40, 51, 0.70);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+  }
 }
 
 .glass-panel-compact {

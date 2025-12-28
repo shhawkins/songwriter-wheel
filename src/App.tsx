@@ -621,7 +621,7 @@ function App() {
       <div className="w-8 h-8 border-2 border-accent-primary border-t-transparent rounded-full animate-spin" />
     </div>
   ) : (
-    <div className={`h-full w-full flex flex-col bg-bg-secondary text-text-primary overflow-hidden pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] ${isMobile ? 'pb-[env(safe-area-inset-bottom)]' : ''}`}>
+    <div className={`h-full w-full flex flex-col bg-bg-secondary text-text-primary overflow-hidden pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]`}>
       {/* Audio Resume Prompt - appears when returning to suspended audio context on iOS */}
       {showAudioResumePrompt && (
         <div
@@ -674,7 +674,8 @@ function App() {
           >
             {currentSong.title}
           </span>
-          <SaveStatusIndicator />
+          {/* Hide cloud save indicator on mobile to save space */}
+          {!isMobile && <SaveStatusIndicator />}
         </div>
 
         <div className={`flex items-center ${isMobile ? 'gap-3' : 'gap-4'} shrink-0 justify-self-end`}>
@@ -794,11 +795,11 @@ function App() {
           <div className="relative">
             <button
               onClick={() => setDownloadMenuOpen(!downloadMenuOpen)}
-              className={`flex items-center justify-center ${isMobile ? 'text-xs px-3 py-1.5 min-w-[44px] min-h-[44px] gap-1' : 'text-[11px] px-2.5 py-1 gap-1.5'} bg-text-primary text-bg-primary rounded font-medium hover:bg-white transition-colors touch-feedback`}
+              className={`flex items-center justify-center ${isMobile ? 'text-xs px-2 py-1.5 min-w-[40px] min-h-[40px] gap-0.5' : 'text-[11px] px-2.5 py-1 gap-1.5'} bg-text-primary text-bg-primary rounded font-medium hover:bg-white transition-colors touch-feedback`}
             >
               <Download size={isMobile ? 16 : 12} />
-              <span className={isMobile ? 'text-[10px] font-bold' : 'hidden sm:inline'}>Export</span>
-              <ChevronDown size={isMobile ? 12 : 10} className={`transition-transform ${downloadMenuOpen ? 'rotate-180' : ''}`} />
+              {!isMobile && <span className="hidden sm:inline">Export</span>}
+              <ChevronDown size={isMobile ? 10 : 10} className={`transition-transform ${downloadMenuOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {/* Dropdown menu */}
@@ -806,12 +807,12 @@ function App() {
               <>
                 {/* Backdrop */}
                 <div
-                  className="fixed inset-0 z-40"
+                  className="fixed inset-0 z-[55]"
                   onClick={() => setDownloadMenuOpen(false)}
                 />
 
                 {/* Menu */}
-                <div className="absolute right-0 top-full mt-1 w-48 bg-gray-900/95 backdrop-blur-sm border border-gray-700/50 rounded-lg shadow-xl z-50 overflow-hidden">
+                <div className="absolute right-0 top-full mt-1 w-48 bg-gray-900/95 backdrop-blur-sm border border-gray-700/50 rounded-lg shadow-xl z-[60] overflow-hidden">
                   <button
                     onClick={() => {
                       setDownloadMenuOpen(false);
