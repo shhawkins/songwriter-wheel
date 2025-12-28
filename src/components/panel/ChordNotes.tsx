@@ -23,41 +23,49 @@ interface ChordNotesProps {
 const NotesRenderer: React.FC<{ text: string; isMobile: boolean }> = ({ text, isMobile }) => {
     if (!text) return null;
 
-    // Split by lines first to preserve line breaks
-    const lines = text.split('\n');
+    const baseTextSize = isMobile ? 'text-sm' : 'text-xs';
 
     return (
-        <div className="space-y-1">
-            {lines.map((line, lineIdx) => {
-                // Pattern to match [ChordName] and **bold**
-                const parts = line.split(/(\[[^\]]+\]|\*\*[^*]+\*\*)/g);
+        <div className="space-y-0.5">
+            {text.split('\n').map((line, idx) => {
+                let className = `${baseTextSize} text-text-secondary leading-relaxed min-h-[1.25em] break-words`;
+                let content = line;
+
+                // Simple header parsing
+                if (line.startsWith('# ')) {
+                    className = `${isMobile ? 'text-lg' : 'text-base'} font-bold text-accent-primary mt-2 mb-1 border-b border-white/5 pb-0.5`;
+                    content = line.slice(2);
+                } else if (line.startsWith('## ')) {
+                    className = `${isMobile ? 'text-base' : 'text-sm'} font-semibold text-text-primary mt-1.5 mb-0.5`;
+                    content = line.slice(3);
+                }
+
+                // Split by formatting tokens
+                // Captures: [Chord], **Bold**, *Italic*
+                const parts = content.split(/(\[[^\]]+\]|\*\*[^*]+\*\*|\*[^*]+\*)/g);
 
                 return (
-                    <p key={lineIdx} className={`${isMobile ? 'text-sm' : 'text-xs'} text-text-secondary leading-relaxed break-words`}>
-                        {parts.map((part, i) => {
+                    <div key={idx} className={className}>
+                        {parts.map((part, pIdx) => {
                             if (part.startsWith('[') && part.endsWith(']')) {
-                                // It's a chord
-                                const chord = part.slice(1, -1);
                                 return (
                                     <span
-                                        key={i}
-                                        className="text-accent-primary font-bold text-xs bg-accent-primary/10 px-1 py-0.5 rounded mx-0.5"
+                                        key={pIdx}
+                                        className="text-accent-primary font-bold text-[10px] bg-accent-primary/10 px-1 py-0.5 rounded mx-0.5 align-middle"
                                     >
-                                        {chord}
+                                        {part.slice(1, -1)}
                                     </span>
                                 );
                             }
                             if (part.startsWith('**') && part.endsWith('**')) {
-                                // It's bold text
-                                return (
-                                    <strong key={i} className="font-semibold text-text-primary">
-                                        {part.slice(2, -2)}
-                                    </strong>
-                                );
+                                return <strong key={pIdx} className="font-semibold text-text-primary">{part.slice(2, -2)}</strong>;
                             }
-                            return <span key={i}>{part}</span>;
+                            if (part.startsWith('*') && part.endsWith('*')) {
+                                return <em key={pIdx} className="italic text-purple-300">{part.slice(1, -1)}</em>;
+                            }
+                            return <span key={pIdx}>{part}</span>;
                         })}
-                    </p>
+                    </div>
                 );
             })}
         </div>

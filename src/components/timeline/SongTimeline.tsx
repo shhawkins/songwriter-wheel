@@ -46,6 +46,8 @@ interface SongTimelineProps {
     onReorder?: (newSections: Section[]) => void;
     /** Callback when the add section button is clicked */
     onAddSection?: () => void;
+    /** Whether to show the bracket markers at edges */
+    showMarkers?: boolean;
 }
 
 // Section abbreviations for compact display (matching PDF export)
@@ -281,7 +283,8 @@ export const SongTimeline: React.FC<SongTimelineProps> = ({
     activeSectionId,
     onSectionClick,
     onReorder,
-    onAddSection
+    onAddSection,
+    showMarkers = true
 }) => {
     const [activeId, setActiveId] = useState<string | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -435,12 +438,14 @@ export const SongTimeline: React.FC<SongTimelineProps> = ({
             </div>
 
             {/* Bracket markers at edges */}
-            <div className="relative w-full h-1.5 flex justify-between px-0.5 mt-0.5">
-                {/* Start bracket */}
-                <div className="w-px h-full bg-white/20" />
-                {/* End bracket */}
-                <div className="w-px h-full bg-white/20" />
-            </div>
+            {showMarkers && (
+                <div className="relative w-full h-1.5 flex justify-between px-0.5 mt-0.5">
+                    {/* Start bracket */}
+                    <div className="w-px h-full bg-white/20" />
+                    {/* End bracket */}
+                    <div className="w-px h-full bg-white/20" />
+                </div>
+            )}
         </div>
     );
 };
