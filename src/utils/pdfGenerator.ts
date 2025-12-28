@@ -366,5 +366,189 @@ export const generatePdfDocument = (currentSong: Song, selectedKey: string): jsP
         drawTimelineFooter(doc);
     }
 
+    // === NOTES & LYRICS ADDENDUM ===
+    // Check if there are any notes or lyrics to include
+    const hasNotes = currentSong.notes && currentSong.notes.trim().length > 0;
+    const sectionsWithLyrics = currentSong.sections.filter(s => s.lyrics && s.lyrics.trim().length > 0);
+    const hasLyrics = sectionsWithLyrics.length > 0;
+
+    if (hasNotes || hasLyrics) {
+        // Start a new page for the addendum
+        doc.addPage();
+        let addendumY = 20;
+
+        // Helper function to render text with inline chord notation
+        const renderFormattedText = (text: string, startY: number): number => {
+            let currentY = startY;
+            const lineHeight = 5;
+            const lines = text.split('\n');
+
+            lines.forEach(line => {
+                // Check if we need a new page
+                if (currentY > 260) {
+                    doc.addPage();
+                    currentY = 20;
+                    drawTimelineFooter(doc);
+                }
+
+                // Handle headers
+                if (line.startsWith('# ')) {
+                    doc.setFontSize(14);
+                    doc.setFont("helvetica", "bold");
+                    doc.setTextColor(0, 0, 0);
+                    doc.text(line.slice(2), leftMargin, currentY);
+                    currentY += lineHeight + 3;
+                    return;
+                } else if (line.startsWith('## ')) {
+                    doc.setFontSize(12);
+                    doc.setFont("helvetica", "bold");
+                    doc.setTextColor(0, 0, 0);
+                    doc.text(line.slice(3), leftMargin, currentY);
+                    currentY += lineHeight + 2;
+                    return;
+                }
+
+                // Parse inline chords and text
+                // Matches: [Chord], **Bold**, *Italic*
+                const parts = line.split(/(\[[^\]]+\]|\*\*[^*]+\*\*|\*[^*]+\*)/g);
+                let currentX = leftMargin;
+
+                doc.setFontSize(10);
+                doc.setFont("helvetica", "normal");
+                doc.setTextColor(0, 0, 0);
+
+                parts.forEach(part => {
+                    if (!part) return;
+
+                    if (part.startsWith('[') && part.endsWith(']')) {
+                        // Chord notation - render in bold with brackets
+                        const chordText = part.slice(1, -1);
+                        doc.setFont("helvetica", "bold");
+                        doc.setTextColor(80, 80, 80);
+                        const chordWidth = doc.getTextWidth(`[${chordText}]`);
+                        doc.text(`[${chordText}]`, currentX, currentY);
+                        currentX += chordWidth + 1;
+                        doc.setFont("helvetica", "normal");
+                        doc.setTextColor(0, 0, 0);
+                    } else if (part.startsWith('**') && part.endsWith('**')) {
+                        // Bold text
+                        const boldText = part.slice(2, -2);
+                        doc.setFont("helvetica", "bold");
+                        const boldWidth = doc.getTextWidth(boldText);
+                        doc.text(boldText, currentX, currentY);
+                        currentX += boldWidth;
+                        doc.setFont("helvetica", "normal");
+                    } else if (part.startsWith('*') && part.endsWith('*')) {
+                        // Italic text
+                        const italicText = part.slice(1, -1);
+                        doc.setFont("helvetica", "italic");
+                        const italicWidth = doc.getTextWidth(italicText);
+                        doc.text(italicText, currentX, currentY);
+                        currentX += italicWidth;
+                        doc.setFont("helvetica", "normal");
+                    } else {
+                        // Regular text - handle word wrapping
+                        const textWidth = doc.getTextWidth(part);
+                        if (currentX + textWidth > pageWidth - leftMargin) {
+                            // Wrap to next line
+                            currentY += lineHeight;
+                            currentX = leftMargin;
+                            if (currentY > 260) {
+                                doc.addPage();
+                                currentY = 20;
+                                drawTimelineFooter(doc);
+                            }
+                        }
+                        doc.text(part, currentX, currentY);
+                        currentX += textWidth;
+                    }
+                });
+
+                currentY += lineHeight;
+            });
+
+            return currentY;
+        };
+
+        // Addendum header
+        doc.setFontSize(16);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(0, 0, 0);
+        doc.text("Notes & Lyrics", leftMargin, addendumY);
+        addendumY += 12;
+
+        // Horizontal line
+        doc.setDrawColor(0, 0, 0);
+        doc.setLineWidth(0.3);
+        doc.line(leftMargin, addendumY - 4, pageWidth - leftMargin, addendumY - 4);
+
+        // Song Notes section
+        if (hasNotes) {
+            addendumY += 6; // Extra spacing above Notes heading
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "normal");
+            doc.setTextColor(120, 120, 120);
+            doc.text("Notes:", leftMargin, addendumY);
+            addendumY += 6;
+
+            addendumY = renderFormattedText(currentSong.notes, addendumY);
+            addendumY += 8; // Extra space after notes
+        }
+
+        // Section Lyrics
+        if (hasLyrics) {
+            // Check if we need a new page for lyrics section header
+            if (addendumY > 250) {
+                doc.addPage();
+                addendumY = 20;
+            }
+
+            if (hasNotes) {
+                // Add a separator line if we had notes above
+                doc.setDrawColor(180, 180, 180);
+                doc.setLineWidth(0.2);
+                doc.line(leftMargin, addendumY - 2, pageWidth - leftMargin, addendumY - 2);
+                addendumY += 6;
+            }
+
+            doc.setFontSize(12);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(60, 60, 60);
+            doc.text("Lyrics", leftMargin, addendumY);
+            addendumY += 10;
+
+            sectionsWithLyrics.forEach((section, idx) => {
+                // Check if we need a new page
+                if (addendumY > 250) {
+                    doc.addPage();
+                    addendumY = 20;
+                }
+
+                // Section name
+                const sectionName = getSectionDisplayName(section, currentSong.sections);
+                doc.setFontSize(11);
+                doc.setFont("helvetica", "bold");
+                doc.setTextColor(0, 0, 0);
+                doc.text(`[${sectionName}]`, leftMargin, addendumY);
+                addendumY += 6;
+
+                // Section lyrics
+                addendumY = renderFormattedText(section.lyrics!, addendumY);
+
+                // Add space between sections
+                if (idx < sectionsWithLyrics.length - 1) {
+                    addendumY += 6;
+                }
+            });
+        }
+
+        // Add timeline footer to any new pages created by the addendum
+        const newTotalPages = doc.getNumberOfPages();
+        for (let i = totalPages + 1; i <= newTotalPages; i++) {
+            doc.setPage(i);
+            drawTimelineFooter(doc);
+        }
+    }
+
     return doc;
 };
