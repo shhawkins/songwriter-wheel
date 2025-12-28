@@ -4,7 +4,7 @@ import { Volume2, Music, Waves, Play, Radio, Disc3, ChevronLeft, ChevronRight, R
 import { clsx } from 'clsx';
 import { playChord, setInstrument as setAudioInstrument } from '../../utils/audioEngine';
 import { VoiceSelector } from './VoiceSelector';
-import { PatchManager } from './PatchManager';
+
 import DraggableModal from '../ui/DraggableModal';
 import type { InstrumentType } from '../../types';
 import { useMobileLayout } from '../../hooks/useIsMobile';
@@ -252,7 +252,8 @@ export const InstrumentControls: React.FC = () => {
         filterMix,
         setFilterMix,
         modalStack,
-        bringToFront
+        bringToFront,
+        togglePatchManagerModal
     } = useSongStore();
 
     const MODAL_ID = 'instrument-controls';
@@ -265,10 +266,6 @@ export const InstrumentControls: React.FC = () => {
             bringToFront(MODAL_ID);
         }
     }, [instrumentControlsModalVisible, bringToFront]);
-
-    // State for Patch Manager visibility
-    const [showPatchManager, setShowPatchManager] = useState(false);
-    const [patchManagerInitialView, setPatchManagerInitialView] = useState<'list' | 'save'>('list');
 
     // Instrument options for cycling (same list as VoiceSelector)
     const instrumentOptions: { value: InstrumentType, label: string }[] = [
@@ -325,44 +322,12 @@ export const InstrumentControls: React.FC = () => {
         }
     };
 
-    // Compact Layout (Mobile Landscape) vs Standard Layout
-    const modalContent = isCompact ? (
-        // --- Compact Layout ---
-        <>
-            {/* Title / Instrument Selector - HIDDEN in Compact Mode to save space */}
-
-            {/* Knobs Grid - Compact Layout (2 Rows of 6 or flexible) */}
-            <div className="grid grid-cols-6 gap-x-1 gap-y-2 mb-1 mt-4">
-                <Knob label="Gain" value={instrumentGain} defaultValue={1.0} min={0} max={3.0} onChange={setInstrumentGain} formatValue={(v) => `${Math.round(v * 100)}%`} icon={<Volume2 />} compact />
-                <Knob label="Tone" value={tone} defaultValue={0} min={-12} max={12} onChange={setTone} formatValue={(v) => v > 0 ? `+${Math.round(v)}` : `${Math.round(v)}`} icon={<Music />} compact />
-                <Knob label="Octave" value={pitchShift} defaultValue={0} min={-24} max={24} step={12} onChange={setPitchShift} formatValue={(v) => `${v / 12 > 0 ? '+' : ''}${v / 12}`} icon={<Music />} compact />
-                <Knob label="Distort" value={distortionAmount} defaultValue={0} min={0} max={1} onChange={setDistortionAmount} formatValue={(v) => `${Math.round(v * 100)}%`} icon={<Waves />} compact />
-                <Knob label="Tremolo" value={tremoloDepth} defaultValue={0} min={0} max={1} onChange={setTremoloDepth} formatValue={(v) => `${Math.round(v * 100)}%`} icon={<Waves />} compact />
-                <Knob label="Phaser" value={phaserMix} defaultValue={0} min={0} max={1} onChange={setPhaserMix} formatValue={(v) => `${Math.round(v * 100)}%`} icon={<Disc3 />} compact />
-            </div>
-
-            {/* Row 2: Reverb, Delay+Feedback, Chorus, Vibrato, Filter */}
-            <div className="flex items-center justify-center gap-1">
-                <Knob label="Filter" value={filterMix} defaultValue={0} min={0} max={1} onChange={setFilterMix} formatValue={(v) => `${Math.round(v * 100)}%`} icon={<Waves />} compact />
-                <Knob label="Reverb" value={reverbMix} defaultValue={0.15} min={0} max={1} onChange={setReverbMix} formatValue={(v) => `${Math.round(v * 100)}%`} icon={<Waves />} compact />
-
-                {/* Delay Group */}
-                <div className="flex items-center gap-1 relative p-1 border border-white/10 rounded-lg bg-white/5">
-                    <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 px-1 bg-bg-elevated text-[8px] text-text-tertiary uppercase tracking-wider">Delay</div>
-                    <Knob label="Time" value={delayMix} defaultValue={0} min={0} max={1} onChange={setDelayMix} formatValue={(v) => `${Math.round(v * 100)}%`} icon={<Radio />} compact />
-                    <Knob label="Fdbk" value={delayFeedback} defaultValue={0.3} min={0} max={0.9} onChange={setDelayFeedback} formatValue={(v) => `${Math.round(v * 100)}%`} icon={<Waves />} compact />
-                </div>
-
-                <Knob label="Chorus" value={chorusMix} defaultValue={0} min={0} max={1} onChange={setChorusMix} formatValue={(v) => `${Math.round(v * 100)}%`} icon={<Disc3 />} compact />
-                <Knob label="Vibrato" value={vibratoDepth} defaultValue={0} min={0} max={1} onChange={setVibratoDepth} formatValue={(v) => `${Math.round(v * 100)}%`} icon={<Waves />} compact />
-            </div>
-        </>
-    ) : (
-        // --- Standard Layout ---
-        <>
+    // --- Dynamic Layout ---
+    const modalContent = (
+        <div className="flex flex-col items-center w-full h-full">
             {/* Title / Instrument Selector with Cycling Arrows */}
-            <div className="text-center mb-2 w-full flex flex-col items-center">
-                <div className="text-[10px] uppercase tracking-widest text-text-tertiary font-bold mb-1.5">Effects</div>
+            <div className="text-center mb-4 w-full flex flex-col items-center shrink-0">
+                <div className="text-[10px] uppercase tracking-widest text-text-tertiary font-bold mb-1.5">{isCompact ? '' : 'Effects'}</div>
                 <div className="flex items-center gap-2 relative z-20">
                     <button
                         onClick={(e) => { e.stopPropagation(); cycleInstrument('prev'); }}
@@ -372,7 +337,7 @@ export const InstrumentControls: React.FC = () => {
                     </button>
 
                     <div className="voice-selector-dropdown">
-                        <VoiceSelector variant="default" showLabel={true} showSettingsIcon={false} className="min-w-[140px]" />
+                        <VoiceSelector variant="default" showLabel={!isCompact} showSettingsIcon={false} className={isCompact ? "min-w-[100px]" : "min-w-[140px]"} />
                     </div>
 
                     <button
@@ -384,32 +349,31 @@ export const InstrumentControls: React.FC = () => {
                 </div>
             </div>
 
-            {/* Knobs Row 1 - Core Sound & Modulation */}
-            <div className={clsx("flex items-center px-2 relative z-10 justify-center", isMobile ? "gap-1.5" : "gap-4")}>
-                <Knob label="Gain" value={instrumentGain} defaultValue={1.0} min={0} max={3.0} onChange={setInstrumentGain} formatValue={(v) => `${Math.round(v * 100)}%`} icon={<Volume2 />} compact={isMobile} />
-                <Knob label="Tone" value={tone} defaultValue={0} min={-12} max={12} onChange={setTone} formatValue={(v) => v > 0 ? `+${Math.round(v)}` : `${Math.round(v)}`} icon={<Music />} compact={isMobile} />
-                <Knob label="Octave" value={pitchShift} defaultValue={0} min={-24} max={24} step={12} onChange={setPitchShift} formatValue={(v) => `${v / 12 > 0 ? '+' : ''}${v / 12}`} icon={<Music />} compact={isMobile} />
-                <Knob label="Distort" value={distortionAmount} defaultValue={0} min={0} max={1} onChange={setDistortionAmount} formatValue={(v) => `${Math.round(v * 100)}%`} icon={<Waves />} compact={isMobile} />
-                <Knob label="Tremolo" value={tremoloDepth} defaultValue={0} min={0} max={1} onChange={setTremoloDepth} formatValue={(v) => `${Math.round(v * 100)}%`} icon={<Waves />} compact={isMobile} />
-                <Knob label="Phaser" value={phaserMix} defaultValue={0} min={0} max={1} onChange={setPhaserMix} formatValue={(v) => `${Math.round(v * 100)}%`} icon={<Disc3 />} compact={isMobile} />
-            </div>
+            {/* Scrollable Knob Area */}
+            <div className="flex-1 overflow-y-auto w-full min-h-0 px-2 scrollbar-thin scrollbar-thumb-white/20">
+                <div className="flex flex-wrap justify-center gap-x-3 gap-y-4 pb-2 pt-3">
+                    <Knob label="Gain" value={instrumentGain} defaultValue={1.0} min={0} max={3.0} onChange={setInstrumentGain} formatValue={(v) => `${Math.round(v * 100)}%`} icon={<Volume2 />} compact={isCompact} />
+                    <Knob label="Tone" value={tone} defaultValue={0} min={-12} max={12} onChange={setTone} formatValue={(v) => v > 0 ? `+${Math.round(v)}` : `${Math.round(v)}`} icon={<Music />} compact={isCompact} />
+                    <Knob label="Octave" value={pitchShift} defaultValue={0} min={-24} max={24} step={12} onChange={setPitchShift} formatValue={(v) => `${v / 12 > 0 ? '+' : ''}${v / 12}`} icon={<Music />} compact={isCompact} />
+                    <Knob label="Distort" value={distortionAmount} defaultValue={0} min={0} max={1} onChange={setDistortionAmount} formatValue={(v) => `${Math.round(v * 100)}%`} icon={<Waves />} compact={isCompact} />
+                    <Knob label="Tremolo" value={tremoloDepth} defaultValue={0} min={0} max={1} onChange={setTremoloDepth} formatValue={(v) => `${Math.round(v * 100)}%`} icon={<Waves />} compact={isCompact} />
+                    <Knob label="Phaser" value={phaserMix} defaultValue={0} min={0} max={1} onChange={setPhaserMix} formatValue={(v) => `${Math.round(v * 100)}%`} icon={<Disc3 />} compact={isCompact} />
 
-            {/* Knobs Row 2 - Spatial/Modulation */}
-            <div className={clsx("flex items-center px-2 relative z-10 justify-center mt-4", isMobile ? "gap-1.5" : "gap-4")}>
-                <Knob label="Filter" value={filterMix} defaultValue={0} min={0} max={1} onChange={setFilterMix} formatValue={(v) => `${Math.round(v * 100)}%`} icon={<Waves />} compact={isMobile} />
-                <Knob label="Reverb" value={reverbMix} defaultValue={0.15} min={0} max={1} onChange={setReverbMix} formatValue={(v) => `${Math.round(v * 100)}%`} icon={<Waves />} compact={isMobile} />
+                    <Knob label="Filter" value={filterMix} defaultValue={0} min={0} max={1} onChange={setFilterMix} formatValue={(v) => `${Math.round(v * 100)}%`} icon={<Waves />} compact={isCompact} />
+                    <Knob label="Reverb" value={reverbMix} defaultValue={0.15} min={0} max={1} onChange={setReverbMix} formatValue={(v) => `${Math.round(v * 100)}%`} icon={<Waves />} compact={isCompact} />
 
-                {/* Delay Group */}
-                <div className={clsx("flex items-center relative p-2 border border-white/10 rounded-xl bg-white/5", isMobile ? "gap-1" : "gap-3")}>
-                    <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-2 bg-bg-elevated text-[10px] text-text-tertiary uppercase tracking-wider font-bold">Delay</div>
-                    <Knob label="Time" value={delayMix} defaultValue={0} min={0} max={1} onChange={setDelayMix} formatValue={(v) => `${Math.round(v * 100)}%`} icon={<Radio />} compact={isMobile} />
-                    <Knob label="Fdbk" value={delayFeedback} defaultValue={0.3} min={0} max={0.9} onChange={setDelayFeedback} formatValue={(v) => `${Math.round(v * 100)}%`} icon={<Waves />} compact={isMobile} />
+                    {/* Delay Group - keep together if possible, or break if very narrow */}
+                    <div className={clsx("flex items-center relative p-2 pt-3 border border-white/10 rounded-xl bg-white/5", isCompact ? "gap-1" : "gap-3")}>
+                        <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-2 bg-bg-elevated text-[10px] text-text-tertiary uppercase tracking-wider font-bold">Delay</div>
+                        <Knob label="Time" value={delayMix} defaultValue={0} min={0} max={1} onChange={setDelayMix} formatValue={(v) => `${Math.round(v * 100)}%`} icon={<Radio />} compact={isCompact} />
+                        <Knob label="Fdbk" value={delayFeedback} defaultValue={0.3} min={0} max={0.9} onChange={setDelayFeedback} formatValue={(v) => `${Math.round(v * 100)}%`} icon={<Waves />} compact={isCompact} />
+                    </div>
+
+                    <Knob label="Chorus" value={chorusMix} defaultValue={0} min={0} max={1} onChange={setChorusMix} formatValue={(v) => `${Math.round(v * 100)}%`} icon={<Disc3 />} compact={isCompact} />
+                    <Knob label="Vibrato" value={vibratoDepth} defaultValue={0} min={0} max={1} onChange={setVibratoDepth} formatValue={(v) => `${Math.round(v * 100)}%`} icon={<Waves />} compact={isCompact} />
                 </div>
-
-                <Knob label="Chorus" value={chorusMix} defaultValue={0} min={0} max={1} onChange={setChorusMix} formatValue={(v) => `${Math.round(v * 100)}%`} icon={<Disc3 />} compact={isMobile} />
-                <Knob label="Vibrato" value={vibratoDepth} defaultValue={0} min={0} max={1} onChange={setVibratoDepth} formatValue={(v) => `${Math.round(v * 100)}%`} icon={<Waves />} compact={isMobile} />
             </div>
-        </>
+        </div>
     );
 
     return (
@@ -420,86 +384,77 @@ export const InstrumentControls: React.FC = () => {
             onPositionChange={setInstrumentControlsPosition}
             compact={isCompact}
             minWidth={isMobile ? '280px' : '320px'}
+            minHeight="200px"
+            maxWidth="800px"
+            maxArea={280000}
+            width={isMobile ? '320px' : '650px'}
+            resizable={true}
             dragExcludeSelectors={['button', '.touch-none', 'input', 'select', '.voice-selector-dropdown']}
             zIndex={zIndex}
             onInteraction={() => bringToFront(MODAL_ID)}
             dataAttribute="instrument-controls"
-        // Reconstruct the specific background styles from original if needed, 
-        // but DraggableModal's default glass styles should be sufficient and consistant.
         >
-            {modalContent}
+            <div className="flex flex-col h-full w-full overflow-hidden">
+                {modalContent}
 
-            {/* Chord Preview Badge */}
-            {selectedChord && (
-                <button
-                    onClick={(e) => { e.stopPropagation(); handlePlayChord(); }}
-                    onTouchEnd={(e) => { e.stopPropagation(); if (e.cancelable) e.preventDefault(); handlePlayChord(); }}
-                    className={clsx(
-                        "flex items-center gap-2 rounded-xl transition-all active:scale-95 border border-white/20 shadow-lg hover:shadow-xl relative z-10",
-                        isCompact ? "px-3 py-1.5 text-xs" : "px-4 py-2",
-                        // Add top margin to separate from controls
-                        "mt-2"
+                {/* Footer with Actions & Badge */}
+                <div className="w-full flex items-center justify-between px-2 pb-2 shrink-0 mt-auto pt-2 border-t border-white/10">
+                    {/* Left buttons */}
+                    <div className="flex items-center gap-1">
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                togglePatchManagerModal(true, 'save');
+                            }}
+                            className="p-2 text-text-muted hover:text-accent-primary hover:bg-white/10 rounded-full transition-colors"
+                            title="Save Current Sound"
+                        >
+                            <Save size={14} />
+                        </button>
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                togglePatchManagerModal(true, 'list');
+                            }}
+                            className="p-2 text-text-muted hover:text-text-primary rounded-full hover:bg-white/10 transition-colors"
+                            title="Presets / Patches"
+                        >
+                            <Folder size={16} />
+                        </button>
+                    </div>
+
+                    {/* Center Badge */}
+                    {selectedChord && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); handlePlayChord(); }}
+                            onTouchEnd={(e) => { e.stopPropagation(); if (e.cancelable) e.preventDefault(); handlePlayChord(); }}
+                            className={clsx(
+                                "flex items-center gap-2 rounded-xl transition-all active:scale-95 border border-white/20 shadow-lg hover:shadow-xl",
+                                isCompact ? "px-3 py-1.5 text-xs" : "px-4 py-2"
+                            )}
+                            style={{ background: chordColor, color: contrastColor }}
+                            title="Tap to preview chord with current settings"
+                        >
+                            <Play size={isCompact ? 12 : 14} fill="currentColor" />
+                            <span className={clsx("font-bold", isCompact ? "text-xs" : "text-sm")}>
+                                {formatChordForDisplay(selectedChord.symbol)}
+                            </span>
+                        </button>
                     )}
-                    style={{ background: chordColor, color: contrastColor }}
-                    title="Tap to preview chord with current settings"
-                >
-                    <Play size={isCompact ? 12 : 14} fill="currentColor" />
-                    <span className={clsx("font-bold", isCompact ? "text-xs" : "text-sm")}>
-                        {formatChordForDisplay(selectedChord.symbol)}
-                    </span>
-                </button>
-            )}
 
-            {/* Folder Button (Lower Left) */}
-            <button
-                onClick={(e) => {
-                    e.stopPropagation();
-                    setPatchManagerInitialView('list');
-                    setShowPatchManager(true);
-                }}
-                className="absolute bottom-2 left-2 p-1.5 text-text-muted hover:text-text-primary rounded-full hover:bg-white/10 transition-colors"
-                title="Presets / Patches"
-            >
-                <Folder size={16} />
-            </button>
-
-            {/* Reset Button (Lower Right) */}
-            <button
-                onClick={(e) => {
-                    e.stopPropagation();
-                    resetInstrumentControls();
-                }}
-                className="absolute bottom-2 right-2 p-1.5 text-text-muted hover:text-text-primary rounded-full hover:bg-white/10 transition-colors"
-                title="Reset all controls to default"
-            >
-                <RotateCcw size={14} />
-            </button>
-
-            {/* Save Button (Header Left) - Adjust position for DraggableModal */}
-            <div className={clsx(
-                "absolute left-2 flex items-center gap-1 z-50",
-                isCompact ? "-top-1" : "top-2"
-            )}>
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        setPatchManagerInitialView('save');
-                        setShowPatchManager(true);
-                    }}
-                    className="p-1.5 text-text-muted hover:text-accent-primary hover:bg-white/10 rounded-full transition-colors"
-                    title="Save Current Sound"
-                >
-                    <Save size={14} />
-                </button>
+                    {/* Reset Button (Right) */}
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            resetInstrumentControls();
+                        }}
+                        className="p-2 text-text-muted hover:text-text-primary rounded-full hover:bg-white/10 transition-colors"
+                        title="Reset all controls to default"
+                    >
+                        <RotateCcw size={14} />
+                    </button>
+                </div>
             </div>
-
-            {/* Patch Manager Overlay */}
-            {showPatchManager && (
-                <PatchManager
-                    onClose={() => setShowPatchManager(false)}
-                    initialView={patchManagerInitialView}
-                />
-            )}
         </DraggableModal>
     );
 };

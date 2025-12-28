@@ -25,6 +25,7 @@ export interface SelectionState {
         chord: Chord | null;
         voicingSuggestion: string;
         baseQuality: string;
+        manuallyOpened: boolean;
     };
     isDraggingVoicingPicker: boolean;
     // We need access to currentSong from the main store for many actions
@@ -95,7 +96,8 @@ export const createSelectionSlice: StateCreator<
         isOpen: false,
         chord: null,
         voicingSuggestion: '',
-        baseQuality: ''
+        baseQuality: '',
+        manuallyOpened: false
     },
     isDraggingVoicingPicker: false,
 
@@ -109,7 +111,7 @@ export const createSelectionSlice: StateCreator<
         // Note: we need to set chordInversion which is NOT in this slice.
         // We can access the full store setter via set, but we can't type check easily without full type.
         // However, standard Zustand usage allows merging into global state.
-        set((state: any) => ({
+        set((_state: any) => ({
             selectedChord: config.chord,
             // chordInversion is in the main store (or another slice eventually)
             chordInversion: config.inversion,
@@ -117,7 +119,8 @@ export const createSelectionSlice: StateCreator<
                 isOpen: true,
                 chord: config.chord,
                 voicingSuggestion: config.voicingSuggestion || '',
-                baseQuality: config.baseQuality || config.chord?.quality || 'major'
+                baseQuality: config.baseQuality || config.chord?.quality || 'major',
+                manuallyOpened: false
             }
         }));
     },

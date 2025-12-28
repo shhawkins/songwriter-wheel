@@ -88,7 +88,8 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
                 isOpen: true,
                 chord: wheelChord,
                 voicingSuggestion: '',
-                baseQuality: wheelChord.quality
+                baseQuality: wheelChord.quality,
+                manuallyOpened: true
             });
         }
     };

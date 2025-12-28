@@ -6,7 +6,7 @@ import { ChordDetails } from './components/panel/ChordDetails';
 import { PlaybackControls } from './components/playback/PlaybackControls';
 import { SongOverview } from './components/timeline/SongOverview';
 import { useSongStore } from './store/useSongStore';
-import { Download, Save, ChevronDown, ChevronUp, Plus, Minus, Clock, FolderOpen, FilePlus, Trash2, HelpCircle, FileAudio, FileText, ListMusic, ClipboardPen } from 'lucide-react';
+import { Download, Save, ChevronDown, ChevronUp, Plus, Minus, Clock, FolderOpen, FilePlus, Trash2, HelpCircle, FileAudio, FileText, ListMusic, ClipboardPen, Sliders } from 'lucide-react';
 import { Logo } from './components/Logo';
 import * as Tone from 'tone';
 import { saveAs } from 'file-saver';
@@ -24,6 +24,7 @@ import { SongInfoModal } from './components/SongInfoModal';
 import { KeySelectorModal } from './components/KeySelectorModal';
 import { InstrumentManagerModal } from './components/playback/InstrumentManagerModal';
 import { InstrumentControls } from './components/playback/InstrumentControls';
+import { PatchManagerModal } from './components/playback/PatchManagerModal';
 import { ExportModal } from './components/ExportModal';
 import { NotesModal } from './components/NotesModal';
 import { AuthModal } from './components/auth/AuthModal';
@@ -42,7 +43,7 @@ import { SaveStatusIndicator } from './components/ui/SaveStatusIndicator';
 
 
 function App() {
-  const { currentSong, selectedKey, timelineVisible, toggleTimeline, setTitle, setArtist, setTags, setSongTimeSignature, loadSong: loadSongToStore, newSong, instrument, volume, isMuted, chordPanelVisible, isPlaying, songInfoModalVisible, toggleSongInfoModal, instrumentManagerModalVisible, toggleInstrumentManagerModal, cloudSongs, loadCloudSongs, saveToCloud, deleteFromCloud, isLoadingCloud, selectedChord, notesModalVisible, toggleNotesModal, isDirty } = useSongStore();
+  const { currentSong, selectedKey, timelineVisible, toggleTimeline, setTitle, setArtist, setTags, setSongTimeSignature, loadSong: loadSongToStore, newSong, instrument, volume, isMuted, chordPanelVisible, isPlaying, songInfoModalVisible, toggleSongInfoModal, instrumentManagerModalVisible, toggleInstrumentManagerModal, toggleInstrumentControlsModal, cloudSongs, loadCloudSongs, saveToCloud, deleteFromCloud, isLoadingCloud, selectedChord, notesModalVisible, toggleNotesModal, isDirty } = useSongStore();
 
   // Audio Sync Logic
   useEffect(() => {
@@ -1001,7 +1002,8 @@ function App() {
                       isOpen: true,
                       chord: wheelChord,
                       voicingSuggestion,
-                      baseQuality: wheelChord.quality
+                      baseQuality: wheelChord.quality,
+                      manuallyOpened: true
                     });
                   }
                 }}
@@ -1015,7 +1017,8 @@ function App() {
                       isOpen: true,
                       chord: wheelChord,
                       voicingSuggestion: '',
-                      baseQuality: wheelChord.quality
+                      baseQuality: wheelChord.quality,
+                      manuallyOpened: true
                     });
                   }
                 }}
@@ -1026,6 +1029,21 @@ function App() {
                 <ListMusic size={isMobile && isLandscape ? 14 : isMobile ? 20 : 16} />
               </button>
             )}
+
+            {/* Instrument Controls button - next to VoicingPicker button */}
+            <button
+              onClick={() => toggleInstrumentControlsModal()}
+              onTouchEnd={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleInstrumentControlsModal();
+              }}
+              className={`absolute ${isMobile && isLandscape ? 'bottom-2 right-12 w-8 h-8' : isMobile ? 'bottom-3 right-16 w-11 h-11' : 'bottom-3 right-14 w-9 h-9'} flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-accent-primary transition-colors shadow-lg border border-border-subtle z-50`}
+              style={{ touchAction: 'auto', pointerEvents: 'auto' }}
+              title="Open Sound Controls"
+            >
+              <Sliders size={isMobile && isLandscape ? 14 : isMobile ? 20 : 16} />
+            </button>
 
             {/* Notes button - pinned to lower left of wheel panel area */}
             {/* Voicing Picker button - originally pinned to upper left, then bottom right, now bottom LEFT */}
@@ -1336,6 +1354,7 @@ function App() {
 
       {/* Instrument Controls Modal - rendered at app level to persist through header/footer visibility changes */}
       <InstrumentControls />
+      <PatchManagerModal />
 
       {/* Toast Notification */}
       {notification && (

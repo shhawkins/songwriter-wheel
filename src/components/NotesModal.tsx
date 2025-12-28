@@ -229,7 +229,7 @@ export const NotesModal: React.FC<NotesModalProps> = ({ isOpen, onClose }) => {
                 dragExcludeSelectors={['textarea', 'button', 'input', '[data-no-drag]']}
                 dataAttribute="notes-modal"
             >
-                <div className="flex flex-col gap-3 w-full max-h-[75vh] overflow-y-auto">
+                <div className="flex flex-col gap-3 w-full h-full min-h-0 overflow-hidden">
                     {/* Header */}
                     <div className="flex items-center justify-between gap-2 sticky top-0 bg-inherit z-10 pb-1">
                         <div className="flex items-center gap-2">
@@ -265,7 +265,7 @@ export const NotesModal: React.FC<NotesModalProps> = ({ isOpen, onClose }) => {
                         </button>
                         {showSongNotes && (
                             previewMode ? (
-                                <div className="min-h-[60px] max-h-[120px] overflow-y-auto bg-bg-tertiary/50 rounded-lg p-3 text-sm text-text-primary leading-relaxed whitespace-pre-wrap">
+                                <div className="flex-1 min-h-[60px] overflow-y-auto bg-bg-tertiary/50 rounded-lg p-3 text-sm text-text-primary leading-relaxed whitespace-pre-wrap">
                                     {songNotes ? <MarkdownRenderer text={songNotes} /> : (
                                         <span className="text-text-muted italic">No notes yet...</span>
                                     )}
@@ -276,14 +276,14 @@ export const NotesModal: React.FC<NotesModalProps> = ({ isOpen, onClose }) => {
                                     onChange={(e) => setSongNotes(e.target.value)}
                                     onBlur={handleSongNotesBlur}
                                     placeholder="Write your ideas and notes..."
-                                    className="min-h-[60px] max-h-[120px] bg-bg-tertiary/50 border border-border-subtle rounded-lg p-3 text-sm text-text-primary placeholder:text-text-muted/50 resize-y focus:outline-none focus:border-accent-primary/50 transition-colors"
+                                    className="flex-1 min-h-[60px] bg-bg-tertiary/50 border border-border-subtle rounded-lg p-3 text-sm text-text-primary placeholder:text-text-muted/50 resize-none focus:outline-none focus:border-accent-primary/50 transition-colors"
                                 />
                             )
                         )}
                     </div>
 
                     {/* Section Lyrics with Timeline */}
-                    <div className="flex flex-col gap-2 border-t border-border-subtle pt-3">
+                    <div className="flex-1 flex flex-col gap-2 border-t border-border-subtle pt-3 min-h-0">
                         <div className="flex items-center gap-2">
                             <FileText size={14} className="text-purple-400" />
                             <span className="text-[10px] uppercase tracking-wider text-text-muted font-medium">
@@ -331,12 +331,12 @@ export const NotesModal: React.FC<NotesModalProps> = ({ isOpen, onClose }) => {
 
                         {/* Section lyrics textarea */}
                         {selectedSection ? (
-                            <div className="flex flex-col gap-1">
+                            <div className="flex-1 flex flex-col gap-1 min-h-0">
                                 <span className="text-xs text-text-secondary">
                                     {getSectionDisplayName(selectedSection, currentSong.sections)}
                                 </span>
                                 {previewMode ? (
-                                    <div className="min-h-[100px] max-h-[180px] overflow-y-auto bg-bg-tertiary/50 rounded-lg p-3 text-sm text-text-primary leading-relaxed whitespace-pre-wrap">
+                                    <div className="flex-1 overflow-y-auto bg-bg-tertiary/50 rounded-lg p-3 text-sm text-text-primary leading-relaxed whitespace-pre-wrap">
                                         {sectionLyrics ? <MarkdownRenderer text={sectionLyrics} /> : (
                                             <span className="text-text-muted italic">No lyrics for this section...</span>
                                         )}
@@ -347,7 +347,7 @@ export const NotesModal: React.FC<NotesModalProps> = ({ isOpen, onClose }) => {
                                         onChange={(e) => setLocalSectionLyrics(e.target.value)}
                                         onBlur={handleSectionLyricsBlur}
                                         placeholder={`Lyrics for ${getSectionDisplayName(selectedSection, currentSong.sections)}...`}
-                                        className="min-h-[100px] max-h-[180px] bg-bg-tertiary/50 border border-border-subtle rounded-lg p-3 text-sm text-text-primary placeholder:text-text-muted/50 resize-y focus:outline-none focus:border-accent-primary/50 transition-colors"
+                                        className="flex-1 min-h-[100px] bg-bg-tertiary/50 border border-border-subtle rounded-lg p-3 text-sm text-text-primary placeholder:text-text-muted/50 resize-none focus:outline-none focus:border-accent-primary/50 transition-colors"
                                     />
                                 )}
                             </div>

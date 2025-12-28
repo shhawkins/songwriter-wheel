@@ -167,7 +167,8 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
             isOpen: true,
             chord: newChord,
             voicingSuggestion: getVoicingSuggestion(0, quality.includes('minor') ? 'ii' : 'major'),
-            baseQuality: quality
+            baseQuality: quality,
+            manuallyOpened: false
         });
 
         if (autoAdvance) {
@@ -618,7 +619,8 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
             isOpen: true,
             chord: wheelChord,
             voicingSuggestion,
-            baseQuality: wheelChord.quality
+            baseQuality: wheelChord.quality,
+            manuallyOpened: false
         });
 
         // 5. Advance to next slot
@@ -1328,6 +1330,7 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
                     }
                 }}
                 portraitWithPanel={isMobile && !isLandscape && chordPanelVisible}
+                manuallyOpened={voicingPickerState.manuallyOpened}
             />
 
 

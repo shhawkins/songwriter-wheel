@@ -634,7 +634,8 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose, isEmbedde
             className="fixed inset-0 z-[70] flex items-center justify-center pointer-events-none"
             style={{
                 // Add safe area padding for iOS landscape (Dynamic Island + home indicator)
-                paddingTop: 'max(16px, env(safe-area-inset-top))',
+                // Add extra top padding to clear the app header (~56px)
+                paddingTop: 'max(72px, calc(56px + env(safe-area-inset-top)))',
                 paddingBottom: 'max(16px, env(safe-area-inset-bottom))',
                 paddingLeft: 'max(16px, env(safe-area-inset-left))',
                 paddingRight: 'max(16px, env(safe-area-inset-right))',
@@ -647,7 +648,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose, isEmbedde
             />
 
             {/* Modal */}
-            <div className="relative bg-[#1a1a24] border border-border-medium rounded-xl shadow-2xl max-w-4xl w-full max-h-full overflow-hidden flex flex-col pointer-events-auto">
+            <div className="relative bg-[#1a1a24] border border-border-medium rounded-xl shadow-2xl max-w-4xl w-full max-h-full overflow-hidden flex flex-col pointer-events-auto mx-4">
                 {/* Header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-border-subtle bg-[#22222e]">
                     <div className="flex items-center gap-3">

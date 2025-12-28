@@ -38,6 +38,8 @@ interface VoicingQuickPickerProps {
     voicings: VoicingOption[];
     selectedQuality?: string;
     portraitWithPanel?: boolean;
+    /** If true, the picker was opened by user action (not auto-opened) and should NOT auto-close */
+    manuallyOpened?: boolean;
 }
 
 const AUTO_FADE_TIMEOUT = 60000;
@@ -53,7 +55,8 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
     chordRoot,
     voicings,
     selectedQuality,
-    portraitWithPanel = false
+    portraitWithPanel = false,
+    manuallyOpened = false
 }) => {
     const { isMobile, isLandscape } = useMobileLayout();
     const isLandscapeMobile = isMobile && isLandscape;
@@ -133,14 +136,16 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
     }, [selectedQuality, isOpen, chordRoot]);
 
     const resetFadeTimer = useCallback(() => {
+        // Don't auto-close if manually opened by user
+        if (manuallyOpened) return;
         if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current);
         fadeTimerRef.current = setTimeout(() => onClose(), AUTO_FADE_TIMEOUT);
-    }, [onClose]);
+    }, [onClose, manuallyOpened]);
 
     useEffect(() => {
-        if (isOpen) resetFadeTimer();
+        if (isOpen && !manuallyOpened) resetFadeTimer();
         return () => { if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current); };
-    }, [isOpen, resetFadeTimer]);
+    }, [isOpen, resetFadeTimer, manuallyOpened]);
 
     // Reset position when orientation changes
     useEffect(() => {
@@ -358,22 +363,23 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
             showCloseButton={true}
             compact={isLandscapeMobile}
             width={isLandscapeMobile ? '280px' : undefined}
-            minWidth={isMobile ? '320px' : '520px'}
-            maxWidth={isLandscapeMobile ? '280px' : undefined}
+            maxWidth="600px"
             dragExcludeSelectors={['button', '.touch-none', '.voice-selector-dropdown', 'input', 'select', '.no-scrollbar']}
             dataAttribute="voicing-picker"
             className={clsx(
+                "flex flex-col h-full min-h-0",
                 isLandscapeMobile ? "!px-3 !pt-2 !gap-2" : "!px-3 !pt-3 !gap-3"
             )}
             zIndex={zIndex}
+            resizable={true}
+            minWidth={isMobile ? '160px' : '180px'}
+            minHeight="200px"
+            maxArea={180000}
             onInteraction={() => bringToFront(MODAL_ID)}
         >
-            {/* ROW 1: VOICINGS & QUICK ACTIONS */}
-            <div className={clsx("flex items-center gap-1.5 w-full shrink-0", isLandscapeMobile ? "h-8" : "h-10")}>
-                <div
-                    onWheel={(e) => e.stopPropagation()}
-                    className={clsx("flex flex-row items-center overflow-x-auto no-scrollbar flex-1 min-w-0 gap-1.5 touch-pan-x px-0.5", isLandscapeMobile ? "h-7" : "h-9")}
-                >
+            <div className="flex-1 overflow-y-auto min-h-0 space-y-3 pr-1 scrollbar-none">
+                {/* SECTION 1: VOICINGS & ACTIONS */}
+                <div className="flex flex-wrap items-center justify-center gap-2 w-full">
                     {voicings.map((voicing) => {
                         const isSelected = voicing.quality === currentQuality;
                         return (
@@ -414,11 +420,9 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
                             All Voicings
                         </span>
                     </button>
-                </div>
 
-                <div className={clsx("w-px bg-white/10 shrink-0", isLandscapeMobile ? "h-5" : "h-5")} />
+                    <div className={clsx("w-px bg-white/10 shrink-0 mx-1", isLandscapeMobile ? "h-5" : "h-6")} />
 
-                <div className={clsx("flex items-center gap-1 shrink-0", isLandscapeMobile ? "h-7" : "h-8")}>
                     {/* Auto-Advance Toggle */}
                     <button
                         onClick={(e) => { e.stopPropagation(); toggleAutoAdvance(); resetFadeTimer(); }}
@@ -462,114 +466,117 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
                         </button>
                     )}
                 </div>
-            </div>
 
-            {/* ROW 2: IN-KEY CHORD BADGES */}
-            <div
-                onWheel={(e) => e.stopPropagation()}
-                className={clsx(
-                    "flex flex-row items-center overflow-x-auto overflow-y-hidden touch-pan-x no-scrollbar mask-linear-fade w-full gap-2 py-0.5 shrink-0",
-                    isLandscapeMobile ? "h-12" : "h-12"
-                )}
-            >
-                {inKeyChords.map((chord, idx) => {
-                    const chordColor = colors[chord.root as keyof typeof colors] || '#6366f1';
-                    const isSelected = selectedChord?.root === chord.root &&
-                        ((chord.quality === 'minor' && (selectedChord?.quality.includes('minor') || selectedChord?.quality === 'minor7')) ||
-                            (chord.quality === 'major' && (!selectedChord?.quality.includes('minor') && selectedChord?.quality !== 'diminished')) ||
-                            (chord.quality === 'diminished' && (selectedChord?.quality.includes('dim') || selectedChord?.quality.includes('half'))));
+                {/* SECTION 2: IN-KEY CHORD BADGES */}
+                <div
+                    onWheel={(e) => e.stopPropagation()}
+                    className="flex flex-wrap items-center gap-2 w-full pt-2 border-t border-white/5"
+                >
+                    {inKeyChords.map((chord, idx) => {
+                        const chordColor = colors[chord.root as keyof typeof colors] || '#6366f1';
+                        const isSelected = selectedChord?.root === chord.root &&
+                            ((chord.quality === 'minor' && (selectedChord?.quality.includes('minor') || selectedChord?.quality === 'minor7')) ||
+                                (chord.quality === 'major' && (!selectedChord?.quality.includes('minor') && selectedChord?.quality !== 'diminished')) ||
+                                (chord.quality === 'diminished' && (selectedChord?.quality.includes('dim') || selectedChord?.quality.includes('half'))));
 
-                    const contrastColor = isSelected ? getContrastingTextColor(chordColor) : chordColor;
+                        const contrastColor = isSelected ? getContrastingTextColor(chordColor) : chordColor;
 
-                    return (
-                        <button
-                            key={`${chord.root}-${chord.quality}-${idx}`}
-                            onClick={(e) => { e.stopPropagation(); handleInKeyChordClick(chord); }}
-                            onTouchStart={handleTouchStart}
-                            onTouchEnd={(e) => { e.stopPropagation(); handleTouchEnd(e, () => handleInKeyChordClick(chord)); }}
-                            className={clsx(
-                                "flex flex-col items-center justify-center rounded-xl transition-all duration-300 shrink-0 h-full active:scale-95 group relative outline-none ring-0 focus:ring-0",
-                                isTiny ? "min-w-[46px] px-1" : "min-w-[54px] px-1.5",
-                                isSelected ? "opacity-100 scale-105 z-10" : "opacity-80 hover:opacity-100"
-                            )}
-                            style={{
-                                background: isSelected
-                                    ? chordColor
-                                    : 'rgba(0, 0, 0, 0.4)',
-                                border: isSelected
-                                    ? `1.5px solid ${chordColor}`
-                                    : `1.5px solid ${getHsla(chordColor, 0.5)}`,
-                                backdropFilter: 'blur(8px)'
-                            }}
-                        >
-                            <span className={clsx("font-bold leading-tight text-xs")} style={{ color: contrastColor }}>
-                                {formatChordForDisplay(chord.symbol)}
-                            </span>
-                            {chord.numeral && (
-                                <span className={clsx("text-[7px] font-serif italic leading-tight", isSelected ? "" : "text-white/40")} style={{ color: isSelected ? contrastColor : undefined, opacity: isSelected ? 0.7 : undefined }}>
-                                    {formatChordForDisplay(chord.numeral)}
+                        return (
+                            <button
+                                key={`${chord.root}-${chord.quality}-${idx}`}
+                                onClick={(e) => { e.stopPropagation(); handleInKeyChordClick(chord); }}
+                                onTouchStart={handleTouchStart}
+                                onTouchEnd={(e) => { e.stopPropagation(); handleTouchEnd(e, () => handleInKeyChordClick(chord)); }}
+                                className={clsx(
+                                    "flex flex-col items-center justify-center rounded-xl transition-all duration-300 shrink-0 active:scale-95 group relative outline-none ring-0 focus:ring-0",
+                                    isTiny ? "h-11 min-w-[46px] px-1" : "h-[50px] min-w-[54px] px-1.5",
+                                    isSelected ? "opacity-100 scale-105 z-10" : "opacity-80 hover:opacity-100"
+                                )}
+                                style={{
+                                    background: isSelected
+                                        ? chordColor
+                                        : 'rgba(0, 0, 0, 0.4)',
+                                    border: isSelected
+                                        ? `1.5px solid ${chordColor}`
+                                        : `1.5px solid ${getHsla(chordColor, 0.5)}`,
+                                    backdropFilter: 'blur(8px)'
+                                }}
+                            >
+                                <span className={clsx("font-bold leading-tight text-xs")} style={{ color: contrastColor }}>
+                                    {formatChordForDisplay(chord.symbol)}
                                 </span>
-                            )}
-                        </button>
-                    );
-                })}
-            </div>
-
-            {/* ROW 3: INVERSION & INSTRUMENT */}
-            <div className={clsx("flex items-center justify-between gap-1.5 border-t border-white/5 w-full shrink-0", isLandscapeMobile ? "h-10 pt-1" : "h-11 pt-2")}>
-                {onOpenDetails && (
-                    <button
-                        onClick={(e) => { e.stopPropagation(); onOpenDetails(); onClose(); }}
-                        onTouchStart={handleTouchStart}
-                        onTouchEnd={(e) => { e.stopPropagation(); handleTouchEnd(e, () => { onOpenDetails(); onClose(); }); }}
-                        className={clsx("flex items-center justify-center rounded-xl text-text-tertiary hover:text-text-primary hover:bg-bg-tertiary transition-colors outline-none shrink-0", isLandscapeMobile ? "w-7 h-full" : "w-8 h-full")}
-                    >
-                        <Info size={16} />
-                    </button>
-                )}
-
-                <div className="flex items-center bg-bg-tertiary/60 border border-white/10 rounded-xl px-0.5 h-full flex-1 shadow-inner overflow-hidden">
-                    <button
-                        onClick={(e) => { e.stopPropagation(); handleInversionChange('down'); }}
-                        onTouchStart={handleTouchStart}
-                        onTouchEnd={(e) => { e.stopPropagation(); handleTouchEnd(e, () => handleInversionChange('down')); }}
-                        disabled={chordInversion <= 0}
-                        className="w-7 h-full flex items-center justify-center text-text-muted hover:text-accent-primary transition-colors disabled:opacity-20 active:bg-white/5 outline-none"
-                    >
-                        <ChevronLeft size={16} />
-                    </button>
-
-                    <div className="flex flex-col items-center justify-center flex-1 px-1 pointer-events-none min-w-[50px]">
-                        <span className="text-[9px] font-black text-accent-primary uppercase tracking-tighter leading-none">
-                            {getInversionName(chordInversion)}
-                        </span>
-                        <span className="text-[7px] text-text-muted font-bold uppercase tracking-[0.1em] mt-0.5 scale-90">
-                            INVERSION
-                        </span>
-                    </div>
-
-                    <button
-                        onClick={(e) => { e.stopPropagation(); handleInversionChange('up'); }}
-                        onTouchStart={handleTouchStart}
-                        onTouchEnd={(e) => { e.stopPropagation(); handleTouchEnd(e, () => handleInversionChange('up')); }}
-                        disabled={(() => {
-                            const q = currentQuality || selectedQuality || voicings[0]?.quality || 'major';
-                            return chordInversion >= getMaxInversion(getChordNotes(chordRoot, q));
-                        })()}
-                        className="w-7 h-full flex items-center justify-center text-text-muted hover:text-accent-primary transition-colors disabled:opacity-20 active:bg-white/5 outline-none"
-                    >
-                        <ChevronRight size={16} />
-                    </button>
+                                {chord.numeral && (
+                                    <span className={clsx("text-[7px] font-serif italic leading-tight", isSelected ? "" : "text-white/40")} style={{ color: isSelected ? contrastColor : undefined, opacity: isSelected ? 0.7 : undefined }}>
+                                        {formatChordForDisplay(chord.numeral)}
+                                    </span>
+                                )}
+                            </button>
+                        );
+                    })}
                 </div>
 
-                {!isLandscapeMobile && (
-                    <VoiceSelector
-                        variant="default"
-                        showLabel={false}
-                        className="shrink-0 h-full"
-                        onInteraction={resetFadeTimer}
-                    />
-                )}
+                {/* SECTION 3: INVERSION & INSTRUMENT (Footer - wraps when narrow) */}
+                <div className={clsx(
+                    "flex flex-wrap items-center justify-center gap-2 border-t border-white/5 w-full pt-2",
+                    isLandscapeMobile ? "min-h-[40px]" : "min-h-[44px]"
+                )}>
+                    {/* Info button */}
+                    {onOpenDetails && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onOpenDetails(); onClose(); }}
+                            onTouchStart={handleTouchStart}
+                            onTouchEnd={(e) => { e.stopPropagation(); handleTouchEnd(e, () => { onOpenDetails(); onClose(); }); }}
+                            className={clsx("flex items-center justify-center rounded-xl text-text-tertiary hover:text-text-primary hover:bg-bg-tertiary transition-colors outline-none", isLandscapeMobile ? "w-7 h-8" : "w-8 h-8")}
+                        >
+                            <Info size={16} />
+                        </button>
+                    )}
+
+                    {/* Inversion Control - can shrink and grow */}
+                    <div className="flex items-center bg-bg-tertiary/60 border border-white/10 rounded-xl px-0.5 shadow-inner h-8 min-w-[100px] flex-1">
+                        <button
+                            onClick={(e) => { e.stopPropagation(); handleInversionChange('down'); }}
+                            onTouchStart={handleTouchStart}
+                            onTouchEnd={(e) => { e.stopPropagation(); handleTouchEnd(e, () => handleInversionChange('down')); }}
+                            disabled={chordInversion <= 0}
+                            className="w-7 h-full flex items-center justify-center text-text-muted hover:text-accent-primary transition-colors disabled:opacity-20 active:bg-white/5 outline-none shrink-0"
+                        >
+                            <ChevronLeft size={16} />
+                        </button>
+
+                        <div className="flex flex-col items-center justify-center flex-1 px-1 pointer-events-none min-w-0">
+                            <span className="text-[9px] font-black text-accent-primary uppercase tracking-tighter leading-none truncate">
+                                {getInversionName(chordInversion)}
+                            </span>
+                            <span className="text-[7px] text-text-muted font-bold uppercase tracking-[0.1em] mt-0.5 scale-90 truncate">
+                                INVERSION
+                            </span>
+                        </div>
+
+                        <button
+                            onClick={(e) => { e.stopPropagation(); handleInversionChange('up'); }}
+                            onTouchStart={handleTouchStart}
+                            onTouchEnd={(e) => { e.stopPropagation(); handleTouchEnd(e, () => handleInversionChange('up')); }}
+                            disabled={(() => {
+                                const q = currentQuality || selectedQuality || voicings[0]?.quality || 'major';
+                                return chordInversion >= getMaxInversion(getChordNotes(chordRoot, q));
+                            })()}
+                            className="w-7 h-full flex items-center justify-center text-text-muted hover:text-accent-primary transition-colors disabled:opacity-20 active:bg-white/5 outline-none shrink-0"
+                        >
+                            <ChevronRight size={16} />
+                        </button>
+                    </div>
+
+                    {/* Voice Selector - wraps to new row when narrow */}
+                    {!isLandscapeMobile && (
+                        <VoiceSelector
+                            variant="default"
+                            showLabel={false}
+                            className="h-8"
+                            onInteraction={resetFadeTimer}
+                        />
+                    )}
+                </div>
             </div>
         </DraggableModal>
     );

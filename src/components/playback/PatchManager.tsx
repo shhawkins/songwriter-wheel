@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 // PatchManager component handling saving/loading of custom instrument patches
 import { useSongStore } from '../../store/useSongStore';
 import type { InstrumentPatch } from '../../types';
-import { Save, Folder, Trash2, Check, X } from 'lucide-react';
+import { Save, Folder, Trash2, Check } from 'lucide-react';
 
 import { useMobileLayout } from '../../hooks/useIsMobile';
 
@@ -95,18 +95,12 @@ export const PatchManager: React.FC<PatchManagerProps> = ({ onClose, initialView
     };
 
     return (
-        <div className={`absolute inset-0 z-50 bg-bg-elevated/98 backdrop-blur-xl flex flex-col p-4 pt-3 animate-in fade-in duration-150 ${isCompact ? 'rounded-xl' : 'rounded-2xl'}`}>
+        <div className={`h-full w-full flex flex-col p-4 pt-3 ${isCompact ? 'rounded-xl' : 'rounded-2xl'}`}>
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-bold uppercase tracking-wider text-text-secondary">
                     {view === 'list' ? 'Sound Patches' : 'Save Patch'}
                 </h3>
-                <button
-                    onClick={onClose}
-                    className="p-1 hover:bg-white/10 rounded-full transition-colors"
-                >
-                    <X size={16} className="text-text-muted" />
-                </button>
             </div>
 
             {view === 'list' ? (
@@ -193,8 +187,8 @@ export const PatchManager: React.FC<PatchManagerProps> = ({ onClose, initialView
                                 autoFocus
                             />
                         </div>
-                        <p className="text-[10px] text-text-muted text-center px-4">
-                            All current knob positions and instrument selection will be saved.
+                        <p className="text-[10px] text-text-muted text-center px-4 mb-2">
+                            All current effects settings will be saved.
                         </p>
                     </div>
 

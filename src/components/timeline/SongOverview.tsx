@@ -412,7 +412,10 @@ const ChordDetailPanel: React.FC<ChordDetailPanelProps> = ({
     const chordColor = chordColors[displayChord.root as keyof typeof chordColors] || '#6366f1';
 
     // On mobile landscape, use a very compact inline layout
-    if (isMobile && isLandscape) {
+    // Only if screen is small (phones). iPad landscape should use desktop view.
+    const isTablet = isMobile && typeof window !== 'undefined' && window.innerWidth >= 768;
+
+    if (isMobile && isLandscape && !isTablet) {
         return (
             <div
                 className="absolute top-2 right-2 z-20"
@@ -451,7 +454,8 @@ const ChordDetailPanel: React.FC<ChordDetailPanelProps> = ({
     }
 
     // On mobile portrait, use a more compact layout with smaller elements
-    if (isMobile) {
+    // Fall through to desktop if tablet
+    if (isMobile && !isTablet) {
         return (
             <div
                 className="shrink-0 px-3 py-2"

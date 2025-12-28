@@ -16,6 +16,8 @@ export interface UIState {
     instrumentManagerInitialView: 'list' | 'create'; // Initial view for Instrument Manager Modal
     instrumentControlsModalVisible: boolean; // Toggle Instrument Controls Modal
     instrumentControlsPosition: { x: number; y: number } | null; // Persisted position
+    patchManagerModalVisible: boolean; // Toggle Patch Manager Modal
+    patchManagerInitialView: 'list' | 'save'; // Initial view for Patch Manager
     collapsedSections: Record<string, boolean>; // Per-section collapsed UI state
 
     // Chord panel sections state (for portrait mode voicing picker logic)
@@ -50,6 +52,7 @@ export interface UIActions {
     toggleInstrumentManagerModal: (force?: boolean, view?: 'list' | 'create') => void;
     toggleInstrumentControlsModal: (force?: boolean) => void;
     setInstrumentControlsPosition: (position: { x: number; y: number } | null) => void;
+    togglePatchManagerModal: (force?: boolean, view?: 'list' | 'save') => void;
     resetInstrumentControls: () => void;
     toggleSectionCollapsed: (sectionId: string) => void;
     setChordPanelGuitarExpanded: (expanded: boolean) => void;
@@ -100,6 +103,8 @@ export const createUISlice: StateCreator<
     instrumentManagerInitialView: 'list',
     instrumentControlsModalVisible: false,
     instrumentControlsPosition: null, // null = centered, otherwise {x, y}
+    patchManagerModalVisible: false,
+    patchManagerInitialView: 'list',
     collapsedSections: {},
     chordPanelGuitarExpanded: false,  // Collapsed by default on mobile
     chordPanelVoicingsExpanded: false,
@@ -227,6 +232,10 @@ export const createUISlice: StateCreator<
         instrumentControlsModalVisible: force !== undefined ? force : !state.instrumentControlsModalVisible
     })),
     setInstrumentControlsPosition: (position) => set({ instrumentControlsPosition: position }),
+    togglePatchManagerModal: (force, view) => set((state: UIState) => ({
+        patchManagerModalVisible: force !== undefined ? force : !state.patchManagerModalVisible,
+        patchManagerInitialView: view || 'list'
+    })),
     resetInstrumentControls: () => set({ instrumentControlsPosition: null }),
 
     toggleSectionCollapsed: (sectionId) => set((state: UIState) => {
