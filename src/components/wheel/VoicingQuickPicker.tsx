@@ -71,8 +71,21 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
         setChordPanelScrollTarget,
         timelineVisible,
         autoAdvance,
-        toggleAutoAdvance
+        toggleAutoAdvance,
+        modalStack,
+        bringToFront
     } = useSongStore();
+
+    const MODAL_ID = 'voicings';
+    const stackIndex = modalStack.indexOf(MODAL_ID);
+    const zIndex = stackIndex >= 0 ? 120 + stackIndex * 10 : 120;
+
+    // Bring to front on open
+    useEffect(() => {
+        if (isOpen) {
+            bringToFront(MODAL_ID);
+        }
+    }, [isOpen, bringToFront]);
 
     const lastTapRef = useRef<{ quality: string; time: number } | null>(null);
     const touchStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -340,7 +353,7 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
             position={modalPosition || initialPosition}
             onPositionChange={setModalPosition}
             key={modeKey}
-            tapToClose={true}
+            tapToClose={false}
             showDragHandle={true}
             showCloseButton={true}
             compact={isLandscapeMobile}
@@ -352,7 +365,8 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
             className={clsx(
                 isLandscapeMobile ? "!px-3 !pt-2 !gap-2" : "!px-3 !pt-3 !gap-3"
             )}
-            zIndex={120}
+            zIndex={zIndex}
+            onInteraction={() => bringToFront(MODAL_ID)}
         >
             {/* ROW 1: VOICINGS & QUICK ACTIONS */}
             <div className={clsx("flex items-center gap-1.5 w-full shrink-0", isLandscapeMobile ? "h-8" : "h-10")}>

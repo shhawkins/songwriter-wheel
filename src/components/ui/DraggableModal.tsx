@@ -37,6 +37,8 @@ export interface DraggableModalProps {
     dragExcludeSelectors?: string[];
     /** Data attribute for CSS targeting */
     dataAttribute?: string;
+    /** Callback when the modal is interacted with (tapped/clicked) */
+    onInteraction?: () => void;
 }
 
 /**
@@ -66,7 +68,8 @@ export const DraggableModal: React.FC<DraggableModalProps> = ({
     showDragHandle = true,
     tapToClose = false,
     dragExcludeSelectors,
-    dataAttribute
+    dataAttribute,
+    onInteraction
 }) => {
     const modalRef = useRef<HTMLDivElement>(null);
 
@@ -117,10 +120,12 @@ export const DraggableModal: React.FC<DraggableModalProps> = ({
                 touchAction: 'none'
             }}
             onMouseDown={(e) => {
+                onInteraction?.();
                 e.stopPropagation();
                 handlers.onMouseDown(e);
             }}
             onTouchStart={(e) => {
+                onInteraction?.();
                 e.stopPropagation();
                 handlers.onTouchStart(e);
             }}

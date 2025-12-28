@@ -250,8 +250,21 @@ export const InstrumentControls: React.FC = () => {
         phaserMix,
         setPhaserMix,
         filterMix,
-        setFilterMix
+        setFilterMix,
+        modalStack,
+        bringToFront
     } = useSongStore();
+
+    const MODAL_ID = 'instrument-controls';
+    const stackIndex = modalStack.indexOf(MODAL_ID);
+    const zIndex = stackIndex >= 0 ? 120 + stackIndex * 10 : 120;
+
+    // Bring to front on open
+    useEffect(() => {
+        if (instrumentControlsModalVisible) {
+            bringToFront(MODAL_ID);
+        }
+    }, [instrumentControlsModalVisible, bringToFront]);
 
     // State for Patch Manager visibility
     const [showPatchManager, setShowPatchManager] = useState(false);
@@ -408,6 +421,8 @@ export const InstrumentControls: React.FC = () => {
             compact={isCompact}
             minWidth={isMobile ? '280px' : '320px'}
             dragExcludeSelectors={['button', '.touch-none', 'input', 'select', '.voice-selector-dropdown']}
+            zIndex={zIndex}
+            onInteraction={() => bringToFront(MODAL_ID)}
             dataAttribute="instrument-controls"
         // Reconstruct the specific background styles from original if needed, 
         // but DraggableModal's default glass styles should be sufficient and consistant.

@@ -89,6 +89,21 @@ export const NotesModal: React.FC<NotesModalProps> = ({ isOpen, onClose }) => {
     const setSectionLyrics = useSongStore((state) => state.setSectionLyrics);
     const reorderSections = useSongStore((state) => state.reorderSections);
     const addSuggestedSection = useSongStore((state) => state.addSuggestedSection);
+    const modalStack = useSongStore((state) => state.modalStack);
+    const bringToFront = useSongStore((state) => state.bringToFront);
+
+    const MODAL_ID = 'notes';
+
+    // Calculate z-index based on stack position
+    const stackIndex = modalStack.indexOf(MODAL_ID);
+    const zIndex = stackIndex >= 0 ? 130 + stackIndex * 10 : 130;
+
+    // Bring to front on open
+    useEffect(() => {
+        if (isOpen) {
+            bringToFront(MODAL_ID);
+        }
+    }, [isOpen, bringToFront]);
 
     // Undo/Redo actions
     const undo = useSongStore((state) => state.undo);
@@ -209,7 +224,8 @@ export const NotesModal: React.FC<NotesModalProps> = ({ isOpen, onClose }) => {
                 showCloseButton={true}
                 minWidth="340px"
                 maxWidth="520px"
-                zIndex={130}
+                zIndex={zIndex}
+                onInteraction={() => bringToFront(MODAL_ID)}
                 dragExcludeSelectors={['textarea', 'button', 'input', '[data-no-drag]']}
                 dataAttribute="notes-modal"
             >
