@@ -352,10 +352,10 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
             zIndex={120}
         >
             {/* ROW 1: VOICINGS & QUICK ACTIONS */}
-            <div className={clsx("flex items-center gap-1.5 w-full shrink-0", isLandscapeMobile ? "h-9" : "h-11")}>
+            <div className={clsx("flex items-center gap-1.5 w-full shrink-0", isLandscapeMobile ? "h-8" : "h-10")}>
                 <div
                     onWheel={(e) => e.stopPropagation()}
-                    className={clsx("flex flex-row items-center overflow-x-auto overflow-y-visible no-scrollbar mask-linear-fade flex-1 min-w-0 gap-1 touch-pan-x", isLandscapeMobile ? "h-8" : "h-9")}
+                    className={clsx("flex flex-row items-center overflow-x-auto overflow-y-visible no-scrollbar mask-linear-fade flex-1 min-w-0 gap-1 touch-pan-x", isLandscapeMobile ? "h-7" : "h-8")}
                 >
                     {voicings.map((voicing) => {
                         const isSelected = voicing.quality === currentQuality;
@@ -366,10 +366,10 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
                                 onTouchStart={handleTouchStart}
                                 onTouchEnd={(e) => { e.stopPropagation(); handleTouchEnd(e, () => handleVoicingClick(voicing.quality)); }}
                                 className={clsx(
-                                    "flex items-center justify-center rounded-xl transition-all shrink-0 active:scale-95 outline-none",
+                                    "flex items-center justify-center rounded-lg transition-all shrink-0 active:scale-95 outline-none",
                                     isLandscapeMobile
-                                        ? "min-w-[32px] h-8 px-2"
-                                        : (isTiny ? "min-w-[36px] h-9 px-1" : "min-w-[44px] h-9 px-2.5"),
+                                        ? "min-w-[32px] h-7 px-2"
+                                        : (isTiny ? "min-w-[36px] h-8 px-1" : "min-w-[44px] h-8 px-2.5"),
                                     isSelected
                                         ? "bg-accent-primary text-white"
                                         : "text-text-secondary hover:text-text-primary hover:bg-bg-tertiary border border-white/5"
@@ -388,20 +388,20 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
                         onTouchStart={handleTouchStart}
                         onTouchEnd={(e) => { e.stopPropagation(); handleTouchEnd(e, () => handleAllVoicingsClick()); }}
                         className={clsx(
-                            "flex items-center justify-center rounded-xl transition-all shrink-0 active:scale-95 outline-none whitespace-nowrap",
-                            isLandscapeMobile ? "px-2 h-8" : "px-3 h-9",
+                            "flex items-center justify-center rounded-lg transition-all shrink-0 active:scale-95 outline-none whitespace-nowrap",
+                            isLandscapeMobile ? "px-2 h-7" : "px-3 h-8",
                             "text-accent-primary hover:text-white hover:bg-accent-primary border border-accent-primary/20 bg-accent-primary/5"
                         )}
                     >
-                        <span className={clsx("font-bold uppercase tracking-wider", isLandscapeMobile ? "text-[7px]" : "text-[10px]")}>
+                        <span className={clsx("font-bold uppercase tracking-wider", isLandscapeMobile ? "text-[7px]" : "text-[9px]")}>
                             All Voicings
                         </span>
                     </button>
                 </div>
 
-                <div className={clsx("w-px bg-white/10 shrink-0", isLandscapeMobile ? "h-6" : "h-6")} />
+                <div className={clsx("w-px bg-white/10 shrink-0", isLandscapeMobile ? "h-5" : "h-5")} />
 
-                <div className={clsx("flex items-center gap-1 shrink-0", isLandscapeMobile ? "h-8" : "h-9")}>
+                <div className={clsx("flex items-center gap-1 shrink-0", isLandscapeMobile ? "h-7" : "h-8")}>
                     {/* Auto-Advance Toggle */}
                     <button
                         onClick={(e) => { e.stopPropagation(); toggleAutoAdvance(); resetFadeTimer(); }}
@@ -413,15 +413,15 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
                             });
                         }}
                         className={clsx(
-                            "flex items-center justify-center rounded-xl transition-all outline-none no-touch-enlarge",
-                            isLandscapeMobile ? "w-8 h-8" : "w-10 h-9",
+                            "flex items-center justify-center rounded-lg transition-all outline-none no-touch-enlarge",
+                            isLandscapeMobile ? "w-7 h-7" : "w-8 h-8",
                             autoAdvance
                                 ? "bg-accent-primary text-white shadow-[0_0_12px_rgba(99,102,241,0.4)] border border-white/20"
                                 : "text-text-tertiary hover:text-text-primary hover:bg-bg-tertiary border border-white/5 bg-white/5"
                         )}
                         title={autoAdvance ? "Auto-advance ON" : "Auto-advance OFF"}
                     >
-                        <MoveRight size={isLandscapeMobile ? 16 : 16} className={clsx("transition-transform", autoAdvance ? "scale-110" : "scale-90 opacity-50")} />
+                        <MoveRight size={isLandscapeMobile ? 14 : 16} className={clsx("transition-transform", autoAdvance ? "scale-110" : "scale-90 opacity-50")} />
                     </button>
 
                     {onAddToTimeline && (
@@ -439,9 +439,9 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
                                     if (qualityToAdd) { onAddToTimeline(qualityToAdd); }
                                 });
                             }}
-                            className={clsx("flex items-center justify-center rounded-xl bg-accent-primary/30 text-accent-primary hover:bg-accent-primary hover:text-white transition-all shadow-sm outline-none", isLandscapeMobile ? "w-8 h-8" : "w-10 h-9")}
+                            className={clsx("flex items-center justify-center rounded-lg bg-accent-primary/30 text-accent-primary hover:bg-accent-primary hover:text-white transition-all shadow-sm outline-none", isLandscapeMobile ? "w-7 h-7" : "w-8 h-8")}
                         >
-                            <Plus size={isLandscapeMobile ? 16 : 20} />
+                            <Plus size={isLandscapeMobile ? 14 : 18} />
                         </button>
                     )}
                 </div>
