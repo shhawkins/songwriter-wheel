@@ -70,6 +70,7 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
     const [showTheory, setShowTheory] = useState(false); // Collapsed by default
     const [showNotes, setShowNotes] = useState(false); // Collapsed by default
     const [showGuitar, setShowGuitarLocal] = useState(!isMobile || isLandscapeVariant); // Collapsed on mobile (except landscape), expanded on desktop
+    const [voicingsHighlight, setVoicingsHighlight] = useState(false); // Temporary highlight for attention
     const pianoOctave = 4; // Fixed octave for piano keyboard
 
     // Sync local state to global store for voicing picker logic
@@ -253,12 +254,20 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
                 setShowVariations(true);
             }
 
+            // Trigger highlight animation for attention
+            setVoicingsHighlight(true);
+
             // Wait for expansion animation/mount
             setTimeout(() => {
                 scrollSectionIntoView(voicingsSectionRef);
                 // Reset the target so it doesn't trigger again
                 setChordPanelScrollTarget(null);
             }, 100);
+
+            // Auto-clear highlight after 2 seconds
+            setTimeout(() => {
+                setVoicingsHighlight(false);
+            }, 2000);
         } else if (chordPanelScrollTarget) {
             // Generic scroll for other targets if needed
             const refs: Record<string, React.RefObject<HTMLDivElement | null>> = {
@@ -508,7 +517,7 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
                     : isDrawer
                         ? `${isMobile ? 'relative w-full' : 'fixed inset-x-3 bottom-[88px]'} ${isMobile ? 'max-h-[60vh]' : 'max-h-[70vh]'} bg-bg-secondary ${isMobile ? 'border-t-2 border-border-subtle' : 'border-2 border-border-subtle rounded-2xl'} shadow-2xl overflow-hidden ${isMobile ? '' : 'z-40'} flex select-none`
                         : "h-full flex bg-bg-secondary border-l border-border-subtle overflow-x-hidden select-none"
-                }${chordPanelAttention ? ' chord-panel-attention' : ''}`}
+                }${chordPanelAttention ? ' chord-panel-attention' : ''}${voicingsHighlight ? ' voicings-highlight' : ''}`}
             style={{
                 ...(!isDrawer && !isLandscapePanel && !isLandscapeExpanded ? { width: panelWidth, minWidth: 0, maxWidth: '100%' } : {}),
                 ...(isDrawer ? {

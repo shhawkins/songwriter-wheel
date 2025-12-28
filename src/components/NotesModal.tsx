@@ -224,7 +224,7 @@ export const NotesModal: React.FC<NotesModalProps> = ({ isOpen, onClose }) => {
                         {/* Preview Toggle */}
                         <button
                             onClick={() => setPreviewMode(!previewMode)}
-                            className={`text-xs px-2 py-1 rounded transition-colors ${previewMode
+                            className={`text-xs px-2 py-1 rounded transition-colors no-touch-enlarge ${previewMode
                                 ? 'bg-accent-primary/20 text-accent-primary'
                                 : 'text-text-muted hover:text-text-primary hover:bg-bg-tertiary'
                                 }`}
