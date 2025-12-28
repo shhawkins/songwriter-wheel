@@ -14,7 +14,8 @@ import { deleteSong } from './utils/storage';
 import { generatePdfDocument } from './utils/pdfGenerator';
 import { type Song } from './types';
 import { setInstrument, setVolume, setMute, initAudio, startSilentAudioForIOS, unlockAudioForIOS, setAudioResumeNeededCallback, tryResumeAudioContext } from './utils/audioEngine';
-import { formatChordForDisplay } from './utils/musicTheory';
+import { formatChordForDisplay, getQualitySymbol, getWheelColors } from './utils/musicTheory';
+import { playChord } from './utils/audioEngine';
 
 import { ConfirmDialog } from './components/ui/ConfirmDialog';
 import { HelpModal } from './components/HelpModal';
@@ -939,6 +940,57 @@ function App() {
               <StickyNote size={isLandscape ? 14 : 20} />
             </button>
           )}
+
+          {/* Chord badge - pinned to lower right of wheel panel area */}
+          {isMobile && selectedChord && (() => {
+            const colors = getWheelColors();
+            const chordColor = colors[selectedChord.root as keyof typeof colors] || '#6366f1';
+            const quality = selectedChord.quality;
+            let shortName: string;
+            if (quality === 'major') {
+              shortName = formatChordForDisplay(selectedChord.root);
+            } else if (quality === 'minor') {
+              shortName = formatChordForDisplay(`${selectedChord.root}m`);
+            } else if (quality === 'diminished') {
+              shortName = formatChordForDisplay(`${selectedChord.root}°`);
+            } else {
+              shortName = formatChordForDisplay(`${selectedChord.root}${getQualitySymbol(quality)}`);
+            }
+
+            return (
+              <div
+                className={`absolute ${isLandscape ? 'bottom-2 right-2' : 'bottom-3 right-3'} flex items-center gap-1 cursor-pointer touch-feedback active:scale-95 z-50`}
+                style={{
+                  color: chordColor,
+                  padding: '4px 10px',
+                  borderRadius: '8px',
+                  border: `2px solid ${chordColor}`,
+                  backdropFilter: 'blur(8px)',
+                  background: 'rgba(0, 0, 0, 0.4)',
+                  touchAction: 'auto',
+                  pointerEvents: 'auto'
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  playChord(selectedChord.notes);
+                }}
+                onTouchStart={(e) => {
+                  e.stopPropagation();
+                }}
+                onTouchEnd={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  playChord(selectedChord.notes);
+                }}
+              >
+                <span className="text-sm font-bold leading-none">{shortName}</span>
+                {selectedChord.numeral && (
+                  <span className="text-xs font-serif italic opacity-70">{formatChordForDisplay(selectedChord.numeral)}</span>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Desktop: Timeline section - mobile-inspired aesthetic with horizontal section tabs */}
           {!isMobile ? (

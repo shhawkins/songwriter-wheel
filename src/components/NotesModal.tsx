@@ -255,9 +255,7 @@ export const NotesModal: React.FC<NotesModalProps> = ({ isOpen, onClose }) => {
                                     value={songNotes}
                                     onChange={(e) => setSongNotes(e.target.value)}
                                     onBlur={handleSongNotesBlur}
-                                    placeholder="Write your ideas, structure notes...
-
-Tip: Use [Am] bracket notation for inline chords!"
+                                    placeholder="Write your ideas and notes..."
                                     className="min-h-[60px] max-h-[120px] bg-bg-tertiary/50 border border-border-subtle rounded-lg p-3 text-sm text-text-primary placeholder:text-text-muted/50 resize-y focus:outline-none focus:border-accent-primary/50 transition-colors"
                                 />
                             )
@@ -328,9 +326,7 @@ Tip: Use [Am] bracket notation for inline chords!"
                                         value={sectionLyrics}
                                         onChange={(e) => setLocalSectionLyrics(e.target.value)}
                                         onBlur={handleSectionLyricsBlur}
-                                        placeholder={`Lyrics for ${selectedSection.name}...
-
-[F]Never gonna [Gm]give you [Bb]up, never gonna [C]let you down...`}
+                                        placeholder={`Lyrics for ${selectedSection.name}...`}
                                         className="min-h-[100px] max-h-[180px] bg-bg-tertiary/50 border border-border-subtle rounded-lg p-3 text-sm text-text-primary placeholder:text-text-muted/50 resize-y focus:outline-none focus:border-accent-primary/50 transition-colors"
                                     />
                                 )}

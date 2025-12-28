@@ -7,7 +7,6 @@ import {
     getKeySignature,
     CIRCLE_OF_FIFTHS,
     formatChordForDisplay,
-    getQualitySymbol,
     getChordSymbolWithInversion,
     getVoicingSuggestion,
     invertChord,
@@ -29,8 +28,6 @@ interface ChordWheelProps {
     rotationOffset?: number;
     /** Disable the wheel mode toggle button (used during portrait panel centering) */
     disableModeToggle?: boolean;
-    /** Whether the footer (playback controls) is visible - affects floating chord tag position */
-    footerVisible?: boolean;
     /** Callback to open key selection modal */
     onOpenKeySelector?: () => void;
     /** Callback to toggle UI (header/footer) visibility */
@@ -51,7 +48,6 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
     onPanChange,
     rotationOffset = 0,
     disableModeToggle = false,
-    footerVisible = true,
     onOpenKeySelector,
     onToggleUI
 }) => {
@@ -1334,65 +1330,7 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
                 portraitWithPanel={isMobile && !isLandscape && chordPanelVisible}
             />
 
-            {/* Floating chord indicator - shows on mobile portrait when chord panel is closed */}
-            {(!chordPanelVisible && (isMobile || !isLandscape)) && selectedChord && (() => {
-                const chordColor = colors[selectedChord.root as keyof typeof colors] || '#6366f1';
-                // Get short chord name (similar to ChordDetails.getShortChordName)
-                const quality = selectedChord.quality;
-                let shortName: string;
-                if (quality === 'major') {
-                    shortName = formatChordForDisplay(selectedChord.root);
-                } else if (quality === 'minor') {
-                    shortName = formatChordForDisplay(`${selectedChord.root}m`);
-                } else if (quality === 'diminished') {
-                    shortName = formatChordForDisplay(`${selectedChord.root}°`);
-                } else {
-                    shortName = formatChordForDisplay(`${selectedChord.root}${getQualitySymbol(quality)}`);
-                }
 
-                return (
-                    <div
-                        className="fixed flex items-center gap-1 z-10 cursor-pointer touch-feedback active:scale-95"
-                        style={{
-                            // Dynamic positioning: move up when timeline is open, down when footer is hidden
-                            // Base positions: 175px (timeline closed), 260px (timeline open)
-                            // Footer hidden: subtract ~56px to move tag down
-                            bottom: timelineVisible
-                                ? (footerVisible ? '260px' : '204px')
-                                : (footerVisible ? '175px' : '119px'),
-                            right: '12px',
-                            backgroundColor: 'transparent',
-                            color: chordColor,
-                            padding: '4px 10px',
-                            borderRadius: '8px',
-                            border: `2px solid ${chordColor}`,
-                            backdropFilter: 'blur(8px)',
-                            background: 'rgba(0, 0, 0, 0.4)',
-                            transition: 'bottom 0.25s ease-out'
-                        }}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            e.preventDefault();
-                            // Desktop only - mobile uses onTouchEnd
-                            playChord(selectedChord.notes);
-                        }}
-                        onTouchStart={(e) => {
-                            e.stopPropagation();
-                        }}
-                        onTouchEnd={(e) => {
-                            e.stopPropagation();
-                            e.preventDefault();
-                            // Play the chord on touch (mobile)
-                            playChord(selectedChord.notes);
-                        }}
-                    >
-                        <span className="text-sm font-bold leading-none">{shortName}</span>
-                        {selectedChord.numeral && (
-                            <span className="text-xs font-serif italic opacity-70">{formatChordForDisplay(selectedChord.numeral)}</span>
-                        )}
-                    </div>
-                );
-            })()}
 
         </div>
     );
