@@ -187,9 +187,9 @@ export const OnboardingTooltip: React.FC<OnboardingTooltipProps> = ({ onDismiss 
                             <Download size={18} className="text-sky-400" />
                         </div>
                         <div className="pt-0.5">
-                            <h3 className="text-sm font-semibold text-white mb-1">Export your chord sheet</h3>
+                            <h3 className="text-sm font-semibold text-white mb-1">Export your song</h3>
                             <p className="text-xs text-gray-400 leading-relaxed">
-                                <strong className="text-gray-300">Tap the download icon</strong> in the header to export a printable PDF with chords and guitar diagrams.
+                                <strong className="text-gray-300">Tap the export icon</strong> in the header to download a printable PDF with chords, guitar diagrams, and lyrics. <strong className="text-gray-300">Or export MIDI and audio files for your DAW.</strong>
                             </p>
                         </div>
                     </div>
