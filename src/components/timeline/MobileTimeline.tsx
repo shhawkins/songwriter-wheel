@@ -676,16 +676,21 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                                     </div>
                                 )}
 
-                                <div className={clsx(
-                                    isLandscape
-                                        ? isCompact
-                                            ? "grid grid-cols-3 gap-1.5" // Landscape compact: wider slots (3 cols)
-                                            : "grid grid-cols-3 gap-2" // Landscape expanded: 3 cols, more gap
-                                        : clsx(
-                                            "flex flex-row items-center",
-                                            isDesktop ? "gap-1.5" : "gap-0.5" // Desktop: larger gap between measures
-                                        )
-                                )}>
+                                <div
+                                    className={clsx(
+                                        isLandscape
+                                            ? "grid gap-1.5"
+                                            : clsx(
+                                                "flex flex-row items-center",
+                                                isDesktop ? "gap-1.5" : "gap-0.5" // Desktop: larger gap between measures
+                                            )
+                                    )}
+                                    style={isLandscape ? {
+                                        // Use auto-fit grid that adapts to available width
+                                        // Compact mode gets smaller min column size
+                                        gridTemplateColumns: `repeat(auto-fill, minmax(${isCompact ? '80px' : '110px'}, 1fr))`
+                                    } : undefined}
+                                >
                                     {section.measures.map((measure, measureIdx) => (
                                         <React.Fragment key={measure.id}>
                                             <div className={clsx(
@@ -723,11 +728,15 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                                                     {measure.beats.map((beat) => {
                                                         const beatCount = measure.beats.length;
 
-                                                        // Landscape widths - give more space in expanded mode
+                                                        // Landscape widths - use percentage-based approach for grid layout
                                                         let landscapeWidth: number | undefined;
                                                         if (isLandscape) {
-                                                            const baseLandscapeWidth = isCompact ? 180 : 240; // More width when expanded
-                                                            landscapeWidth = Math.max(32, Math.floor(baseLandscapeWidth / Math.max(4, beatCount)));
+                                                            // In landscape grid mode, base width on available column width
+                                                            // Each bar gets ~1/3 of the container. Bar marker takes ~16px, leave rest for beats.
+                                                            // For a ~300px panel width / 3 cols = ~100px per col - 16px marker - gaps = ~75-80px for beats
+                                                            // Divide by beat count to get per-beat width
+                                                            const basePerBar = isCompact ? 70 : 120; // Approximate usable width per bar
+                                                            landscapeWidth = Math.max(24, Math.floor(basePerBar / Math.max(1, beatCount)));
                                                         }
 
                                                         // Portrait widths

@@ -51,6 +51,8 @@ export const useTimelineDragDrop = ({
     const dragStartScrollLeft = useRef<number>(0);
     const dragStartScrollTop = useRef<number>(0);
     const sectionDragStartScrollLeft = useRef<number>(0);
+    const sectionDragStartPointer = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+    const dragStartPointer = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
     const [scrollOffsetX, setScrollOffsetX] = useState(0);
     const [scrollOffsetY, setScrollOffsetY] = useState(0);
     const EDGE_THRESHOLD = 35;
@@ -58,22 +60,47 @@ export const useTimelineDragDrop = ({
     const scrollIntensityRef = useRef<number>(0);
 
     // Custom collision detection for CHORDS
-    const chordCollisionDetection: CollisionDetection = ({ pointerCoordinates }) => {
+    // Uses droppable rects/containers from dnd-kit instead of document.elementFromPoint
+    // This avoids issues where the DragOverlay intercepts pointer detection
+    const chordCollisionDetection: CollisionDetection = ({ pointerCoordinates, droppableRects, droppableContainers }) => {
         if (!pointerCoordinates) return [];
 
-        const element = document.elementFromPoint(pointerCoordinates.x, pointerCoordinates.y);
-        if (!element) return [];
+        // Find the closest droppable slot under the pointer
+        let closestSlot: { id: string; distance: number } | null = null;
 
-        const slotElement = element.closest('[data-slot-id]');
-        if (slotElement) {
-            const slotId = slotElement.getAttribute('data-slot-id');
-            if (slotId) {
+        for (const [droppableId, rect] of droppableRects.entries()) {
+            // Only consider slot droppables (not section tabs, etc.)
+            if (!droppableId.toString().startsWith('slot-')) continue;
+
+            // Check if pointer is within this rect
+            if (
+                pointerCoordinates.x >= rect.left &&
+                pointerCoordinates.x <= rect.right &&
+                pointerCoordinates.y >= rect.top &&
+                pointerCoordinates.y <= rect.bottom
+            ) {
+                // Calculate distance to center for tie-breaking
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                const distance = Math.hypot(pointerCoordinates.x - centerX, pointerCoordinates.y - centerY);
+
+                if (!closestSlot || distance < closestSlot.distance) {
+                    closestSlot = { id: droppableId.toString(), distance };
+                }
+            }
+        }
+
+        if (closestSlot) {
+            // droppableContainers is an array of DroppableContainer objects
+            const container = Array.from(droppableContainers).find(c => c.id === closestSlot!.id);
+            if (container && container.data.current) {
                 return [{
-                    id: `slot-${slotId}`,
-                    data: { value: slotId }
+                    id: closestSlot.id,
+                    data: container.data.current
                 }];
             }
         }
+
         return [];
     };
 
@@ -170,7 +197,14 @@ export const useTimelineDragDrop = ({
         if (sectionTabsRef.current) {
             sectionDragStartScrollLeft.current = sectionTabsRef.current.scrollLeft;
         }
-        setScrollOffsetX(0); // Note: Original code had setScrollOffset which seemed undefined in snippet, but likely meant for x
+        // Capture initial pointer position for drag calculations
+        const activatorEvent = event.activatorEvent;
+        if (activatorEvent instanceof MouseEvent) {
+            sectionDragStartPointer.current = { x: activatorEvent.clientX, y: activatorEvent.clientY };
+        } else if (activatorEvent instanceof TouchEvent && activatorEvent.touches.length > 0) {
+            sectionDragStartPointer.current = { x: activatorEvent.touches[0].clientX, y: activatorEvent.touches[0].clientY };
+        }
+        setScrollOffsetX(0);
     };
 
     const handleChordDragStart = (event: any) => {
@@ -179,6 +213,13 @@ export const useTimelineDragDrop = ({
         if (scrollRef.current) {
             dragStartScrollLeft.current = scrollRef.current.scrollLeft;
             dragStartScrollTop.current = scrollRef.current.scrollTop;
+        }
+        // Capture initial pointer position for drag calculations
+        const activatorEvent = event.activatorEvent;
+        if (activatorEvent instanceof MouseEvent) {
+            dragStartPointer.current = { x: activatorEvent.clientX, y: activatorEvent.clientY };
+        } else if (activatorEvent instanceof TouchEvent && activatorEvent.touches.length > 0) {
+            dragStartPointer.current = { x: activatorEvent.touches[0].clientX, y: activatorEvent.touches[0].clientY };
         }
         setScrollOffsetX(0);
         setScrollOffsetY(0);
@@ -190,23 +231,13 @@ export const useTimelineDragDrop = ({
 
         const containerRect = scrollRef.current.getBoundingClientRect();
 
-        let pointer = { x: 0, y: 0 };
-        if (event.activatorEvent instanceof MouseEvent) {
-            pointer = {
-                x: event.activatorEvent.clientX + event.delta.x,
-                y: event.activatorEvent.clientY + event.delta.y
-            };
-        } else if (event.activatorEvent instanceof TouchEvent && event.activatorEvent.touches.length > 0) {
-            pointer = {
-                x: event.activatorEvent.touches[0].clientX + event.delta.x,
-                y: event.activatorEvent.touches[0].clientY + event.delta.y
-            };
-        } else {
-            pointer = {
-                x: containerRect.left + containerRect.width / 2,
-                y: containerRect.top + containerRect.height / 2
-            };
-        }
+        // Calculate current pointer position from initial position + delta
+        // This works reliably for both mouse and touch because we tracked
+        // the initial position in handleChordDragStart
+        const pointer = {
+            x: dragStartPointer.current.x + event.delta.x,
+            y: dragStartPointer.current.y + event.delta.y
+        };
 
         if (isLandscape) {
             const distTop = pointer.y - containerRect.top;
@@ -243,11 +274,8 @@ export const useTimelineDragDrop = ({
 
         const containerRect = sectionTabsRef.current.getBoundingClientRect();
 
-        const pointerX = event.activatorEvent instanceof MouseEvent
-            ? event.activatorEvent.clientX + event.delta.x
-            : (event.activatorEvent instanceof TouchEvent && event.activatorEvent.touches.length > 0)
-                ? event.activatorEvent.touches[0].clientX + event.delta.x
-                : containerRect.left + containerRect.width / 2;
+        // Calculate current pointer position from initial position + delta
+        const pointerX = sectionDragStartPointer.current.x + event.delta.x;
 
         const distLeft = pointerX - containerRect.left;
         const distRight = containerRect.right - pointerX;
