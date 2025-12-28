@@ -13,6 +13,7 @@ import { ChordTheory } from './ChordTheory';
 import { ChordScales } from './ChordScales';
 import { ChordNotesGrid } from './ChordNotesGrid';
 import { ChordNotes } from './ChordNotes';
+import { LeadModeSelector } from './LeadModeSelector';
 
 
 interface ChordDetailsProps {
@@ -765,12 +766,16 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
                         {/* Piano & Voicing Section */}
                         {!isCompactLandscape && (
                             <div className={`${isMobile ? 'px-5 pt-4 pb-4' : 'px-5 py-4'} border-b border-border-subtle`}>
+                                {!isCompactLandscape && (
+                                    <LeadModeSelector selectedKey={selectedKey} />
+                                )}
                                 <PianoKeyboard
                                     highlightedNotes={displayNotes}
                                     rootNote={chord.root}
                                     bassNote={displayNotes[0]}
                                     color={chordColor}
                                     octave={pianoOctave}
+                                    height={64} // Smaller height for mobile/compact feel
                                     onNotePlay={handleNotePlay}
                                 />
                                 {/* Notes display - ONLY show if not in compact landscape */}

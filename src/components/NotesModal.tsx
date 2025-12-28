@@ -346,7 +346,7 @@ export const NotesModal: React.FC<NotesModalProps> = ({ isOpen, onClose }) => {
 
                     {/* Help Text */}
                     <p className="text-[10px] text-text-muted text-center">
-                        Use <code className="bg-bg-tertiary px-1 rounded">[Am]</code> for inline chords • Drag sections to reorder • Auto-saves
+                        Use <code className="bg-bg-tertiary px-1 rounded">[Am]</code> for inline chords • Supports markdown • Auto-saves
                     </p>
                 </div>
             </DraggableModal>

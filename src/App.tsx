@@ -6,7 +6,7 @@ import { ChordDetails } from './components/panel/ChordDetails';
 import { PlaybackControls } from './components/playback/PlaybackControls';
 import { SongOverview } from './components/timeline/SongOverview';
 import { useSongStore } from './store/useSongStore';
-import { Download, Save, ChevronDown, ChevronUp, Plus, Minus, Clock, FolderOpen, FilePlus, Trash2, HelpCircle, FileAudio, FileText, ListMusic, StickyNote } from 'lucide-react';
+import { Download, Save, ChevronDown, ChevronUp, Plus, Minus, Clock, FolderOpen, FilePlus, Trash2, HelpCircle, FileAudio, FileText, ListMusic, ClipboardPen } from 'lucide-react';
 import { Logo } from './components/Logo';
 import * as Tone from 'tone';
 import { saveAs } from 'file-saver';
@@ -1018,7 +1018,7 @@ function App() {
                     });
                   }
                 }}
-                className={`absolute ${isMobile && isLandscape ? 'top-2 left-2 w-8 h-8' : isMobile ? 'top-3 left-3 w-11 h-11' : 'top-3 left-3 w-9 h-9'} flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-accent-primary transition-colors shadow-lg border border-border-subtle z-50`}
+                className={`absolute ${isMobile && isLandscape ? 'bottom-2 right-2 w-8 h-8' : isMobile ? 'bottom-3 right-3 w-11 h-11' : 'bottom-3 right-3 w-9 h-9'} flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-accent-primary transition-colors shadow-lg border border-border-subtle z-50`}
                 style={{ touchAction: 'auto', pointerEvents: 'auto' }}
                 title="Open Voicing Picker"
               >
@@ -1027,6 +1027,8 @@ function App() {
             )}
 
             {/* Notes button - pinned to lower left of wheel panel area */}
+            {/* Voicing Picker button - originally pinned to upper left, then bottom right, now bottom LEFT */}
+            {/* Notes button - originally pinned to lower left, now bottom RIGHT */}
             <button
               data-notes-button
               onClick={() => toggleNotesModal(true)}
@@ -1039,28 +1041,19 @@ function App() {
               style={{ touchAction: 'auto', pointerEvents: 'auto' }}
               title="Song Notes & Lyrics"
             >
-              <StickyNote size={isMobile && isLandscape ? 14 : isMobile ? 20 : 16} />
+              <ClipboardPen size={isMobile && isLandscape ? 14 : isMobile ? 20 : 16} />
             </button>
 
             {/* Chord badge - pinned to lower right of wheel panel area */}
             {selectedChord && (() => {
               const colors = getWheelColors();
               const chordColor = colors[selectedChord.root as keyof typeof colors] || '#6366f1';
-              const quality = selectedChord.quality;
-              let shortName: string;
-              if (quality === 'major') {
-                shortName = formatChordForDisplay(selectedChord.root);
-              } else if (quality === 'minor') {
-                shortName = formatChordForDisplay(`${selectedChord.root}m`);
-              } else if (quality === 'diminished') {
-                shortName = formatChordForDisplay(`${selectedChord.root}°`);
-              } else {
-                shortName = formatChordForDisplay(`${selectedChord.root}${getQualitySymbol(quality)}`);
-              }
+
+              const shortName = formatChordForDisplay(`${selectedChord.root}${getQualitySymbol(selectedChord.quality)}`);
 
               return (
                 <div
-                  className={`absolute ${isMobile && isLandscape ? 'bottom-2 right-2' : 'bottom-3 right-3'} flex items-center gap-1 cursor-pointer touch-feedback active:scale-95 z-50`}
+                  className={`absolute ${isMobile && isLandscape ? 'top-2 left-2' : 'top-3 left-3'} flex items-center gap-1 cursor-pointer touch-feedback active:scale-95 z-50`}
                   style={{
                     color: chordColor,
                     padding: '4px 10px',

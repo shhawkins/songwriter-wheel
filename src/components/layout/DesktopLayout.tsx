@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { ChevronDown, ChevronUp, HelpCircle, ListMusic, StickyNote } from 'lucide-react';
+import { ChevronDown, ChevronUp, HelpCircle, ListMusic, ClipboardPen } from 'lucide-react';
 import { useSongStore } from '../../store/useSongStore';
 import { MobileTimeline } from '../timeline/MobileTimeline';
 import { ChordDetails } from '../panel/ChordDetails';
@@ -74,14 +74,10 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
         ? colors[selectedChord.root as keyof typeof colors] || '#6366f1'
         : '#6366f1';
 
-    // Get short chord name for badge
-    const getShortName = () => {
+    // Get full chord name for badge (showing voicing)
+    const getBadgeName = () => {
         if (!selectedChord) return '';
-        const quality = selectedChord.quality;
-        if (quality === 'major') return formatChordForDisplay(selectedChord.root);
-        if (quality === 'minor') return formatChordForDisplay(`${selectedChord.root}m`);
-        if (quality === 'diminished') return formatChordForDisplay(`${selectedChord.root}°`);
-        return formatChordForDisplay(`${selectedChord.root}${getQualitySymbol(quality)}`);
+        return formatChordForDisplay(`${selectedChord.root}${getQualitySymbol(selectedChord.quality)}`);
     };
 
     const handleOpenVoicingPicker = () => {
@@ -223,13 +219,29 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
                 </div>
 
                 {selectedChord && (
-                    <button
-                        onClick={(e) => { e.stopPropagation(); handleOpenVoicingPicker(); }}
-                        className="absolute top-3 left-3 w-9 h-9 flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-accent-primary transition-colors shadow-lg border border-border-subtle z-50"
-                        title="Open Voicing Picker"
+                    <div
+                        className="absolute top-3 left-3 flex items-center gap-1 cursor-pointer touch-feedback active:scale-95 z-50"
+                        style={{
+                            color: chordColor,
+                            padding: '4px 10px',
+                            borderRadius: '8px',
+                            border: `2px solid ${chordColor}`,
+                            backdropFilter: 'blur(8px)',
+                            background: 'rgba(0, 0, 0, 0.4)',
+                        }}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            playChord(selectedChord.notes);
+                        }}
                     >
-                        <ListMusic size={16} />
-                    </button>
+                        <span className="text-sm font-bold leading-none">{getBadgeName()}</span>
+                        {selectedChord.numeral && (
+                            <span className="text-xs font-serif italic opacity-70">
+                                {formatChordForDisplay(selectedChord.numeral)}
+                            </span>
+                        )}
+                    </div>
                 )}
 
                 {/* Help Button - Upper Right */}
@@ -247,35 +259,18 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
                     style={{ bottom: timelineVisible ? `${timelineHeight + 12}px` : `${collapsedHeight + 12}px`, transition: 'bottom 0.3s ease-out' }}
                     title="Song Notes & Lyrics"
                 >
-                    <StickyNote size={16} />
+                    <ClipboardPen size={16} />
                 </button>
 
                 {selectedChord && (
-                    <div
-                        className="absolute bottom-3 right-3 flex items-center gap-1 cursor-pointer touch-feedback active:scale-95 z-50"
-                        style={{
-                            bottom: timelineVisible ? `${timelineHeight + 12}px` : `${collapsedHeight + 12}px`,
-                            transition: 'bottom 0.3s ease-out',
-                            color: chordColor,
-                            padding: '4px 10px',
-                            borderRadius: '8px',
-                            border: `2px solid ${chordColor}`,
-                            backdropFilter: 'blur(8px)',
-                            background: 'rgba(0, 0, 0, 0.4)',
-                        }}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            e.preventDefault();
-                            playChord(selectedChord.notes);
-                        }}
+                    <button
+                        onClick={(e) => { e.stopPropagation(); handleOpenVoicingPicker(); }}
+                        className="absolute bottom-3 right-3 w-9 h-9 flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-accent-primary transition-colors shadow-lg border border-border-subtle z-50"
+                        style={{ bottom: timelineVisible ? `${timelineHeight + 12}px` : `${collapsedHeight + 12}px`, transition: 'bottom 0.3s ease-out' }}
+                        title="Open Voicing Picker"
                     >
-                        <span className="text-sm font-bold leading-none">{getShortName()}</span>
-                        {selectedChord.numeral && (
-                            <span className="text-xs font-serif italic opacity-70">
-                                {formatChordForDisplay(selectedChord.numeral)}
-                            </span>
-                        )}
-                    </div>
+                        <ListMusic size={16} />
+                    </button>
                 )}
 
                 {/* Timeline Drawer */}

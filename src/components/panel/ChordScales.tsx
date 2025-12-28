@@ -1,6 +1,8 @@
-import React from 'react';
-import { ChevronDown } from 'lucide-react';
-import { getMajorScale, formatChordForDisplay } from '../../utils/musicTheory';
+import React, { useState } from 'react';
+import { ChevronDown, Guitar } from 'lucide-react';
+import { getMajorScale, formatChordForDisplay, getDiatonicChords } from '../../utils/musicTheory';
+import { ModeFretboard } from './ModeFretboard';
+import { PlayableScaleStrip } from './PlayableScaleStrip';
 
 interface ChordScalesProps {
     selectedKey: string;
@@ -17,6 +19,8 @@ export const ChordScales: React.FC<ChordScalesProps> = ({
     showScales,
     onToggle
 }) => {
+    const [expandedMode, setExpandedMode] = useState<string | null>(null);
+
     // Hide in compact landscape
     if (isCompactLandscape) return null;
 
@@ -40,46 +44,107 @@ export const ChordScales: React.FC<ChordScalesProps> = ({
             </button>
             {showScales && (() => {
                 const scale = getMajorScale(selectedKey);
+                // Get diatonic chords to know the quality of each degree
+                const diatonicChords = getDiatonicChords(selectedKey);
+
                 const getModeScale = (startDegree: number) => {
                     const rotated = [...scale.slice(startDegree), ...scale.slice(0, startDegree)];
-                    return rotated.map(n => formatChordForDisplay(n)).join(' – ');
+                    return rotated;
                 };
+
                 const modes = [
-                    { name: 'Ionian (I)', degree: 0, quality: 'MAJ', color: '#EAB308', desc: 'Bright, happy' },
-                    { name: 'Dorian (ii)', degree: 1, quality: 'min', color: '#8B5CF6', desc: 'Hopeful minor, jazzy' },
-                    { name: 'Phrygian (iii)', degree: 2, quality: 'min', color: '#F97316', desc: 'Spanish, exotic' },
-                    { name: 'Lydian (IV)', degree: 3, quality: 'MAJ', color: '#06B6D4', desc: 'Dreamy, floating' },
-                    { name: 'Mixolydian (V)', degree: 4, quality: 'MAJ', color: '#10B981', desc: 'Bluesy, rock' },
-                    { name: 'Aeolian (vi)', degree: 5, quality: 'min', color: '#3B82F6', desc: 'Sad, melancholic' },
-                    { name: 'Locrian (vii°)', degree: 6, quality: 'dim', color: '#EF4444', desc: 'Dark, unstable' },
+                    { name: 'Ionian', degree: 0, desc: 'Bright, happy' },
+                    { name: 'Dorian', degree: 1, desc: 'Hopeful minor, jazzy' },
+                    { name: 'Phrygian', degree: 2, desc: 'Spanish, exotic' },
+                    { name: 'Lydian', degree: 3, desc: 'Dreamy, floating' },
+                    { name: 'Mixolydian', degree: 4, desc: 'Bluesy, rock' },
+                    { name: 'Aeolian', degree: 5, desc: 'Sad, melancholic' },
+                    { name: 'Locrian', degree: 6, desc: 'Dark, unstable' },
                 ];
+
                 return (
-                    <div className="space-y-1.5 pb-2">
-                        {modes.map((mode) => (
-                            <div
-                                key={mode.name}
-                                className="bg-bg-tertiary/50 p-2 rounded"
-                                style={{ borderLeft: `2px solid ${mode.color}` }}
-                            >
-                                <div className="flex items-center justify-between mb-0.5">
-                                    <span className={`${isMobile ? 'text-[11px]' : 'text-[10px]'} font-medium text-white`}>
-                                        {formatChordForDisplay(scale[mode.degree])} {mode.name.split(' ')[0]}
-                                    </span>
-                                    <span
-                                        className="text-[8px] px-1 py-0.5 rounded"
-                                        style={{ color: mode.color, backgroundColor: `${mode.color}15` }}
+                    <div className="space-y-4 pb-4">
+                        {modes.map((mode, index) => {
+                            const chord = diatonicChords[index] || { root: scale[index], quality: 'major', numeral: '?' };
+                            const rootNote = chord.root;
+                            const modeScaleNotes = getModeScale(mode.degree);
+                            const numeral = chord.numeral;
+
+                            const isExpanded = expandedMode === mode.name;
+                            const modeColor = index === 0 ? '#EAB308' : '#6366f1'; // Gold for Ionian, Indigo for others default
+
+                            return (
+                                <div
+                                    key={mode.name}
+                                    className={`bg-bg-tertiary/30 rounded-xl overflow-hidden border border-white/5 transition-all ${isExpanded ? 'bg-bg-tertiary/50 ring-1 ring-white/10 shadow-lg' : ''}`}
+                                >
+                                    {/* Header Section */}
+                                    <div
+                                        className="px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-white/5 transition-colors"
+                                        onClick={() => setExpandedMode(isExpanded ? null : mode.name)}
                                     >
-                                        {mode.quality}
-                                    </span>
+                                        <div className="flex flex-col gap-1">
+                                            <div className="flex items-baseline gap-2">
+                                                <span className="text-xl font-bold text-white tracking-tight">
+                                                    {formatChordForDisplay(rootNote)}
+                                                    <span className="text-base font-medium text-accent-primary ml-1.5 opacity-90">
+                                                        {mode.name}
+                                                    </span>
+                                                </span>
+                                                <span className="text-xs text-text-muted font-serif italic px-1.5 py-0.5 rounded bg-white/5">
+                                                    {numeral}
+                                                </span>
+                                            </div>
+                                            <span className="text-xs text-text-muted font-medium">
+                                                {mode.desc}
+                                            </span>
+                                        </div>
+
+                                        <ChevronDown
+                                            size={20}
+                                            className={`text-text-muted transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}
+                                        />
+                                    </div>
+
+                                    {/* Expanded Content: Playable Strip & Fretboard */}
+                                    {isExpanded && (
+                                        <div className="px-4 pb-4 pt-0 animate-in fade-in slide-in-from-top-1 duration-200">
+                                            <div className="h-px w-full bg-white/5 mb-4" />
+
+                                            {/* Playable Strip Section */}
+                                            <div className="mb-4">
+                                                <div className="mb-2 flex items-center justify-between">
+                                                    <span className="text-[10px] uppercase tracking-wider text-text-secondary font-bold opacity-70">
+                                                        Playable Notes
+                                                    </span>
+                                                </div>
+                                                <PlayableScaleStrip
+                                                    scaleNotes={modeScaleNotes}
+                                                    boxColor={modeColor}
+                                                />
+                                            </div>
+
+                                            <div className="h-px w-full bg-white/5 mb-4 opacity-50" />
+
+                                            <div className="flex items-center gap-1.5 mb-2">
+                                                <Guitar size={14} className="text-accent-primary" />
+                                                <span className="text-[11px] uppercase tracking-wider text-text-secondary font-bold">
+                                                    Guitar Fretboard
+                                                </span>
+                                            </div>
+
+                                            <div className="bg-black/40 rounded-lg p-2 border border-white/5 shadow-inner">
+                                                <ModeFretboard
+                                                    scaleNotes={modeScaleNotes}
+                                                    rootNote={rootNote}
+                                                    color={modeColor}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
-                                <p className={`${isMobile ? 'text-[9px]' : 'text-[8px]'} text-gray-400 mb-1`}>
-                                    {mode.desc}
-                                </p>
-                                <p className={`${isMobile ? 'text-[10px]' : 'text-[9px]'} text-gray-500 font-mono tracking-wide`}>
-                                    {getModeScale(mode.degree)}
-                                </p>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 );
             })()}

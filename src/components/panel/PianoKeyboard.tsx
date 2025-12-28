@@ -6,6 +6,7 @@ interface PianoKeyboardProps {
     bassNote?: string; // The actual bass note (first note in inverted chord)
     color?: string;
     octave?: number;
+    height?: number;
     onNotePlay?: (note: string, octave: number) => void;
 }
 
@@ -15,6 +16,7 @@ export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
     bassNote,
     color = '#6366f1',
     octave = 4,
+    height = 80,
     onNotePlay
 }) => {
     const whiteKeys = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
@@ -360,11 +362,12 @@ export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
             ref={containerRef}
             className="piano-keyboard relative w-full rounded-lg select-none overflow-hidden touch-none"
             style={{
-                height: '80px',
-                minHeight: '80px',
+                height: `${height}px`,
+                minHeight: `${height}px`,
                 background: '#1a1a22',
                 boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.6)',
-                padding: '3px 2px 2px 2px'
+                padding: '3px 2px 2px 2px',
+                zIndex: 0 // Create local stacking context so internal z-indexes (black keys) don't leak
             }}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
