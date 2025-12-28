@@ -26,6 +26,9 @@ export interface UIState {
     // Key Lock State
     isKeyLocked: boolean;
 
+    // Notes Modal State
+    notesModalVisible: boolean;
+
     // UI-specific dragging state (not selection dragging which is in SelectionSlice)
     // We already have `isDraggingVoicingPicker` in SelectionSlice. 
     // This seems consistent to keep strictly global UI toggles here.
@@ -50,6 +53,7 @@ export interface UIActions {
     setChordPanelVoicingsExpanded: (expanded: boolean) => void;
     pulseChordPanel: () => void;  // Trigger attention animation on chord panel
     toggleKeyLock: () => void;
+    toggleNotesModal: (force?: boolean) => void;
 }
 
 export type UISlice = UIState & UIActions;
@@ -97,6 +101,7 @@ export const createUISlice: StateCreator<
     chordPanelVoicingsExpanded: false,
     chordPanelAttention: false,
     isKeyLocked: false,
+    notesModalVisible: false,
 
     toggleKeyLock: () => set((state: UIState) => ({ isKeyLocked: !state.isKeyLocked })),
 
@@ -227,4 +232,7 @@ export const createUISlice: StateCreator<
         set({ chordPanelAttention: true });
         setTimeout(() => set({ chordPanelAttention: false }), 600);
     },
+    toggleNotesModal: (force) => set((state: UIState) => ({
+        notesModalVisible: force !== undefined ? force : !state.notesModalVisible
+    })),
 });

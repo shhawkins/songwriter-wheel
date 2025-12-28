@@ -163,6 +163,8 @@ interface SongState extends PlaybackSlice, InstrumentSlice, SelectionSlice, Clou
     setArtist: (artist: string) => void;
     setTags: (tags: string[]) => void;
     setSongTimeSignature: (signature: [number, number]) => void;
+    setNotes: (notes: string) => void;
+    setSectionLyrics: (sectionId: string, lyrics: string) => void;
     loadSong: (song: Song) => void;
     newSong: () => void;
     addSection: (type: Section['type']) => void;
@@ -331,6 +333,27 @@ export const useSongStore = create<SongState>()(
                 return {
                     ...history,
                     currentSong: { ...state.currentSong, timeSignature: signature }
+                };
+            }),
+
+            setNotes: (notes) => set((state) => {
+                const history = buildHistoryState(state.currentSong, state.historyPast);
+                return {
+                    ...history,
+                    currentSong: { ...state.currentSong, notes }
+                };
+            }),
+
+            setSectionLyrics: (sectionId, lyrics) => set((state) => {
+                const history = buildHistoryState(state.currentSong, state.historyPast);
+                return {
+                    ...history,
+                    currentSong: {
+                        ...state.currentSong,
+                        sections: state.currentSong.sections.map(s =>
+                            s.id === sectionId ? { ...s, lyrics } : s
+                        )
+                    }
                 };
             }),
 

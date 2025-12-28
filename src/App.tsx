@@ -6,7 +6,7 @@ import { ChordDetails } from './components/panel/ChordDetails';
 import { PlaybackControls } from './components/playback/PlaybackControls';
 import { SongOverview } from './components/timeline/SongOverview';
 import { useSongStore } from './store/useSongStore';
-import { Download, Save, ChevronDown, ChevronUp, Plus, Minus, Clock, FolderOpen, FilePlus, Trash2, HelpCircle, FileAudio, FileText, ListMusic } from 'lucide-react';
+import { Download, Save, ChevronDown, ChevronUp, Plus, Minus, Clock, FolderOpen, FilePlus, Trash2, HelpCircle, FileAudio, FileText, ListMusic, StickyNote } from 'lucide-react';
 import { Logo } from './components/Logo';
 import * as Tone from 'tone';
 import { saveAs } from 'file-saver';
@@ -24,6 +24,7 @@ import { KeySelectorModal } from './components/KeySelectorModal';
 import { InstrumentManagerModal } from './components/playback/InstrumentManagerModal';
 import { InstrumentControls } from './components/playback/InstrumentControls';
 import { ExportModal } from './components/ExportModal';
+import { NotesModal } from './components/NotesModal';
 import { AuthModal } from './components/auth/AuthModal';
 import { useAuthStore } from './stores/authStore';
 import { User as UserIcon } from 'lucide-react';
@@ -36,7 +37,7 @@ import { MobilePortraitDrawers } from './components/layout/MobilePortraitDrawers
 
 
 function App() {
-  const { currentSong, selectedKey, timelineVisible, toggleTimeline, setTitle, setArtist, setTags, setSongTimeSignature, loadSong: loadSongToStore, newSong, instrument, volume, isMuted, chordPanelVisible, isPlaying, songInfoModalVisible, toggleSongInfoModal, instrumentManagerModalVisible, toggleInstrumentManagerModal, cloudSongs, loadCloudSongs, saveToCloud, deleteFromCloud, isLoadingCloud, selectedChord } = useSongStore();
+  const { currentSong, selectedKey, timelineVisible, toggleTimeline, setTitle, setArtist, setTags, setSongTimeSignature, loadSong: loadSongToStore, newSong, instrument, volume, isMuted, chordPanelVisible, isPlaying, songInfoModalVisible, toggleSongInfoModal, instrumentManagerModalVisible, toggleInstrumentManagerModal, cloudSongs, loadCloudSongs, saveToCloud, deleteFromCloud, isLoadingCloud, selectedChord, notesModalVisible, toggleNotesModal } = useSongStore();
 
   // Audio Sync Logic
   useEffect(() => {
@@ -922,6 +923,23 @@ function App() {
             </button>
           )}
 
+          {/* Notes button - pinned to lower left of wheel panel area */}
+          {isMobile && (
+            <button
+              onClick={() => toggleNotesModal(true)}
+              onTouchEnd={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleNotesModal(true);
+              }}
+              className={`absolute ${isLandscape ? 'bottom-2 left-2 w-8 h-8' : 'bottom-3 left-3 w-11 h-11'} flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-amber-400 transition-colors shadow-lg border border-border-subtle z-50`}
+              style={{ touchAction: 'auto', pointerEvents: 'auto' }}
+              title="Song Notes & Lyrics"
+            >
+              <StickyNote size={isLandscape ? 14 : 20} />
+            </button>
+          )}
+
           {/* Desktop: Timeline section - mobile-inspired aesthetic with horizontal section tabs */}
           {!isMobile ? (
             timelineVisible ? (
@@ -1130,6 +1148,9 @@ function App() {
 
       {/* Help Modal */}
       <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
+
+      {/* Notes Modal */}
+      <NotesModal isOpen={notesModalVisible} onClose={() => toggleNotesModal(false)} />
 
       {/* Key Selector Modal */}
       <KeySelectorModal

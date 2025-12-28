@@ -18,6 +18,7 @@ import {
     Volume2,
     VolumeX,
     Sparkles,
+    StickyNote,
 } from 'lucide-react';
 import { useSongStore } from '../store/useSongStore';
 import type { InstrumentType } from '../types';
@@ -67,6 +68,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, getPd
     const [includePdf, setIncludePdf] = useState(true);
     const [includeDry, setIncludeDry] = useState(true);
     const [includeWet, setIncludeWet] = useState(true);
+    const [includeNotes, setIncludeNotes] = useState(true);
 
     // Export state
     const [isExporting, setIsExporting] = useState(false);
@@ -82,8 +84,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, getPd
         }
         if (exportMidi) count += 1; // MIDI is always one file
         if (includePdf && getPdfBlob) count += 1; // PDF is one file
+        if (includeNotes && currentSong.notes) count += 1; // Notes is one file
         return count;
-    }, [exportAudio, exportMidi, includePdf, getPdfBlob, includeDry, includeWet, selectedInstruments]);
+    }, [exportAudio, exportMidi, includePdf, getPdfBlob, includeDry, includeWet, selectedInstruments, includeNotes, currentSong.notes]);
 
     // Toggle instrument selection
     const toggleInstrument = useCallback((instrument: InstrumentType) => {
@@ -126,6 +129,33 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, getPd
 
                 const pdfBlob = getPdfBlob();
                 zip.file(`${baseFilename}.pdf`, pdfBlob);
+                currentProgress++;
+            }
+
+            // Export Notes as txt file
+            if (includeNotes && currentSong.notes) {
+                setProgress({
+                    current: currentProgress,
+                    total: totalExportItems,
+                    currentItem: 'Creating notes file...',
+                });
+
+                // Combine song notes with section lyrics
+                let notesContent = `# ${currentSong.title}\n`;
+                if (currentSong.artist) notesContent += `Artist: ${currentSong.artist}\n`;
+                notesContent += `\n## Song Notes\n${currentSong.notes}\n`;
+
+                // Add section lyrics if any exist
+                const sectionsWithLyrics = currentSong.sections.filter(s => s.lyrics);
+                if (sectionsWithLyrics.length > 0) {
+                    notesContent += `\n## Section Lyrics\n`;
+                    sectionsWithLyrics.forEach(section => {
+                        notesContent += `\n### ${section.name}\n${section.lyrics}\n`;
+                    });
+                }
+
+                const notesBlob = new Blob([notesContent], { type: 'text/plain' });
+                zip.file(`${baseFilename}-notes.txt`, notesBlob);
                 currentProgress++;
             }
 
@@ -307,6 +337,25 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, getPd
                                         {includePdf && <Check className="w-3 h-3 text-white" />}
                                     </div>
                                     <span className="font-medium text-sm">PDF</span>
+                                </button>
+                            )}
+
+                            {/* Notes toggle */}
+                            {currentSong.notes && (
+                                <button
+                                    onClick={() => setIncludeNotes(!includeNotes)}
+                                    disabled={isExporting}
+                                    className={`flex items-center gap-2 px-3 py-3 rounded-xl border transition-all ${includeNotes
+                                        ? 'bg-amber-600/20 border-amber-500/50 text-amber-400'
+                                        : 'bg-gray-800/50 border-gray-700/50 text-gray-400 hover:border-gray-600'
+                                        }`}
+                                >
+                                    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${includeNotes ? 'bg-amber-500 border-amber-500' : 'border-gray-500'
+                                        }`}>
+                                        {includeNotes && <Check className="w-3 h-3 text-white" />}
+                                    </div>
+                                    <StickyNote className="w-3 h-3" />
+                                    <span className="font-medium text-sm">Notes</span>
                                 </button>
                             )}
                         </div>

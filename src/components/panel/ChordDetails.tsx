@@ -12,6 +12,7 @@ import { ChordVoicingsList } from './ChordVoicingsList';
 import { ChordTheory } from './ChordTheory';
 import { ChordScales } from './ChordScales';
 import { ChordNotesGrid } from './ChordNotesGrid';
+import { ChordNotes } from './ChordNotes';
 
 
 interface ChordDetailsProps {
@@ -67,6 +68,7 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
     const [showVariations, setShowVariationsLocal] = useState(false); // Collapsed by default
     const [showScales, setShowScales] = useState(false); // Collapsed by default
     const [showTheory, setShowTheory] = useState(false); // Collapsed by default
+    const [showNotes, setShowNotes] = useState(false); // Collapsed by default
     const [showGuitar, setShowGuitarLocal] = useState(!isMobile || isLandscapeVariant); // Collapsed on mobile (except landscape), expanded on desktop
     const pianoOctave = 4; // Fixed octave for piano keyboard
 
@@ -98,6 +100,7 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
     const voicingsSectionRef = useRef<HTMLDivElement>(null);
     const scalesSectionRef = useRef<HTMLDivElement>(null);
     const theorySectionRef = useRef<HTMLDivElement>(null);
+    const notesSectionRef = useRef<HTMLDivElement>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
     // Helper function to scroll a section into view within the scroll container
@@ -854,6 +857,23 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
                                             setTimeout(() => scrollSectionIntoView(scalesSectionRef), 50);
                                         }
                                     }}
+                                />
+                            </div>
+
+                            {/* Song Notes */}
+                            <div ref={notesSectionRef}>
+                                <ChordNotes
+                                    isCompactLandscape={isCompactLandscape}
+                                    isMobile={isMobile}
+                                    showNotes={showNotes}
+                                    onToggle={() => {
+                                        const newState = !showNotes;
+                                        setShowNotes(newState);
+                                        if (newState) {
+                                            setTimeout(() => scrollSectionIntoView(notesSectionRef), 50);
+                                        }
+                                    }}
+                                    onOpenNotesModal={() => useSongStore.getState().toggleNotesModal(true)}
                                 />
                             </div>
 
