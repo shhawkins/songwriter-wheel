@@ -63,6 +63,31 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     }, [isOpen]);
 
     const handleSongClick = (song: typeof cloudSongs[0]) => {
+        const isDirty = useSongStore.getState().isDirty;
+        const currentSong = useSongStore.getState().currentSong;
+        const saveToCloud = useSongStore.getState().saveToCloud;
+
+        if (isDirty) {
+            // Show confirm dialog for unsaved changes
+            setConfirmDialog({
+                isOpen: true,
+                title: 'Unsaved Changes',
+                message: 'You have unsaved changes. Save before switching songs?',
+                onConfirm: async () => {
+                    // Save current song first, then load new one
+                    if (user) {
+                        await saveToCloud(currentSong);
+                    }
+                    loadSong(song);
+                    onClose();
+                },
+                isDestructive: false
+            });
+            // Add "Don't Save" option by modifying the dialog or just loading anyway after a short delay
+            // For now, user can cancel and manually save, or confirm to save-then-load
+            return;
+        }
+
         loadSong(song);
         onClose();
     };
