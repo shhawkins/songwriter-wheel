@@ -6,12 +6,19 @@ import { v4 as uuidv4 } from 'uuid';
 export interface CloudState {
     cloudSongs: Song[];
     isLoadingCloud: boolean;
+    // Dirty tracking for unsaved changes
+    isDirty: boolean;
+    lastSavedAt: Date | null;
+    lastSavedSongId: string | null; // Track which song was last saved
 }
 
 export interface CloudActions {
     loadCloudSongs: () => Promise<void>;
     saveToCloud: (song: Song) => Promise<void>;
     deleteFromCloud: (id: string) => Promise<void>;
+    // Dirty tracking actions
+    markDirty: () => void;
+    markClean: (songId?: string) => void;
 }
 
 export type CloudSlice = CloudState & CloudActions;
@@ -40,6 +47,17 @@ export const createCloudSlice: StateCreator<
 > = (set, get) => ({
     cloudSongs: [],
     isLoadingCloud: false,
+    isDirty: false,
+    lastSavedAt: null,
+    lastSavedSongId: null,
+
+    // Dirty tracking actions
+    markDirty: () => set({ isDirty: true }),
+    markClean: (songId?: string) => set({
+        isDirty: false,
+        lastSavedAt: new Date(),
+        lastSavedSongId: songId ?? get().currentSong?.id ?? null
+    }),
 
     loadCloudSongs: async () => {
         const { data: { user } = {} } = await supabase.auth.getUser();
@@ -118,7 +136,7 @@ export const createCloudSlice: StateCreator<
                     title: song.title,
                     data: emergencyData
                 });
-                set({ currentSong: emergencyData });
+                set({ currentSong: emergencyData, isDirty: false, lastSavedAt: new Date(), lastSavedSongId: emergencyId });
                 get().loadCloudSongs();
             } else {
                 alert('Failed to save to cloud: ' + error.message);
@@ -126,10 +144,10 @@ export const createCloudSlice: StateCreator<
         } else if (data) {
             // Update local currentSong to match the saved ID if it changed
             if (get().currentSong.id !== finalId) {
-                set({ currentSong: songData });
+                set({ currentSong: songData, isDirty: false, lastSavedAt: new Date(), lastSavedSongId: finalId });
             } else {
                 // Even if ID is same, update the store's currentSong with the saved data to ensure they are in sync
-                set({ currentSong: songData });
+                set({ currentSong: songData, isDirty: false, lastSavedAt: new Date(), lastSavedSongId: finalId });
             }
             // Reload list
             get().loadCloudSongs();

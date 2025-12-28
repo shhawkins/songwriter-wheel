@@ -61,11 +61,11 @@ export const VOICING_TOOLTIPS: Record<string, string> = {
     // Major voicings
     'maj': 'The classic major triad: bright, stable, and universally resolved. The foundation of Western harmony and the sound of "home."',
     'major': 'The classic major triad: bright, stable, and universally resolved. The foundation of Western harmony and the sound of "home."',
-    'maj7': 'Smooth and sophisticated, the major 7th adds a dreamy, floating quality. Think Burt Bacharach, neo-soul, and late-night jazz.',
+    'maj7': 'Smooth and sophisticated, the major 7th adds a dreamy, floating quality. Think neo-soul and late-night jazz.',
     'maj9': 'Builds on maj7 with a crystalline 9th. Modern, airy, and introspective — perfect for R&B ballads and ambient textures.',
     'maj13': 'The full major palette: lush, orchestral, and complex. Great for endings or when you want maximum harmonic richness.',
     '6': 'Warm and vintage — the major 6th has an old-Hollywood or country sweetness. Softer resolution than maj7.',
-    'add9': 'A major triad with added sparkle from the 9th, but no 7th. Clean, modern, and ubiquitous in pop and worship music.',
+    'add9': 'A major triad with added sparkle from the 9th, but no 7th. Clean, modern, and ubiquitous in pop music.',
 
     // Dominant voicings
     '7': 'The dominant 7th creates bluesy tension begging for resolution. The engine behind the ii-V-I and the soul of rock & blues.',

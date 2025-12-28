@@ -32,14 +32,17 @@ import { User as UserIcon } from 'lucide-react';
 import { useAudioSync } from './hooks/useAudioSync';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useLayoutManager } from './hooks/useLayoutManager';
+import { useAutoSave, useBeforeUnloadWarning } from './hooks/useAutoSave';
 import { MobilePortraitDrawers } from './components/layout/MobilePortraitDrawers';
 import { DesktopLayout } from './components/layout/DesktopLayout';
+import { UnsavedChangesDialog } from './components/ui/UnsavedChangesDialog';
+import { SaveStatusIndicator } from './components/ui/SaveStatusIndicator';
 
 
 
 
 function App() {
-  const { currentSong, selectedKey, timelineVisible, toggleTimeline, setTitle, setArtist, setTags, setSongTimeSignature, loadSong: loadSongToStore, newSong, instrument, volume, isMuted, chordPanelVisible, isPlaying, songInfoModalVisible, toggleSongInfoModal, instrumentManagerModalVisible, toggleInstrumentManagerModal, cloudSongs, loadCloudSongs, saveToCloud, deleteFromCloud, isLoadingCloud, selectedChord, notesModalVisible, toggleNotesModal } = useSongStore();
+  const { currentSong, selectedKey, timelineVisible, toggleTimeline, setTitle, setArtist, setTags, setSongTimeSignature, loadSong: loadSongToStore, newSong, instrument, volume, isMuted, chordPanelVisible, isPlaying, songInfoModalVisible, toggleSongInfoModal, instrumentManagerModalVisible, toggleInstrumentManagerModal, cloudSongs, loadCloudSongs, saveToCloud, deleteFromCloud, isLoadingCloud, selectedChord, notesModalVisible, toggleNotesModal, isDirty } = useSongStore();
 
   // Audio Sync Logic
   useEffect(() => {
@@ -62,6 +65,12 @@ function App() {
   // causing audio settings to stop syncing when it was unmounted.
   useAudioSync();
   useKeyboardShortcuts();
+
+  // Auto-save for signed-in users (debounced, 30 seconds after last change)
+  useAutoSave({ debounceMs: 30000 });
+
+  // Warn about unsaved changes when leaving the page
+  useBeforeUnloadWarning();
 
   // Layout management - responsive state, zoom, pan, immersive mode
   const {
@@ -449,8 +458,14 @@ function App() {
   };
 
   const handleLoad = (song: Song) => {
-    loadSongToStore(song);
-    setShowSaveMenu(false);
+    // Check if there are unsaved changes
+    if (isDirty) {
+      setPendingAction({ type: 'load', song });
+      setUnsavedChangesOpen(true);
+    } else {
+      loadSongToStore(song);
+      setShowSaveMenu(false);
+    }
   };
 
   // Confirmation Dialog State
@@ -468,18 +483,71 @@ function App() {
     onConfirm: () => { },
   });
 
+  // Unsaved changes dialog state
+  const [unsavedChangesOpen, setUnsavedChangesOpen] = useState(false);
+  const [unsavedChangesSaving, setUnsavedChangesSaving] = useState(false);
+  const [pendingAction, setPendingAction] = useState<{
+    type: 'load' | 'new';
+    song?: Song;
+  } | null>(null);
+
+  // Execute the pending action after save/discard
+  const executePendingAction = useCallback(() => {
+    if (!pendingAction) return;
+
+    if (pendingAction.type === 'load' && pendingAction.song) {
+      loadSongToStore(pendingAction.song);
+    } else if (pendingAction.type === 'new') {
+      newSong();
+    }
+
+    setPendingAction(null);
+    setShowSaveMenu(false);
+    setUnsavedChangesOpen(false);
+  }, [pendingAction, loadSongToStore, newSong]);
+
+  // Handle save from unsaved changes dialog
+  const handleUnsavedSave = async () => {
+    if (!user) {
+      // If not signed in, prompt to sign in
+      setUnsavedChangesOpen(false);
+      setPendingAction(null);
+      useAuthStore.getState().setAuthModalOpen(true);
+      return;
+    }
+
+    setUnsavedChangesSaving(true);
+    try {
+      await saveToCloud(currentSong);
+      setNotification({ message: `"${currentSong.title}" has been saved!` });
+      executePendingAction();
+    } catch (err) {
+      console.error('Failed to save:', err);
+      setNotification({ message: '⚠️ Failed to save. Please try again.' });
+    } finally {
+      setUnsavedChangesSaving(false);
+    }
+  };
+
   const handleNew = () => {
-    setConfirmDialog({
-      isOpen: true,
-      title: 'New Song',
-      message: 'Start a new song? Unsaved changes will be lost.',
-      confirmLabel: 'Start New',
-      isDestructive: true,
-      onConfirm: () => {
-        newSong();
-        setShowSaveMenu(false);
-      }
-    });
+    // Check if there are unsaved changes
+    if (isDirty) {
+      setPendingAction({ type: 'new' });
+      setUnsavedChangesOpen(true);
+    } else {
+      // No unsaved changes, just show simple confirm (for accidental clicks)
+      setConfirmDialog({
+        isOpen: true,
+        title: 'New Song',
+        message: 'Start a new song?',
+        confirmLabel: 'Start New',
+        isDestructive: false,
+        onConfirm: () => {
+          newSong();
+          setShowSaveMenu(false);
+        }
+      });
+    }
   };
 
   const handleDelete = async (songId: string, songTitle: string, isCloud: boolean, e: React.MouseEvent) => {
@@ -593,14 +661,15 @@ function App() {
         </div>
 
         {/* Song Title - Click to edit (opens modal) */}
-        <div className="flex items-center justify-center overflow-hidden">
+        <div className="flex items-center justify-center overflow-hidden gap-2">
           <span
             onClick={handleTitleClick}
-            className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium text-text-primary cursor-pointer hover:text-accent-primary transition-colors px-2 py-1 rounded text-center truncate max-w-[70vw]`}
+            className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium text-text-primary cursor-pointer hover:text-accent-primary transition-colors px-2 py-1 rounded text-center truncate max-w-[60vw]`}
             title="Click to edit song info"
           >
             {currentSong.title}
           </span>
+          <SaveStatusIndicator />
         </div>
 
         <div className={`flex items-center ${isMobile ? 'gap-3' : 'gap-4'} shrink-0 justify-self-end`}>
@@ -1179,6 +1248,18 @@ function App() {
         message={confirmDialog.message}
         confirmLabel={confirmDialog.confirmLabel}
         isDestructive={confirmDialog.isDestructive}
+      />
+
+      {/* Unsaved Changes Dialog */}
+      <UnsavedChangesDialog
+        isOpen={unsavedChangesOpen}
+        onSave={handleUnsavedSave}
+        onDiscard={executePendingAction}
+        onCancel={() => {
+          setUnsavedChangesOpen(false);
+          setPendingAction(null);
+        }}
+        isSaving={unsavedChangesSaving}
       />
 
       {/* Song Title Input Modal */}

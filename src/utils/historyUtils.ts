@@ -16,6 +16,7 @@ export const buildHistoryState = (currentSong: Song, historyPast: Song[]) => {
         historyPast: updatedPast,
         historyFuture: [],
         canUndo: updatedPast.length > 0,
-        canRedo: false
+        canRedo: false,
+        isDirty: true // Mark song as having unsaved changes
     };
 };

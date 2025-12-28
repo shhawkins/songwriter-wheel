@@ -371,6 +371,9 @@ export const useSongStore = create<SongState>()(
 
                 const history = buildHistoryState(state.currentSong, state.historyPast);
 
+                // Check if this is a cloud song (meaning it's already saved)
+                const isCloudSong = state.cloudSongs.some((s: Song) => s.id === song.id);
+
                 return {
                     ...history,
                     currentSong: { ...song, tempo },
@@ -383,6 +386,11 @@ export const useSongStore = create<SongState>()(
                     selectionAnchor: null,
                     collapsedSections: {},
                     tempo,
+                    // If loading a cloud song, it's already saved - mark clean
+                    // Otherwise keep the history's isDirty (which would be true from buildHistoryState)
+                    isDirty: isCloudSong ? false : history.isDirty,
+                    lastSavedAt: isCloudSong ? new Date() : null,
+                    lastSavedSongId: isCloudSong ? song.id : null,
                 };
             }),
 
@@ -423,6 +431,10 @@ export const useSongStore = create<SongState>()(
                     selectionAnchor: null,
                     collapsedSections: {},
                     tempo: DEFAULT_SONG.tempo,
+                    // New song starts fresh with no unsaved changes
+                    isDirty: false,
+                    lastSavedAt: null,
+                    lastSavedSongId: null,
                 };
             }),
 
