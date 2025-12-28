@@ -648,7 +648,7 @@ function App() {
       )}
       {/* Header - slides up when in immersive mode (mobile or desktop), when chord panel is open on mobile, or in landscape by default */}
       <header
-        className={`${isMobile ? 'h-14' : 'h-12'} mb-[5px] border-b border-border-subtle grid grid-cols-[1fr_auto_1fr] items-center ${isMobile ? 'px-4' : 'px-3'} bg-bg-secondary shrink-0 z-50 transition-all duration-300 ease-out ${(isMobile && !isLandscape && (mobileImmersive || chordPanelVisible)) ||
+        className={`${isMobile ? 'h-14' : 'h-12'} mb-[5px] border-b border-border-subtle grid grid-cols-[1fr_auto_1fr] items-center ${isMobile ? 'px-4' : 'px-3'} bg-bg-secondary shrink-0 z-[100] transition-all duration-300 ease-out ${(isMobile && !isLandscape && (mobileImmersive || chordPanelVisible)) ||
           (isMobile && isLandscape && !landscapeHeaderVisible) ||
           (!isMobile && desktopImmersive)
           ? 'opacity-0 -translate-y-full pointer-events-none absolute top-0 left-0 right-0'
