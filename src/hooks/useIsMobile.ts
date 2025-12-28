@@ -39,6 +39,11 @@ export function useMobileLayout() {
             ? window.innerHeight < window.innerWidth && window.innerHeight < 500
             : false
     );
+    const [isTablet, setIsTablet] = useState(
+        () => typeof window !== 'undefined'
+            ? window.innerWidth >= 768 && window.innerWidth <= 1024 && window.innerHeight > 500
+            : false
+    );
 
     useEffect(() => {
         const updateLayout = () => {
@@ -48,8 +53,11 @@ export function useMobileLayout() {
             const mobile = width < MOBILE_BREAKPOINT || (height < 500 && height < width);
             // Landscape: height < width AND height indicates phone (< 500px)
             const landscape = height < width && height < 500;
+            // Tablet: medium screen width with decent height (e.g., iPad portrait)
+            const tablet = width >= 768 && width <= 1024 && height > 500;
             setIsMobile(mobile);
             setIsLandscape(landscape);
+            setIsTablet(tablet);
         };
         window.addEventListener('resize', updateLayout);
         window.addEventListener('orientationchange', updateLayout);
@@ -59,5 +67,5 @@ export function useMobileLayout() {
         };
     }, []);
 
-    return { isMobile, isLandscape };
+    return { isMobile, isLandscape, isTablet };
 }

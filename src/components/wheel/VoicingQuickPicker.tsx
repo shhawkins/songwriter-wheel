@@ -141,6 +141,7 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
             const target = e.target as HTMLElement;
             if (!target || !(target instanceof Element)) return;
 
+            // Check all elements that should NOT close the picker
             if (
                 target.closest('.piano-keyboard') ||
                 target.closest('[data-chord-wheel]') ||
@@ -148,16 +149,21 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
                 target.closest('.timeline-toggle') ||
                 target.closest('.mobile-timeline-drawer') ||
                 target.closest('.voice-selector-menu') ||
-                target.closest('[data-instrument-controls]')
+                target.closest('[data-instrument-controls]') ||
+                target.closest('[data-notes-modal]') ||
+                target.closest('[data-notes-button]') ||
+                target.closest('[data-playback-controls]') ||
+                target.closest('button[title="Song Notes & Lyrics"]')
             ) return;
 
             // Check if click is inside the picker
             if (!target.closest('[data-voicing-picker]')) onClose();
         };
+        // Increased delay to allow React state updates to propagate
         const timeoutId = setTimeout(() => {
             document.addEventListener('mousedown', handleClickOutside);
             document.addEventListener('touchstart', handleClickOutside as any);
-        }, 100);
+        }, 150);
         return () => {
             clearTimeout(timeoutId);
             document.removeEventListener('mousedown', handleClickOutside);

@@ -517,23 +517,23 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
 
                             {/* Zoom Controls - desktop only (hide on mobile portrait) */}
                             {isDesktop && (
-                                <div className="flex items-center gap-1 ml-4 pl-4 border-l border-white/10 h-6">
+                                <div className="flex items-center gap-0.5 ml-4 pl-4 border-l border-white/10 h-5">
                                     <button
                                         onClick={() => setTimelineZoom(timelineZoom - 0.05)}
-                                        className="w-4 h-4 flex items-center justify-center rounded bg-bg-tertiary/60 hover:bg-bg-tertiary text-text-muted transition-colors active:scale-90"
+                                        className="w-3 h-3 flex items-center justify-center rounded bg-bg-tertiary/60 hover:bg-bg-tertiary text-text-muted transition-colors active:scale-90"
                                         title="Zoom Out"
                                     >
-                                        <Minus size={8} />
+                                        <Minus size={6} />
                                     </button>
-                                    <span className="text-[9px] font-mono text-text-muted min-w-[28px] text-center opacity-70">
+                                    <span className="text-[8px] font-mono text-text-muted min-w-[24px] text-center opacity-70">
                                         {Math.round(timelineZoom * 100)}%
                                     </span>
                                     <button
                                         onClick={() => setTimelineZoom(timelineZoom + 0.05)}
-                                        className="w-4 h-4 flex items-center justify-center rounded bg-bg-tertiary/60 hover:bg-bg-tertiary text-text-muted transition-colors active:scale-90"
+                                        className="w-3 h-3 flex items-center justify-center rounded bg-bg-tertiary/60 hover:bg-bg-tertiary text-text-muted transition-colors active:scale-90"
                                         title="Zoom In"
                                     >
-                                        <Plus size={8} />
+                                        <Plus size={6} />
                                     </button>
                                 </div>
                             )}
@@ -646,7 +646,7 @@ export const MobileTimeline: React.FC<MobileTimelineProps> = ({ isOpen, onToggle
                     ref={scrollRef}
                     className={clsx(
                         "flex-1",
-                        isDesktop ? "px-3 pb-2 pt-3" : isLandscape ? (isCompact ? "px-4 pb-1 pt-3" : "pl-6 pr-4 pb-1 pt-3") : "px-1 pb-1 pt-3", // Expanded landscape needs more left padding
+                        isDesktop ? "px-3 pb-6 pt-3 mb-0" : isLandscape ? (isCompact ? "px-4 pb-1 pt-3" : "pl-6 pr-4 pb-1 pt-3") : "px-1 pb-1 pt-3", // Expanded landscape needs more left padding, desktop gets bottom margin
                         "min-h-0", // Ensure flex child shrinks/scrolls correctly
                         // Disable scrolling when dragging to prevent interference
                         activeDragId

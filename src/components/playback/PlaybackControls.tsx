@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { clsx } from 'clsx';
 import { useSongStore } from '../../store/useSongStore';
 import { Play, Pause, SkipBack, SkipForward, Repeat, Volume2, VolumeX, Loader2, Music } from 'lucide-react';
@@ -143,6 +143,54 @@ export const PlaybackControls: React.FC = () => {
         swipeTapTimeout.current = null;
     };
 
+    // Mouse drag handlers for desktop BPM adjustment
+    const isDraggingBpm = useRef(false);
+
+    const handleBpmMouseDown = (e: React.MouseEvent) => {
+        isDraggingBpm.current = true;
+        swipeStartX.current = e.clientX;
+        swipeStartTempo.current = tempo;
+        setIsSwiping(false);
+        e.preventDefault();
+    };
+
+    useEffect(() => {
+        const handleMouseMove = (e: MouseEvent) => {
+            if (!isDraggingBpm.current || swipeStartX.current === null) return;
+
+            const deltaX = e.clientX - swipeStartX.current;
+
+            // Only start swiping if we've moved more than 5px
+            if (Math.abs(deltaX) > 5) {
+                setIsSwiping(true);
+                // Calculate new tempo: ~1 BPM per 3 pixels of movement
+                const bpmChange = Math.round(deltaX / 3);
+                const newTempo = Math.min(240, Math.max(40, swipeStartTempo.current + bpmChange));
+                setTempo(newTempo);
+            }
+        };
+
+        const handleMouseUp = () => {
+            if (isDraggingBpm.current) {
+                // If we didn't drag (just clicked), trigger edit mode
+                if (!isSwiping) {
+                    handleBpmTap();
+                }
+                isDraggingBpm.current = false;
+                swipeStartX.current = null;
+                setIsSwiping(false);
+            }
+        };
+
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+
+        return () => {
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, [isSwiping, tempo, setTempo]);
+
     return (
         <div
             data-playback-controls
@@ -161,14 +209,14 @@ export const PlaybackControls: React.FC = () => {
                     <button
                         onClick={handlePlayPause}
                         disabled={isLoading}
-                        className={`${isMobile && isLandscape ? 'w-6 h-6' : isMobile ? 'w-8 h-8' : 'w-9 h-9'} rounded-full bg-accent-primary hover:bg-indigo-500 disabled:bg-accent-primary/50 flex items-center justify-center text-white shadow-md transition-all hover:scale-105 active:scale-95 touch-feedback`}
+                        className={`${isMobile && isLandscape ? 'w-6 h-6' : isMobile ? 'w-8 h-8' : 'w-8 h-8'} rounded-full bg-accent-primary hover:bg-indigo-500 disabled:bg-accent-primary/50 flex items-center justify-center text-white shadow-md transition-all hover:scale-105 active:scale-95 touch-feedback`}
                     >
                         {isLoading ? (
-                            <Loader2 size={isMobile && isLandscape ? 12 : isMobile ? 16 : 18} className="animate-spin" />
+                            <Loader2 size={isMobile && isLandscape ? 12 : 16} className="animate-spin" />
                         ) : isPlaying ? (
-                            <Pause size={isMobile && isLandscape ? 12 : isMobile ? 16 : 18} fill="currentColor" />
+                            <Pause size={isMobile && isLandscape ? 12 : 16} fill="currentColor" />
                         ) : (
-                            <Play size={isMobile && isLandscape ? 12 : isMobile ? 16 : 18} fill="currentColor" className="ml-0.5" />
+                            <Play size={isMobile && isLandscape ? 12 : 16} fill="currentColor" className="ml-0.5" />
                         )}
                     </button>
                     <button
@@ -195,13 +243,42 @@ export const PlaybackControls: React.FC = () => {
                             <Repeat size={14} />
                         </button>
                     )}
+
+                    {/* BPM Display - Desktop: moved here next to transport controls */}
+                    {!isMobile && (
+                        <div className="flex items-center ml-3 pl-3 border-l border-border-subtle">
+                            {isEditingBpm ? (
+                                <input
+                                    ref={bpmInputRef}
+                                    type="number"
+                                    inputMode="numeric"
+                                    value={bpmInputValue}
+                                    onChange={(e) => setBpmInputValue(e.target.value)}
+                                    onBlur={handleBpmSave}
+                                    onKeyDown={handleBpmKeyDown}
+                                    className="w-14 text-[11px] h-5 bg-bg-tertiary border border-accent-primary rounded px-2 text-center text-text-primary font-medium focus:outline-none"
+                                    min={40}
+                                    max={240}
+                                />
+                            ) : (
+                                <div
+                                    onMouseDown={handleBpmMouseDown}
+                                    onTouchStart={handleBpmTouchStart}
+                                    onTouchMove={handleBpmTouchMove}
+                                    onTouchEnd={handleBpmTouchEnd}
+                                    className={`text-[11px] px-2 h-5 font-medium ${isSwiping ? 'text-accent-primary' : 'text-text-secondary'} hover:text-text-primary transition-colors cursor-ew-resize whitespace-nowrap flex items-center rounded hover:bg-bg-tertiary select-none`}
+                                >
+                                    {tempo} <span className={`${isSwiping ? 'text-accent-primary/70' : 'text-text-muted'} ml-0.5`}>BPM</span>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
 
-                {/* Tempo & Info - Show on all views */}
-                <div className="flex items-center">
-                    {isMobile ? (
-                        // Tappable BPM display for mobile (both portrait and landscape)
-                        isEditingBpm ? (
+                {/* Tempo & Info - Mobile only now */}
+                {isMobile && (
+                    <div className="flex items-center">
+                        {isEditingBpm ? (
                             <input
                                 ref={bpmInputRef}
                                 type="number"
@@ -224,32 +301,9 @@ export const PlaybackControls: React.FC = () => {
                             >
                                 {tempo} <span className={`${isSwiping ? 'text-accent-primary/70' : 'text-text-muted'} ml-0.5`}>BPM</span>
                             </div>
-                        )
-                    ) : (
-                        // Desktop: Same elegant style as mobile - click to edit
-                        isEditingBpm ? (
-                            <input
-                                ref={bpmInputRef}
-                                type="number"
-                                inputMode="numeric"
-                                value={bpmInputValue}
-                                onChange={(e) => setBpmInputValue(e.target.value)}
-                                onBlur={handleBpmSave}
-                                onKeyDown={handleBpmKeyDown}
-                                className="w-14 text-[12px] h-6 bg-bg-tertiary border border-accent-primary rounded px-2 text-center text-text-primary font-medium focus:outline-none"
-                                min={40}
-                                max={240}
-                            />
-                        ) : (
-                            <div
-                                onClick={handleBpmTap}
-                                className="text-[12px] px-3 h-6 font-medium text-text-secondary hover:text-text-primary transition-colors cursor-pointer whitespace-nowrap flex items-center rounded hover:bg-bg-tertiary"
-                            >
-                                {tempo} <span className="text-text-muted ml-1">BPM</span>
-                            </div>
-                        )
-                    )}
-                </div>
+                        )}
+                    </div>
+                )}
 
                 {/* Instrument & Volume - Compact for mobile */}
                 <div className={`flex items-center ${isMobile ? 'gap-1.5' : 'gap-4'}`}>
@@ -290,10 +344,10 @@ export const PlaybackControls: React.FC = () => {
                 </div>
             </div>
 
-            {/* Safe Area Status Bar - uses bottom space visually without interactive elements */}
+            {/* Safe Area Status Bar - only needed on mobile PWA */}
             {isMobile && (
                 <div
-                    className="w-full bg-bg-elevated/50 flex justify-center items-start"
+                    className="w-full bg-bg-elevated flex justify-center items-start"
                     style={{ height: 'env(safe-area-inset-bottom)', minHeight: 'env(safe-area-inset-bottom)' }}
                 />
             )}

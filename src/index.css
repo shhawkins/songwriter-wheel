@@ -59,6 +59,9 @@ body {
   overflow: hidden;
   /* Prevent scrolling on body */
 
+  /* Background color matches footer for seamless safe area on iPad */
+  background-color: #282833;
+
   /* Prevent pull-to-refresh and overscroll bounce on iOS */
   overscroll-behavior: none;
 
@@ -400,6 +403,7 @@ button:active {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
+
 /* Global drag state */
 body.dragging-modal {
   user-select: none;

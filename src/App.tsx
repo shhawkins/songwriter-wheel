@@ -548,7 +548,7 @@ function App() {
       <div className="w-8 h-8 border-2 border-accent-primary border-t-transparent rounded-full animate-spin" />
     </div>
   ) : (
-    <div className="h-full w-full flex flex-col bg-bg-secondary text-text-primary overflow-hidden pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)]">
+    <div className={`h-full w-full flex flex-col bg-bg-secondary text-text-primary overflow-hidden pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] ${isMobile ? 'pb-[env(safe-area-inset-bottom)]' : ''}`}>
       {/* Audio Resume Prompt - appears when returning to suspended audio context on iOS */}
       {showAudioResumePrompt && (
         <div
@@ -954,6 +954,7 @@ function App() {
 
             {/* Notes button - pinned to lower left of wheel panel area */}
             <button
+              data-notes-button
               onClick={() => toggleNotesModal(true)}
               onTouchEnd={(e) => {
                 e.preventDefault();

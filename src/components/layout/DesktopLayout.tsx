@@ -45,12 +45,12 @@ interface DesktopLayoutProps {
  * - Support for immersive mode (hide header/footer)
  */
 export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
-    immersiveMode,
+    immersiveMode: _immersiveMode, // Available for future use
     onToggleImmersive,
     wheelZoom,
     wheelZoomOrigin,
     onZoomChange,
-    onZoomStep,
+    onZoomStep: _onZoomStep, // Zoom controls removed from desktop layout
     wheelPanOffset,
     onPanChange,
     computedWheelSize,
@@ -65,8 +65,8 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
     } = useSongStore();
 
     // Timeline height - compact design matching mobile aesthetic
-    const timelineHeight = 160;
-    const collapsedHeight = 32;
+    const timelineHeight = 176; // Increased to accommodate taller header
+    const collapsedHeight = 48; // Doubled from 32 to give more tap area
 
     // Get chord color for badge
     const colors = getWheelColors();
@@ -117,12 +117,6 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
         setDragOffset(deltaY);
     };
 
-    const handleTouchEnd = (e: React.TouchEvent) => {
-        e.stopPropagation();
-        if (!isDragging.current) return;
-        finishDrag();
-    };
-
     // Mouse handlers for desktop dragging
     const handleMouseDown = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -159,18 +153,40 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
     const finishDrag = () => {
         isDragging.current = false;
         const threshold = 30;
+        let didToggle = false;
 
         if (timelineVisible) {
-            if (dragOffset > threshold) toggleTimeline();
+            if (dragOffset > threshold) {
+                toggleTimeline();
+                didToggle = true;
+            }
         } else {
-            if (dragOffset < -threshold) toggleTimeline();
+            if (dragOffset < -threshold) {
+                toggleTimeline();
+                didToggle = true;
+            }
         }
         setDragOffset(0);
+        return didToggle;
     };
 
     const handleTimelineClick = (e: React.MouseEvent) => {
         e.stopPropagation();
+        e.preventDefault();
         if (Math.abs(dragOffset) < 5) toggleTimeline(); // Reduced click threshold
+    };
+
+    const handleTouchEndWithTap = (e: React.TouchEvent) => {
+        e.stopPropagation();
+        e.preventDefault(); // Prevent click event from also firing
+
+        const dragWasSmall = Math.abs(dragOffset) < 5;
+        const didToggleFromDrag = finishDrag();
+
+        // If drag was small and didn't trigger a swipe-toggle, treat as tap
+        if (dragWasSmall && !didToggleFromDrag) {
+            toggleTimeline();
+        }
     };
 
     return (
@@ -182,70 +198,30 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
                 onClick={onToggleImmersive}
             >
                 {/* Wheel Container - fills available space */}
-                <div className="flex-1 flex flex-col justify-start items-center pt-4 overflow-visible min-h-0">
-                    {/* Zoom & Help Toolbar - Single row to prevent overlap */}
-                    <div className="flex justify-end items-center gap-3 px-4 shrink-0 w-full mb-2 pointer-events-none">
-                        {/* Zoom Controls */}
-                        <div className="flex items-center bg-bg-secondary/60 backdrop-blur-sm rounded-full px-1 border border-border-subtle/40 h-8 pointer-events-auto shadow-sm">
-                            <button
-                                onClick={(e) => { e.stopPropagation(); onZoomStep(-0.1); }}
-                                disabled={wheelZoom <= 0.2}
-                                className="no-touch-enlarge w-6 h-6 flex items-center justify-center hover:bg-bg-tertiary disabled:opacity-30 disabled:cursor-not-allowed rounded-full text-text-muted hover:text-text-primary transition-colors"
-                                title="Zoom out"
-                            >
-                                <span className="text-lg leading-none">−</span>
-                            </button>
-                            <span className="text-[10px] w-8 text-text-muted text-center font-medium select-none">
-                                {Math.round(wheelZoom * 100)}%
-                            </span>
-                            <button
-                                onClick={(e) => { e.stopPropagation(); onZoomStep(0.1); }}
-                                disabled={wheelZoom >= 2.5}
-                                className="no-touch-enlarge w-6 h-6 flex items-center justify-center hover:bg-bg-tertiary disabled:opacity-30 disabled:cursor-not-allowed rounded-full text-text-muted hover:text-text-primary transition-colors"
-                                title="Zoom in"
-                            >
-                                <span className="text-lg leading-none">+</span>
-                            </button>
-                        </div>
-
-                        {/* Help Button - Moved here */}
-                        <button
-                            onClick={(e) => { e.stopPropagation(); onOpenHelp(); }}
-                            className="w-8 h-8 flex items-center justify-center bg-bg-secondary/60 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-accent-primary transition-colors border border-border-subtle/40 pointer-events-auto shadow-sm"
-                            title="Songwriter Wheel Guide"
-                        >
-                            <HelpCircle size={18} />
-                        </button>
-                    </div>
-
-                    {/* Wheel - centered with proper sizing */}
+                <div className="flex-1 flex justify-center items-center overflow-visible min-h-0 p-2">
                     <div
-                        className="flex-1 flex justify-center p-2 overflow-visible min-h-0 w-full"
-                        style={{ transform: 'scale(1.15)', transformOrigin: 'center center' }}
+                        className="relative flex items-center justify-center"
+                        style={{
+                            width: `${computedWheelSize}px`,
+                            height: `${computedWheelSize}px`,
+                            aspectRatio: '1 / 1',
+                            transform: 'scale(1.15)',
+                            transformOrigin: 'center center',
+                        }}
+                        onClick={(e) => e.stopPropagation()} /* Wheel click handled by onToggleUI inside or background */
                     >
-                        <div
-                            className="relative flex items-center justify-center"
-                            style={{
-                                width: `${computedWheelSize}px`,
-                                height: `${computedWheelSize}px`,
-                                aspectRatio: '1 / 1',
-                            }}
-                            onClick={(e) => e.stopPropagation()} /* Wheel click handled by onToggleUI inside or background */
-                        >
-                            <ChordWheel
-                                zoomScale={wheelZoom}
-                                zoomOriginY={wheelZoomOrigin}
-                                onZoomChange={onZoomChange}
-                                panOffset={wheelPanOffset}
-                                onPanChange={onPanChange}
-                                onOpenKeySelector={onOpenKeySelector}
-                                onToggleUI={onToggleImmersive} /* Keeps tap-center-to-toggle functionality */
-                            />
-                        </div>
+                        <ChordWheel
+                            zoomScale={wheelZoom}
+                            zoomOriginY={wheelZoomOrigin}
+                            onZoomChange={onZoomChange}
+                            panOffset={wheelPanOffset}
+                            onPanChange={onPanChange}
+                            onOpenKeySelector={onOpenKeySelector}
+                            onToggleUI={onToggleImmersive} /* Keeps tap-center-to-toggle functionality */
+                        />
                     </div>
                 </div>
 
-                {/* Left/Bottom Corner Buttons */}
                 {selectedChord && (
                     <button
                         onClick={(e) => { e.stopPropagation(); handleOpenVoicingPicker(); }}
@@ -255,6 +231,15 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
                         <ListMusic size={16} />
                     </button>
                 )}
+
+                {/* Help Button - Upper Right */}
+                <button
+                    onClick={(e) => { e.stopPropagation(); onOpenHelp(); }}
+                    className="absolute top-3 right-3 w-9 h-9 flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-accent-primary transition-colors shadow-lg border border-border-subtle z-50"
+                    title="Songwriter Wheel Guide"
+                >
+                    <HelpCircle size={18} />
+                </button>
 
                 <button
                     onClick={(e) => { e.stopPropagation(); onToggleNotes(); }}
@@ -295,22 +280,23 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
 
                 {/* Timeline Drawer */}
                 <div
-                    className="shrink-0 bg-bg-secondary border-t border-border-subtle transition-all duration-300 ease-out overflow-hidden touch-none select-none"
+                    className="shrink-0 bg-bg-elevated border-t border-border-subtle transition-all duration-300 ease-out overflow-hidden touch-none select-none"
                     style={{ height: timelineVisible ? timelineHeight : collapsedHeight }}
                     onClick={(e) => e.stopPropagation()}
+                    onTouchEnd={(e) => e.stopPropagation()}
                 >
-                    {/* Timeline Header/Toggle */}
+                    {/* Timeline Header/Toggle - dark handle for visual distinction, taller for iPad */}
                     <div
-                        className={`h-8 w-full bg-bg-secondary flex items-center justify-center cursor-pointer hover:bg-bg-tertiary transition-colors ${timelineVisible ? 'border-b border-border-subtle' : ''}`}
+                        className={`h-12 w-full bg-[#1a1a22] flex items-center justify-center cursor-pointer hover:bg-bg-tertiary transition-colors ${timelineVisible ? 'border-b border-border-subtle' : ''}`}
                         onTouchStart={handleTouchStart}
                         onTouchMove={handleTouchMove}
-                        onTouchEnd={handleTouchEnd}
+                        onTouchEnd={handleTouchEndWithTap}
                         onMouseDown={handleMouseDown}
                         onMouseMove={handleMouseMove}
                         onMouseUp={handleMouseUp}
                         onMouseLeave={handleMouseLeave}
                         onClick={handleTimelineClick}
-                        title={timelineVisible ? 'Collapse Timeline' : 'Swipe to Resize'}
+                        title={timelineVisible ? 'Click to collapse' : 'Click to expand'}
                     >
                         <div className="flex items-center gap-1.5 text-[10px] text-text-muted font-bold tracking-wider uppercase pointer-events-none">
                             {timelineVisible ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
@@ -320,7 +306,7 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
 
                     {/* Timeline Content */}
                     {timelineVisible && (
-                        <div className="flex-1 min-h-0 overflow-hidden" style={{ height: timelineHeight - 32 }}>
+                        <div className="flex-1 min-h-0 overflow-hidden" style={{ height: timelineHeight - 48 }}>
                             <MobileTimeline
                                 isOpen={true}
                                 onToggle={toggleTimeline}

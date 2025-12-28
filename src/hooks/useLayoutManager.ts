@@ -113,12 +113,27 @@ export function useLayoutManager() {
             }
         };
 
+        // iOS Safari bug: viewport dimensions can be wrong when returning from background
+        // Force a re-layout after a small delay when visibility changes
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                // Double update with delay to ensure iOS Safari reports correct dimensions
+                setTimeout(() => {
+                    updateLayout();
+                    // Second update catches cases where first still had wrong values
+                    setTimeout(updateLayout, 100);
+                }, 50);
+            }
+        };
+
         updateLayout();
         window.addEventListener('resize', updateLayout);
         window.addEventListener('orientationchange', updateLayout);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
         return () => {
             window.removeEventListener('resize', updateLayout);
             window.removeEventListener('orientationchange', updateLayout);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
         };
     }, []);
 

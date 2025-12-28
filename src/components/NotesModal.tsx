@@ -18,6 +18,7 @@ import { DraggableModal } from './ui/DraggableModal';
 import { useSongStore } from '../store/useSongStore';
 import { SongTimeline } from './timeline/SongTimeline';
 import { SectionOptionsPopup } from './timeline/SectionOptionsPopup';
+import { getSectionDisplayName } from '../types';
 
 interface NotesModalProps {
     isOpen: boolean;
@@ -313,7 +314,7 @@ export const NotesModal: React.FC<NotesModalProps> = ({ isOpen, onClose }) => {
                         {selectedSection ? (
                             <div className="flex flex-col gap-1">
                                 <span className="text-xs text-text-secondary">
-                                    {selectedSection.name}
+                                    {getSectionDisplayName(selectedSection, currentSong.sections)}
                                 </span>
                                 {previewMode ? (
                                     <div className="min-h-[100px] max-h-[180px] overflow-y-auto bg-bg-tertiary/50 rounded-lg p-3 text-sm text-text-primary leading-relaxed whitespace-pre-wrap">
@@ -326,7 +327,7 @@ export const NotesModal: React.FC<NotesModalProps> = ({ isOpen, onClose }) => {
                                         value={sectionLyrics}
                                         onChange={(e) => setLocalSectionLyrics(e.target.value)}
                                         onBlur={handleSectionLyricsBlur}
-                                        placeholder={`Lyrics for ${selectedSection.name}...`}
+                                        placeholder={`Lyrics for ${getSectionDisplayName(selectedSection, currentSong.sections)}...`}
                                         className="min-h-[100px] max-h-[180px] bg-bg-tertiary/50 border border-border-subtle rounded-lg p-3 text-sm text-text-primary placeholder:text-text-muted/50 resize-y focus:outline-none focus:border-accent-primary/50 transition-colors"
                                     />
                                 )}
