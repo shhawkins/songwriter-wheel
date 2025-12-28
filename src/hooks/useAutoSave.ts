@@ -21,6 +21,7 @@ export function useAutoSave(options: {
     const { debounceMs = 30000, onSaveStart, onSaveComplete, onSaveError } = options;
 
     const user = useAuthStore(s => s.user);
+    const authLoading = useAuthStore(s => s.loading);
     const isDirty = useSongStore(s => s.isDirty);
     const currentSong = useSongStore(s => s.currentSong);
     const isLoadingCloud = useSongStore(s => s.isLoadingCloud);
@@ -31,6 +32,9 @@ export function useAutoSave(options: {
 
     // Save function that handles the actual cloud save
     const performSave = useCallback(async () => {
+        // Don't save if auth is still loading (e.g. during OAuth redirect)
+        if (authLoading) return;
+
         // Don't save if not authenticated
         if (!user) return;
 
@@ -54,7 +58,7 @@ export function useAutoSave(options: {
         } finally {
             isSavingRef.current = false;
         }
-    }, [user, isDirty, currentSong, isLoadingCloud, saveToCloud, onSaveStart, onSaveComplete, onSaveError]);
+    }, [user, authLoading, isDirty, currentSong, isLoadingCloud, saveToCloud, onSaveStart, onSaveComplete, onSaveError]);
 
     // Schedule auto-save when song becomes dirty
     useEffect(() => {
@@ -64,8 +68,8 @@ export function useAutoSave(options: {
             timeoutRef.current = null;
         }
 
-        // Only schedule if authenticated and dirty
-        if (user && isDirty && currentSong.title !== 'Untitled Song') {
+        // Only schedule if auth is settled, authenticated and dirty
+        if (!authLoading && user && isDirty && currentSong.title !== 'Untitled Song') {
             timeoutRef.current = setTimeout(() => {
                 performSave();
             }, debounceMs);
@@ -76,7 +80,7 @@ export function useAutoSave(options: {
                 clearTimeout(timeoutRef.current);
             }
         };
-    }, [user, isDirty, currentSong.title, debounceMs, performSave]);
+    }, [user, authLoading, isDirty, currentSong.title, debounceMs, performSave]);
 
     // Return manual save trigger if needed
     return { saveNow: performSave };
