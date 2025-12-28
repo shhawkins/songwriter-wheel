@@ -33,6 +33,7 @@ import { useAudioSync } from './hooks/useAudioSync';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useLayoutManager } from './hooks/useLayoutManager';
 import { MobilePortraitDrawers } from './components/layout/MobilePortraitDrawers';
+import { DesktopLayout } from './components/layout/DesktopLayout';
 
 
 
@@ -83,6 +84,9 @@ function App() {
     handleZoomOut,
     handlePanChange,
   } = useLayoutManager();
+
+  // Desktop immersive mode - allows hiding header/footer like mobile
+  const [desktopImmersive, setDesktopImmersive] = useState(false);
 
   const [showHelp, setShowHelp] = useState(false);
   const [showKeySelector, setShowKeySelector] = useState(false);
@@ -569,10 +573,11 @@ function App() {
           </div>
         </div>
       )}
-      {/* Header - slides up when in mobile immersive mode, when chord panel is open, or in landscape by default */}
+      {/* Header - slides up when in immersive mode (mobile or desktop), when chord panel is open on mobile, or in landscape by default */}
       <header
         className={`${isMobile ? 'h-14' : 'h-12'} mb-[5px] border-b border-border-subtle grid grid-cols-[1fr_auto_1fr] items-center ${isMobile ? 'px-4' : 'px-3'} bg-bg-secondary shrink-0 z-50 transition-all duration-300 ease-out ${(isMobile && !isLandscape && (mobileImmersive || chordPanelVisible)) ||
-          (isMobile && isLandscape && !landscapeHeaderVisible)
+          (isMobile && isLandscape && !landscapeHeaderVisible) ||
+          (!isMobile && desktopImmersive)
           ? 'opacity-0 -translate-y-full pointer-events-none absolute top-0 left-0 right-0'
           : 'relative'
           }`}
@@ -853,7 +858,13 @@ function App() {
                   rotationOffset={wheelRotationOffset}
                   disableModeToggle={wheelRotationOffset !== 0}
                   onOpenKeySelector={() => setShowKeySelector(true)}
-                  onToggleUI={() => setMobileImmersive(prev => !prev)}
+                  onToggleUI={() => {
+                    if (isMobile) {
+                      setMobileImmersive(prev => !prev);
+                    } else {
+                      setDesktopImmersive(prev => !prev);
+                    }
+                  }}
                 />
               </div>
             </div>
@@ -1130,14 +1141,17 @@ function App() {
         />
       )}
 
-      {/* Footer: Playback - hidden in mobile immersive mode or when chord panel is open (unless scrolled to bottom), BUT always show when playing */}
-      {(isPlaying || !(isMobile && !isLandscape && (mobileImmersive || (chordPanelVisible && !chordPanelScrolledToBottom)))) && (
-        <div
-          className="shrink-0 z-50 relative bg-bg-elevated transition-all duration-300"
-        >
-          <PlaybackControls />
-        </div>
-      )}
+      {/* Footer: Playback - hidden in immersive mode (mobile or desktop) or when chord panel is open (unless scrolled to bottom), BUT always show when playing */}
+      {(isPlaying || !(
+        (isMobile && !isLandscape && (mobileImmersive || (chordPanelVisible && !chordPanelScrolledToBottom))) ||
+        (!isMobile && desktopImmersive)
+      )) && (
+          <div
+            className="shrink-0 z-50 relative bg-bg-elevated transition-all duration-300"
+          >
+            <PlaybackControls />
+          </div>
+        )}
       {/* Confirmation Dialog */}
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}

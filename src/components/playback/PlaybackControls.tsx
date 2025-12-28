@@ -226,18 +226,28 @@ export const PlaybackControls: React.FC = () => {
                             </div>
                         )
                     ) : (
-                        <div className="flex items-center gap-2">
-                            <span className="text-text-secondary font-medium">Tempo</span>
+                        // Desktop: Same elegant style as mobile - click to edit
+                        isEditingBpm ? (
                             <input
+                                ref={bpmInputRef}
                                 type="number"
-                                value={tempo}
-                                onChange={(e) => setTempo(Number(e.target.value))}
-                                className="w-14 bg-bg-tertiary border border-border-subtle rounded px-2 py-1 text-center text-text-primary text-[11px] font-medium"
+                                inputMode="numeric"
+                                value={bpmInputValue}
+                                onChange={(e) => setBpmInputValue(e.target.value)}
+                                onBlur={handleBpmSave}
+                                onKeyDown={handleBpmKeyDown}
+                                className="w-14 text-[12px] h-6 bg-bg-tertiary border border-accent-primary rounded px-2 text-center text-text-primary font-medium focus:outline-none"
                                 min={40}
                                 max={240}
                             />
-                            <span className="text-text-muted">BPM</span>
-                        </div>
+                        ) : (
+                            <div
+                                onClick={handleBpmTap}
+                                className="text-[12px] px-3 h-6 font-medium text-text-secondary hover:text-text-primary transition-colors cursor-pointer whitespace-nowrap flex items-center rounded hover:bg-bg-tertiary"
+                            >
+                                {tempo} <span className="text-text-muted ml-1">BPM</span>
+                            </div>
+                        )
                     )}
                 </div>
 

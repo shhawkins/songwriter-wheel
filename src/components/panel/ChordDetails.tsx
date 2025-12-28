@@ -694,7 +694,7 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
                         {!isLandscapeVariant && chord && (
                             <button
                                 onClick={toggleAutoAdvance}
-                                className={`px-2 py-1.5 rounded-lg transition-all flex flex-col items-center justify-center gap-0.5 ${autoAdvance
+                                className={`px-2 rounded-lg transition-all flex flex-col items-center justify-center gap-0.5 ${isMobile && isDrawer ? 'min-h-[36px]' : 'py-1.5'} ${autoAdvance
                                     ? "bg-accent-primary text-white shadow-[0_0_8px_rgba(99,102,241,0.3)]"
                                     : "bg-bg-tertiary/60 text-text-muted hover:text-text-primary hover:bg-bg-tertiary"
                                     }`}
@@ -708,7 +708,7 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
                         {chord && !isCompactLandscape && (
                             <button
                                 onClick={handleDiagramDoubleClick}
-                                className={`${isVeryNarrowPanel ? 'flex-1 py-2' : isCompactLandscape ? 'px-3 py-1 h-[26px]' : isMobile && isDrawer ? 'px-8 py-1.5 min-w-[100px]' : isMobile ? 'px-3 py-1.5' : 'px-2.5 py-1'} bg-gradient-to-r from-accent-primary to-purple-600 hover:opacity-90 rounded-lg transition-all touch-feedback flex items-center justify-center gap-1.5 shadow-md shadow-accent-primary/20 active:scale-95`}
+                                className={`${isVeryNarrowPanel ? 'flex-1 py-2' : isCompactLandscape ? 'px-3 py-1 h-[26px]' : isMobile && isDrawer ? 'px-8 min-h-[36px] min-w-[100px]' : isMobile ? 'px-3 py-1.5' : 'px-2.5 py-1'} bg-gradient-to-r from-accent-primary to-purple-600 hover:opacity-90 rounded-lg transition-all touch-feedback flex items-center justify-center gap-1.5 shadow-md shadow-accent-primary/20 active:scale-95`}
                                 title="Add chord to timeline"
                             >
                                 <Plus size={isCompactLandscape ? 12 : isVeryNarrowPanel ? 16 : isMobile ? 14 : 12} className="text-white" />
