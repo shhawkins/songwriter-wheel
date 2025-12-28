@@ -765,371 +765,388 @@ function App() {
         </div>
       </header>
 
-      {/* Main Content Area */}
-      <div className={`flex-1 flex ${isMobile ? (isLandscape ? 'flex-row' : 'flex-col') : 'flex-row'} overflow-hidden min-h-0`}>
-        {/* Left/Top: Wheel - in landscape, fixed width for wheel area */}
-        <div
-          data-wheel-background
-          className={`flex flex-col min-w-0 min-h-0 bg-gradient-to-b from-bg-primary to-bg-secondary/30 ${isMobile && isLandscape ? 'shrink-0' : 'flex-1'} ${isMobile ? 'overflow-hidden' : ''} relative`}
-          style={isMobile && isLandscape ? {
-            // Fixed width from state - ensures reactivity and proper initial render
-            width: `${landscapeWheelWidth}px`,
-            minWidth: '200px',
-            height: '100%',
-          } : undefined}
-        >
-          {/* Wheel Area */}
-          <div className={`flex-1 flex flex-col ${isMobile && !isLandscape ? 'justify-center' : isMobile && isLandscape ? 'justify-center items-center' : 'justify-start items-center pt-8'} ${isMobile ? 'overflow-hidden' : 'overflow-visible'}`}>
-            {/* Zoom toolbar - show on desktop only, ultra-compact sleek design */}
-            {!isMobile ? (
-              <div className="flex justify-end gap-3 px-4 shrink-0 w-full mb-2">
-                {/* Zoom controls */}
-                <div className="flex items-center bg-bg-secondary/60 backdrop-blur-sm rounded-full px-1 border border-border-subtle/40 scale-100 origin-right h-8">
+      {/* Desktop Layout */}
+      {!isMobile && (
+        <DesktopLayout
+          immersiveMode={desktopImmersive}
+          onToggleImmersive={() => setDesktopImmersive(prev => !prev)}
+          wheelZoom={wheelZoom}
+          wheelZoomOrigin={wheelZoomOrigin}
+          onZoomChange={handleZoomChange}
+          onZoomStep={(delta) => delta > 0 ? handleZoomIn() : handleZoomOut()}
+          wheelPanOffset={wheelPanOffset}
+          onPanChange={handlePanChange}
+          computedWheelSize={computedWheelSize}
+          onOpenKeySelector={() => setShowKeySelector(true)}
+          onOpenHelp={() => setShowHelp(true)}
+          onToggleNotes={() => toggleNotesModal(true)}
+        />
+      )}
+
+      {/* Mobile Main Content Area */}
+      {isMobile && (
+        <div className={`flex-1 flex ${isLandscape ? 'flex-row' : 'flex-col'} overflow-hidden min-h-0`}>
+          {/* Left/Top: Wheel - in landscape, fixed width for wheel area */}
+          <div
+            data-wheel-background
+            className={`flex flex-col min-w-0 min-h-0 bg-gradient-to-b from-bg-primary to-bg-secondary/30 ${isMobile && isLandscape ? 'shrink-0' : 'flex-1'} ${isMobile ? 'overflow-hidden' : ''} relative`}
+            style={isMobile && isLandscape ? {
+              // Fixed width from state - ensures reactivity and proper initial render
+              width: `${landscapeWheelWidth}px`,
+              minWidth: '200px',
+              height: '100%',
+            } : undefined}
+          >
+            {/* Wheel Area */}
+            <div className={`flex-1 flex flex-col ${isMobile && !isLandscape ? 'justify-center' : isMobile && isLandscape ? 'justify-center items-center' : 'justify-start items-center pt-8'} ${isMobile ? 'overflow-hidden' : 'overflow-visible'}`}>
+              {/* Zoom toolbar - show on desktop only, ultra-compact sleek design */}
+              {!isMobile ? (
+                <div className="flex justify-end gap-3 px-4 shrink-0 w-full mb-2">
+                  {/* Zoom controls */}
+                  <div className="flex items-center bg-bg-secondary/60 backdrop-blur-sm rounded-full px-1 border border-border-subtle/40 scale-100 origin-right h-8">
+                    <button
+                      onClick={handleZoomOut}
+                      disabled={wheelZoom <= 0.2}
+                      className="no-touch-enlarge w-6 h-6 flex items-center justify-center hover:bg-bg-tertiary disabled:opacity-30 disabled:cursor-not-allowed rounded-full text-text-muted hover:text-text-primary transition-colors"
+                      title="Zoom out"
+                    >
+                      <Minus size={14} />
+                    </button>
+                    <span className="text-[10px] w-8 text-text-muted text-center font-medium">{Math.round(wheelZoom * 100)}%</span>
+                    <button
+                      onClick={handleZoomIn}
+                      disabled={wheelZoom >= 2.5}
+                      className="no-touch-enlarge w-6 h-6 flex items-center justify-center hover:bg-bg-tertiary disabled:opacity-30 disabled:cursor-not-allowed rounded-full text-text-muted hover:text-text-primary transition-colors"
+                      title="Zoom in"
+                    >
+                      <Plus size={14} />
+                    </button>
+                  </div>
+                  {/* Help button */}
                   <button
-                    onClick={handleZoomOut}
-                    disabled={wheelZoom <= 0.2}
-                    className="no-touch-enlarge w-6 h-6 flex items-center justify-center hover:bg-bg-tertiary disabled:opacity-30 disabled:cursor-not-allowed rounded-full text-text-muted hover:text-text-primary transition-colors"
-                    title="Zoom out"
+                    onClick={() => setShowHelp(true)}
+                    className="no-touch-enlarge w-8 h-8 flex items-center justify-center bg-bg-secondary/60 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-accent-primary transition-colors border border-border-subtle/40"
+                    title="Songwriter Wheel Guide"
                   >
-                    <Minus size={14} />
-                  </button>
-                  <span className="text-[10px] w-8 text-text-muted text-center font-medium">{Math.round(wheelZoom * 100)}%</span>
-                  <button
-                    onClick={handleZoomIn}
-                    disabled={wheelZoom >= 2.5}
-                    className="no-touch-enlarge w-6 h-6 flex items-center justify-center hover:bg-bg-tertiary disabled:opacity-30 disabled:cursor-not-allowed rounded-full text-text-muted hover:text-text-primary transition-colors"
-                    title="Zoom in"
-                  >
-                    <Plus size={14} />
+                    <HelpCircle size={18} />
                   </button>
                 </div>
-                {/* Help button */}
-                <button
-                  onClick={() => setShowHelp(true)}
-                  className="no-touch-enlarge w-8 h-8 flex items-center justify-center bg-bg-secondary/60 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-accent-primary transition-colors border border-border-subtle/40"
-                  title="Songwriter Wheel Guide"
-                >
-                  <HelpCircle size={18} />
-                </button>
-              </div>
-            ) : null}
-            {/* Wheel container - fills available space */}
-            <div
-              className={`flex-1 flex justify-center ${isMobile ? 'items-center' : ''} ${isMobile && isLandscape ? 'p-1 overflow-hidden' : isMobile && !isLandscape ? 'px-0 py-0' : 'p-2 overflow-visible'}`}
-              onClick={handleLandscapeWheelTap}
-              style={!isMobile ? { transform: 'scale(1.15)', transformOrigin: 'center center' } : undefined}
-            >
+              ) : null}
+              {/* Wheel container - fills available space */}
               <div
-                className="relative flex items-center justify-center"
-                style={
-                  isMobile && isLandscape
-                    ? {
-                      // Mobile landscape: use explicit height based on viewport to avoid Safari issues
-                      // The wheel should be square and fit within the full height (minus small padding for footer)
-                      width: 'calc(100dvh - 60px)',
-                      height: 'calc(100dvh - 60px)',
-                      maxWidth: '100%',
-                      maxHeight: '100%',
-                      aspectRatio: '1 / 1',
-                    }
-                    : isMobile && !isLandscape
-                      ? {
-                        // Mobile portrait: constrain to viewport
-                        width: mobileImmersive ? 'min(calc(100vw - 8px), 55dvh)' : 'min(calc(100vw - 16px), 85dvh)',
-                        height: mobileImmersive ? 'min(calc(100vw - 8px), 55dvh)' : 'min(calc(100vw - 16px), 85dvh)',
-                        maxWidth: mobileImmersive ? 'min(calc(100vw - 8px), 55dvh)' : 'min(calc(100vw - 16px), 85dvh)',
-                        maxHeight: mobileImmersive ? 'min(calc(100vw - 8px), 55dvh)' : 'min(calc(100vw - 16px), 85dvh)',
-                        aspectRatio: '1 / 1',
-                      }
-                      : {
-                        // Desktop/tablet: use JS-computed size for reliable cross-browser support
-                        width: `${computedWheelSize}px`,
-                        height: `${computedWheelSize}px`,
-                        aspectRatio: '1 / 1',
-                      }
-                }
+                className={`flex-1 flex justify-center ${isMobile ? 'items-center' : ''} ${isMobile && isLandscape ? 'p-1 overflow-hidden' : isMobile && !isLandscape ? 'px-0 py-0' : 'p-2 overflow-visible'}`}
+                onClick={handleLandscapeWheelTap}
+                style={!isMobile ? { transform: 'scale(1.15)', transformOrigin: 'center center' } : undefined}
               >
-                <ChordWheel
-                  zoomScale={wheelZoom}
-                  zoomOriginY={wheelZoomOrigin}
-                  onZoomChange={handleZoomChange}
-                  panOffset={wheelPanOffset}
-                  onPanChange={handlePanChange}
-                  rotationOffset={wheelRotationOffset}
-                  disableModeToggle={wheelRotationOffset !== 0}
-                  onOpenKeySelector={() => setShowKeySelector(true)}
-                  onToggleUI={() => {
-                    if (isMobile) {
-                      setMobileImmersive(prev => !prev);
-                    } else {
-                      setDesktopImmersive(prev => !prev);
-                    }
-                  }}
-                />
+                <div
+                  className="relative flex items-center justify-center"
+                  style={
+                    isMobile && isLandscape
+                      ? {
+                        // Mobile landscape: use explicit height based on viewport to avoid Safari issues
+                        // The wheel should be square and fit within the full height (minus small padding for footer)
+                        width: 'calc(100dvh - 60px)',
+                        height: 'calc(100dvh - 60px)',
+                        maxWidth: '100%',
+                        maxHeight: '100%',
+                        aspectRatio: '1 / 1',
+                      }
+                      : isMobile && !isLandscape
+                        ? {
+                          // Mobile portrait: constrain to viewport
+                          width: mobileImmersive ? 'min(calc(100vw - 8px), 55dvh)' : 'min(calc(100vw - 16px), 85dvh)',
+                          height: mobileImmersive ? 'min(calc(100vw - 8px), 55dvh)' : 'min(calc(100vw - 16px), 85dvh)',
+                          maxWidth: mobileImmersive ? 'min(calc(100vw - 8px), 55dvh)' : 'min(calc(100vw - 16px), 85dvh)',
+                          maxHeight: mobileImmersive ? 'min(calc(100vw - 8px), 55dvh)' : 'min(calc(100vw - 16px), 85dvh)',
+                          aspectRatio: '1 / 1',
+                        }
+                        : {
+                          // Desktop/tablet: use JS-computed size for reliable cross-browser support
+                          width: `${computedWheelSize}px`,
+                          height: `${computedWheelSize}px`,
+                          aspectRatio: '1 / 1',
+                        }
+                  }
+                >
+                  <ChordWheel
+                    zoomScale={wheelZoom}
+                    zoomOriginY={wheelZoomOrigin}
+                    onZoomChange={handleZoomChange}
+                    panOffset={wheelPanOffset}
+                    onPanChange={handlePanChange}
+                    rotationOffset={wheelRotationOffset}
+                    disableModeToggle={wheelRotationOffset !== 0}
+                    onOpenKeySelector={() => setShowKeySelector(true)}
+                    onToggleUI={() => {
+                      if (isMobile) {
+                        setMobileImmersive(prev => !prev);
+                      } else {
+                        setDesktopImmersive(prev => !prev);
+                      }
+                    }}
+                  />
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Help button - pinned to upper right of wheel panel area */}
-          <button
-            onClick={() => setShowHelp(true)}
-            onTouchEnd={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setShowHelp(true);
-            }}
-            className={`absolute ${isMobile && isLandscape ? 'top-2 right-2 w-8 h-8' : isMobile ? 'top-3 right-3 w-11 h-11' : 'top-3 right-3 w-9 h-9'} flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-accent-primary transition-colors shadow-lg border border-border-subtle z-50`}
-            style={{ touchAction: 'auto', pointerEvents: 'auto' }}
-            title="Songwriter Wheel Guide"
-          >
-            <HelpCircle size={isMobile && isLandscape ? 14 : isMobile ? 20 : 16} />
-          </button>
-
-          {/* Voicing Picker button - pinned to upper left of wheel panel area */}
-          {selectedChord && (
+            {/* Help button - pinned to upper right of wheel panel area */}
             <button
-              onClick={() => {
-                const state = useSongStore.getState();
-                const wheelChord = state.selectedChord;
-                if (wheelChord) {
-                  // Calculate voicing suggestions based on chord position
-                  let voicingSuggestion = '';
-                  const posIndex = (wheelChord as any).positionIndex;
-                  const ringType = (wheelChord as any).ringType;
-
-                  if (posIndex !== undefined && ringType) {
-                    // We need to calculate relative position similar to ChordWheel
-                    // This is simplified - ideally we'd import the helper function
-                    voicingSuggestion = '';
-                  }
-
-                  state.setVoicingPickerState({
-                    isOpen: true,
-                    chord: wheelChord,
-                    voicingSuggestion,
-                    baseQuality: wheelChord.quality
-                  });
-                }
-              }}
+              onClick={() => setShowHelp(true)}
               onTouchEnd={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                const state = useSongStore.getState();
-                const wheelChord = state.selectedChord;
-                if (wheelChord) {
-                  state.setVoicingPickerState({
-                    isOpen: true,
-                    chord: wheelChord,
-                    voicingSuggestion: '',
-                    baseQuality: wheelChord.quality
-                  });
-                }
+                setShowHelp(true);
               }}
-              className={`absolute ${isMobile && isLandscape ? 'top-2 left-2 w-8 h-8' : isMobile ? 'top-3 left-3 w-11 h-11' : 'top-3 left-3 w-9 h-9'} flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-accent-primary transition-colors shadow-lg border border-border-subtle z-50`}
+              className={`absolute ${isMobile && isLandscape ? 'top-2 right-2 w-8 h-8' : isMobile ? 'top-3 right-3 w-11 h-11' : 'top-3 right-3 w-9 h-9'} flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-accent-primary transition-colors shadow-lg border border-border-subtle z-50`}
               style={{ touchAction: 'auto', pointerEvents: 'auto' }}
-              title="Open Voicing Picker"
+              title="Songwriter Wheel Guide"
             >
-              <ListMusic size={isMobile && isLandscape ? 14 : isMobile ? 20 : 16} />
+              <HelpCircle size={isMobile && isLandscape ? 14 : isMobile ? 20 : 16} />
             </button>
-          )}
 
-          {/* Notes button - pinned to lower left of wheel panel area */}
-          <button
-            onClick={() => toggleNotesModal(true)}
-            onTouchEnd={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              toggleNotesModal(true);
-            }}
-            className={`absolute ${isMobile && isLandscape ? 'bottom-2 left-2 w-8 h-8' : isMobile ? 'bottom-3 left-3 w-11 h-11' : 'bottom-3 left-3 w-9 h-9'} flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-amber-400 transition-colors shadow-lg border border-border-subtle z-50`}
-            style={{ touchAction: 'auto', pointerEvents: 'auto' }}
-            title="Song Notes & Lyrics"
-          >
-            <StickyNote size={isMobile && isLandscape ? 14 : isMobile ? 20 : 16} />
-          </button>
+            {/* Voicing Picker button - pinned to upper left of wheel panel area */}
+            {selectedChord && (
+              <button
+                onClick={() => {
+                  const state = useSongStore.getState();
+                  const wheelChord = state.selectedChord;
+                  if (wheelChord) {
+                    // Calculate voicing suggestions based on chord position
+                    let voicingSuggestion = '';
+                    const posIndex = (wheelChord as any).positionIndex;
+                    const ringType = (wheelChord as any).ringType;
 
-          {/* Chord badge - pinned to lower right of wheel panel area */}
-          {selectedChord && (() => {
-            const colors = getWheelColors();
-            const chordColor = colors[selectedChord.root as keyof typeof colors] || '#6366f1';
-            const quality = selectedChord.quality;
-            let shortName: string;
-            if (quality === 'major') {
-              shortName = formatChordForDisplay(selectedChord.root);
-            } else if (quality === 'minor') {
-              shortName = formatChordForDisplay(`${selectedChord.root}m`);
-            } else if (quality === 'diminished') {
-              shortName = formatChordForDisplay(`${selectedChord.root}°`);
-            } else {
-              shortName = formatChordForDisplay(`${selectedChord.root}${getQualitySymbol(quality)}`);
-            }
+                    if (posIndex !== undefined && ringType) {
+                      // We need to calculate relative position similar to ChordWheel
+                      // This is simplified - ideally we'd import the helper function
+                      voicingSuggestion = '';
+                    }
 
-            return (
-              <div
-                className={`absolute ${isMobile && isLandscape ? 'bottom-2 right-2' : 'bottom-3 right-3'} flex items-center gap-1 cursor-pointer touch-feedback active:scale-95 z-50`}
-                style={{
-                  color: chordColor,
-                  padding: '4px 10px',
-                  borderRadius: '8px',
-                  border: `2px solid ${chordColor}`,
-                  backdropFilter: 'blur(8px)',
-                  background: 'rgba(0, 0, 0, 0.4)',
-                  touchAction: 'auto',
-                  pointerEvents: 'auto'
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  playChord(selectedChord.notes);
-                }}
-                onTouchStart={(e) => {
-                  e.stopPropagation();
+                    state.setVoicingPickerState({
+                      isOpen: true,
+                      chord: wheelChord,
+                      voicingSuggestion,
+                      baseQuality: wheelChord.quality
+                    });
+                  }
                 }}
                 onTouchEnd={(e) => {
-                  e.stopPropagation();
                   e.preventDefault();
-                  playChord(selectedChord.notes);
+                  e.stopPropagation();
+                  const state = useSongStore.getState();
+                  const wheelChord = state.selectedChord;
+                  if (wheelChord) {
+                    state.setVoicingPickerState({
+                      isOpen: true,
+                      chord: wheelChord,
+                      voicingSuggestion: '',
+                      baseQuality: wheelChord.quality
+                    });
+                  }
                 }}
+                className={`absolute ${isMobile && isLandscape ? 'top-2 left-2 w-8 h-8' : isMobile ? 'top-3 left-3 w-11 h-11' : 'top-3 left-3 w-9 h-9'} flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-accent-primary transition-colors shadow-lg border border-border-subtle z-50`}
+                style={{ touchAction: 'auto', pointerEvents: 'auto' }}
+                title="Open Voicing Picker"
               >
-                <span className="text-sm font-bold leading-none">{shortName}</span>
-                {selectedChord.numeral && (
-                  <span className="text-xs font-serif italic opacity-70">{formatChordForDisplay(selectedChord.numeral)}</span>
-                )}
-              </div>
-            );
-          })()}
+                <ListMusic size={isMobile && isLandscape ? 14 : isMobile ? 20 : 16} />
+              </button>
+            )}
 
-          {/* Desktop: Timeline section - mobile-inspired aesthetic with horizontal section tabs */}
-          {!isMobile ? (
-            timelineVisible ? (
-              <>
-                {/* Timeline - compact fixed height with mobile-inspired design */}
+            {/* Notes button - pinned to lower left of wheel panel area */}
+            <button
+              onClick={() => toggleNotesModal(true)}
+              onTouchEnd={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleNotesModal(true);
+              }}
+              className={`absolute ${isMobile && isLandscape ? 'bottom-2 left-2 w-8 h-8' : isMobile ? 'bottom-3 left-3 w-11 h-11' : 'bottom-3 left-3 w-9 h-9'} flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-amber-400 transition-colors shadow-lg border border-border-subtle z-50`}
+              style={{ touchAction: 'auto', pointerEvents: 'auto' }}
+              title="Song Notes & Lyrics"
+            >
+              <StickyNote size={isMobile && isLandscape ? 14 : isMobile ? 20 : 16} />
+            </button>
+
+            {/* Chord badge - pinned to lower right of wheel panel area */}
+            {selectedChord && (() => {
+              const colors = getWheelColors();
+              const chordColor = colors[selectedChord.root as keyof typeof colors] || '#6366f1';
+              const quality = selectedChord.quality;
+              let shortName: string;
+              if (quality === 'major') {
+                shortName = formatChordForDisplay(selectedChord.root);
+              } else if (quality === 'minor') {
+                shortName = formatChordForDisplay(`${selectedChord.root}m`);
+              } else if (quality === 'diminished') {
+                shortName = formatChordForDisplay(`${selectedChord.root}°`);
+              } else {
+                shortName = formatChordForDisplay(`${selectedChord.root}${getQualitySymbol(quality)}`);
+              }
+
+              return (
                 <div
-                  className="shrink-0 bg-bg-secondary border-t border-border-subtle overflow-hidden flex flex-col relative z-20"
-                  style={{ height: timelineHeight }}
+                  className={`absolute ${isMobile && isLandscape ? 'bottom-2 right-2' : 'bottom-3 right-3'} flex items-center gap-1 cursor-pointer touch-feedback active:scale-95 z-50`}
+                  style={{
+                    color: chordColor,
+                    padding: '4px 10px',
+                    borderRadius: '8px',
+                    border: `2px solid ${chordColor}`,
+                    backdropFilter: 'blur(8px)',
+                    background: 'rgba(0, 0, 0, 0.4)',
+                    touchAction: 'auto',
+                    pointerEvents: 'auto'
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    playChord(selectedChord.notes);
+                  }}
+                  onTouchStart={(e) => {
+                    e.stopPropagation();
+                  }}
+                  onTouchEnd={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    playChord(selectedChord.notes);
+                  }}
                 >
-                  {/* Timeline Header Handle */}
+                  <span className="text-sm font-bold leading-none">{shortName}</span>
+                  {selectedChord.numeral && (
+                    <span className="text-xs font-serif italic opacity-70">{formatChordForDisplay(selectedChord.numeral)}</span>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Desktop: Timeline section - mobile-inspired aesthetic with horizontal section tabs */}
+            {!isMobile ? (
+              timelineVisible ? (
+                <>
+                  {/* Timeline - compact fixed height with mobile-inspired design */}
                   <div
-                    className="h-4 w-full bg-bg-secondary border-b border-border-subtle flex items-center justify-center cursor-pointer hover:bg-bg-tertiary transition-colors shrink-0"
-                    onClick={toggleTimeline}
-                    title="Collapse Timeline"
+                    className="shrink-0 bg-bg-secondary border-t border-border-subtle overflow-hidden flex flex-col relative z-20"
+                    style={{ height: timelineHeight }}
                   >
-                    <div className="flex items-center gap-1 text-[9px] text-text-muted font-bold tracking-wider uppercase opacity-70">
-                      <ChevronDown size={10} />
-                      <span>Timeline</span>
+                    {/* Timeline Header Handle */}
+                    <div
+                      className="h-4 w-full bg-bg-secondary border-b border-border-subtle flex items-center justify-center cursor-pointer hover:bg-bg-tertiary transition-colors shrink-0"
+                      onClick={toggleTimeline}
+                      title="Collapse Timeline"
+                    >
+                      <div className="flex items-center gap-1 text-[9px] text-text-muted font-bold tracking-wider uppercase opacity-70">
+                        <ChevronDown size={10} />
+                        <span>Timeline</span>
+                      </div>
+                    </div>
+
+                    {/* Timeline content - uses mobile timeline component which has undo/redo/zoom built in */}
+                    <div className="relative flex-1 min-h-0 overflow-hidden">
+                      <MobileTimeline isOpen={true} onToggle={toggleTimeline} hideCloseButton={true} isCompact={false} isLandscape={false} />
                     </div>
                   </div>
-
-                  {/* Timeline content - uses mobile timeline component which has undo/redo/zoom built in */}
-                  <div className="relative flex-1 min-h-0 overflow-hidden">
-                    <MobileTimeline isOpen={true} onToggle={toggleTimeline} hideCloseButton={true} isCompact={false} isLandscape={false} />
-                  </div>
+                </>
+              ) : (
+                /* Collapsed timeline - thin bar with show button */
+                /* Collapsed timeline - thin bar with show button */
+                <div className="h-12 bg-bg-secondary border-t border-border-subtle flex items-center justify-center shrink-0 relative z-50">
+                  <button
+                    onClick={toggleTimeline}
+                    className="px-3 h-full flex items-center gap-1 text-[8px] text-text-muted hover:text-text-primary hover:bg-bg-tertiary transition-colors timeline-toggle"
+                    title="Show timeline"
+                  >
+                    <ChevronUp size={10} />
+                    <span className="uppercase tracking-wider font-bold">Timeline</span>
+                  </button>
                 </div>
-              </>
-            ) : (
-              /* Collapsed timeline - thin bar with show button */
-              /* Collapsed timeline - thin bar with show button */
-              <div className="h-12 bg-bg-secondary border-t border-border-subtle flex items-center justify-center shrink-0 relative z-50">
-                <button
-                  onClick={toggleTimeline}
-                  className="px-3 h-full flex items-center gap-1 text-[8px] text-text-muted hover:text-text-primary hover:bg-bg-tertiary transition-colors timeline-toggle"
-                  title="Show timeline"
+              )
+            ) : null}
+          </div>
+
+          {isMobile && isLandscape ? (
+            /* Mobile Landscape: 3-panel layout with horizontal sliding drawers
+               When BOTH panels open: use compact views
+               When ONLY one panel open: use expanded/full views
+            */
+            <>
+              {/* Timeline Panel + Handle */}
+              <div
+                className={`flex h-full ${mobileTimelineOpen ? (chordPanelVisible ? 'flex-[2]' : 'flex-1') : 'justify-end'} shrink-0`}
+                style={{
+                  minWidth: mobileTimelineOpen ? '100px' : '28px',
+                  transition: 'all 0.25s ease-out'
+                }}
+              >
+                {/* Timeline Handle - comes first in DOM, appears on right due to flex-row-reverse */}
+                <div
+                  className={`h-full flex flex-col items-center justify-center cursor-pointer touch-feedback active:bg-bg-tertiary border-l border-border-subtle shrink-0 ${mobileTimelineOpen ? 'bg-bg-elevated' : 'bg-bg-secondary'}`}
+                  style={{ width: '28px' }}
+                  onClick={() => {
+                    if (mobileTimelineOpen && !chordPanelVisible) {
+                      // Closing timeline when it's the only one open - open chord details instead
+                      useSongStore.getState().toggleChordPanel();
+                    }
+                    setMobileTimelineOpen(!mobileTimelineOpen);
+                  }}
                 >
-                  <ChevronUp size={10} />
-                  <span className="uppercase tracking-wider font-bold">Timeline</span>
-                </button>
+                  <div className="h-10 w-1 rounded-full bg-text-muted/50 mb-2" />
+                  <span
+                    className="text-[9px] font-bold text-text-muted uppercase tracking-wide"
+                    style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
+                  >
+                    {mobileTimelineOpen ? '◂' : 'Timeline'}
+                  </span>
+                </div>
+                {/* Timeline Content - always use mobile view in landscape */}
+                {mobileTimelineOpen && (
+                  <div className="flex-1 h-full bg-bg-secondary overflow-hidden border-l border-border-subtle">
+                    <MobileTimeline isOpen={true} onToggle={() => setMobileTimelineOpen(false)} hideCloseButton={true} isCompact={chordPanelVisible} isLandscape={true} />
+                  </div>
+                )}
               </div>
-            )
+
+              {/* Chord Details Panel + Handle */}
+              <div
+                className={`flex h-full ${chordPanelVisible ? 'flex-1' : ''} shrink-0`}
+                style={{
+                  minWidth: chordPanelVisible ? (mobileTimelineOpen ? '140px' : '0px') : '28px',
+                  transition: 'all 0.25s ease-out'
+                }}
+              >
+                {/* Chord Details Content - compact when both open, expanded horizontal layout when alone */}
+                {/* If timeline is closed, force expanded layout regardless of "mobileTimelineOpen" state logic if it were mismatched */}
+                {chordPanelVisible && (
+                  <div className="flex-1 h-full bg-bg-secondary overflow-y-auto overflow-x-hidden min-w-0">
+                    <ChordDetails
+                      variant={mobileTimelineOpen ? "landscape-panel" : "landscape-expanded"}
+                      onClose={useSongStore.getState().toggleChordPanel}
+                    />
+                  </div>
+                )}
+                {/* Chord Details Handle */}
+                <div
+                  className={`h-full flex flex-col items-center justify-center cursor-pointer touch-feedback active:bg-bg-tertiary border-l border-border-subtle shrink-0 ${chordPanelVisible ? 'bg-bg-elevated' : 'bg-bg-secondary'}`}
+                  style={{ width: '28px' }}
+                  onClick={() => {
+                    if (chordPanelVisible && !mobileTimelineOpen) {
+                      // Closing chord details when it's the only one open - open timeline instead
+                      setMobileTimelineOpen(true);
+                    }
+                    useSongStore.getState().toggleChordPanel();
+                  }}
+                >
+                  <div className="h-10 w-1 rounded-full bg-text-muted/50 mb-2" />
+                  <span
+                    className="text-[9px] font-bold text-text-muted uppercase tracking-wide"
+                    style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
+                  >
+                    {chordPanelVisible ? '▸' : 'Details'}
+                  </span>
+                </div>
+              </div>
+            </>
           ) : null}
         </div>
-
-        {isMobile && isLandscape ? (
-          /* Mobile Landscape: 3-panel layout with horizontal sliding drawers
-             When BOTH panels open: use compact views
-             When ONLY one panel open: use expanded/full views
-          */
-          <>
-            {/* Timeline Panel + Handle */}
-            <div
-              className={`flex h-full ${mobileTimelineOpen ? (chordPanelVisible ? 'flex-[2]' : 'flex-1') : 'justify-end'} shrink-0`}
-              style={{
-                minWidth: mobileTimelineOpen ? '100px' : '28px',
-                transition: 'all 0.25s ease-out'
-              }}
-            >
-              {/* Timeline Handle - comes first in DOM, appears on right due to flex-row-reverse */}
-              <div
-                className={`h-full flex flex-col items-center justify-center cursor-pointer touch-feedback active:bg-bg-tertiary border-l border-border-subtle shrink-0 ${mobileTimelineOpen ? 'bg-bg-elevated' : 'bg-bg-secondary'}`}
-                style={{ width: '28px' }}
-                onClick={() => {
-                  if (mobileTimelineOpen && !chordPanelVisible) {
-                    // Closing timeline when it's the only one open - open chord details instead
-                    useSongStore.getState().toggleChordPanel();
-                  }
-                  setMobileTimelineOpen(!mobileTimelineOpen);
-                }}
-              >
-                <div className="h-10 w-1 rounded-full bg-text-muted/50 mb-2" />
-                <span
-                  className="text-[9px] font-bold text-text-muted uppercase tracking-wide"
-                  style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
-                >
-                  {mobileTimelineOpen ? '◂' : 'Timeline'}
-                </span>
-              </div>
-              {/* Timeline Content - always use mobile view in landscape */}
-              {mobileTimelineOpen && (
-                <div className="flex-1 h-full bg-bg-secondary overflow-hidden border-l border-border-subtle">
-                  <MobileTimeline isOpen={true} onToggle={() => setMobileTimelineOpen(false)} hideCloseButton={true} isCompact={chordPanelVisible} isLandscape={true} />
-                </div>
-              )}
-            </div>
-
-            {/* Chord Details Panel + Handle */}
-            <div
-              className={`flex h-full ${chordPanelVisible ? 'flex-1' : ''} shrink-0`}
-              style={{
-                minWidth: chordPanelVisible ? (mobileTimelineOpen ? '140px' : '0px') : '28px',
-                transition: 'all 0.25s ease-out'
-              }}
-            >
-              {/* Chord Details Content - compact when both open, expanded horizontal layout when alone */}
-              {/* If timeline is closed, force expanded layout regardless of "mobileTimelineOpen" state logic if it were mismatched */}
-              {chordPanelVisible && (
-                <div className="flex-1 h-full bg-bg-secondary overflow-y-auto overflow-x-hidden min-w-0">
-                  <ChordDetails
-                    variant={mobileTimelineOpen ? "landscape-panel" : "landscape-expanded"}
-                    onClose={useSongStore.getState().toggleChordPanel}
-                  />
-                </div>
-              )}
-              {/* Chord Details Handle */}
-              <div
-                className={`h-full flex flex-col items-center justify-center cursor-pointer touch-feedback active:bg-bg-tertiary border-l border-border-subtle shrink-0 ${chordPanelVisible ? 'bg-bg-elevated' : 'bg-bg-secondary'}`}
-                style={{ width: '28px' }}
-                onClick={() => {
-                  if (chordPanelVisible && !mobileTimelineOpen) {
-                    // Closing chord details when it's the only one open - open timeline instead
-                    setMobileTimelineOpen(true);
-                  }
-                  useSongStore.getState().toggleChordPanel();
-                }}
-              >
-                <div className="h-10 w-1 rounded-full bg-text-muted/50 mb-2" />
-                <span
-                  className="text-[9px] font-bold text-text-muted uppercase tracking-wide"
-                  style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
-                >
-                  {chordPanelVisible ? '▸' : 'Details'}
-                </span>
-              </div>
-            </div>
-          </>
-        ) : !isMobile ? (
-          /* Desktop: Sidebar */
-          <ChordDetails variant="sidebar" />
-        ) : null}
-      </div>
+      )}
 
       {/* Mobile Portrait: Bottom drawers - Timeline above Chord Details */}
       {isMobile && !isLandscape && (

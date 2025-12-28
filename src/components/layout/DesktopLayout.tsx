@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import { ChevronDown, ChevronUp, HelpCircle, ListMusic, StickyNote } from 'lucide-react';
 import { useSongStore } from '../../store/useSongStore';
 import { MobileTimeline } from '../timeline/MobileTimeline';
@@ -97,31 +97,109 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
         }
     };
 
+    // Drag gesture state for timeline
+    const touchStartY = useRef<number>(0);
+    const [dragOffset, setDragOffset] = useState(0);
+    const isDragging = useRef(false);
+
+    // Touch handlers
+    const handleTouchStart = (e: React.TouchEvent) => {
+        e.stopPropagation();
+        touchStartY.current = e.touches[0].clientY;
+        isDragging.current = true;
+        setDragOffset(0);
+    };
+
+    const handleTouchMove = (e: React.TouchEvent) => {
+        e.stopPropagation();
+        if (!isDragging.current) return;
+        const deltaY = e.touches[0].clientY - touchStartY.current;
+        setDragOffset(deltaY);
+    };
+
+    const handleTouchEnd = (e: React.TouchEvent) => {
+        e.stopPropagation();
+        if (!isDragging.current) return;
+        finishDrag();
+    };
+
+    // Mouse handlers for desktop dragging
+    const handleMouseDown = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        e.preventDefault(); // Prevent text selection
+        touchStartY.current = e.clientY;
+        isDragging.current = true;
+        setDragOffset(0);
+    };
+
+    const handleMouseMove = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!isDragging.current) return;
+        if (e.buttons !== 1) {
+            isDragging.current = false;
+            return;
+        }
+        const deltaY = e.clientY - touchStartY.current;
+        setDragOffset(deltaY);
+    };
+
+    const handleMouseUp = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!isDragging.current) return;
+        finishDrag();
+    };
+
+    const handleMouseLeave = (e: React.MouseEvent) => {
+        if (isDragging.current) {
+            e.stopPropagation();
+            finishDrag();
+        }
+    };
+
+    const finishDrag = () => {
+        isDragging.current = false;
+        const threshold = 30;
+
+        if (timelineVisible) {
+            if (dragOffset > threshold) toggleTimeline();
+        } else {
+            if (dragOffset < -threshold) toggleTimeline();
+        }
+        setDragOffset(0);
+    };
+
+    const handleTimelineClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (Math.abs(dragOffset) < 5) toggleTimeline(); // Reduced click threshold
+    };
+
     return (
         <div className="flex-1 flex flex-row overflow-hidden min-h-0">
             {/* Left: Wheel Area + Timeline */}
             <div
                 data-wheel-background
-                className="flex-1 flex flex-col min-w-0 min-h-0 bg-gradient-to-b from-bg-primary to-bg-secondary/30 relative"
+                className="flex-1 flex flex-col min-w-0 min-h-0 bg-gradient-to-b from-bg-primary to-bg-secondary/30 relative cursor-default"
+                onClick={onToggleImmersive}
             >
                 {/* Wheel Container - fills available space */}
                 <div className="flex-1 flex flex-col justify-start items-center pt-4 overflow-visible min-h-0">
-                    {/* Zoom Controls - compact toolbar in top right, matching desktop toolbar position */}
-                    <div className="flex justify-end gap-3 px-4 shrink-0 w-full mb-2">
-                        <div className="flex items-center bg-bg-secondary/60 backdrop-blur-sm rounded-full px-1 border border-border-subtle/40 h-8">
+                    {/* Zoom & Help Toolbar - Single row to prevent overlap */}
+                    <div className="flex justify-end items-center gap-3 px-4 shrink-0 w-full mb-2 pointer-events-none">
+                        {/* Zoom Controls */}
+                        <div className="flex items-center bg-bg-secondary/60 backdrop-blur-sm rounded-full px-1 border border-border-subtle/40 h-8 pointer-events-auto shadow-sm">
                             <button
-                                onClick={() => onZoomStep(-0.1)}
+                                onClick={(e) => { e.stopPropagation(); onZoomStep(-0.1); }}
                                 disabled={wheelZoom <= 0.2}
                                 className="no-touch-enlarge w-6 h-6 flex items-center justify-center hover:bg-bg-tertiary disabled:opacity-30 disabled:cursor-not-allowed rounded-full text-text-muted hover:text-text-primary transition-colors"
                                 title="Zoom out"
                             >
                                 <span className="text-lg leading-none">−</span>
                             </button>
-                            <span className="text-[10px] w-8 text-text-muted text-center font-medium">
+                            <span className="text-[10px] w-8 text-text-muted text-center font-medium select-none">
                                 {Math.round(wheelZoom * 100)}%
                             </span>
                             <button
-                                onClick={() => onZoomStep(0.1)}
+                                onClick={(e) => { e.stopPropagation(); onZoomStep(0.1); }}
                                 disabled={wheelZoom >= 2.5}
                                 className="no-touch-enlarge w-6 h-6 flex items-center justify-center hover:bg-bg-tertiary disabled:opacity-30 disabled:cursor-not-allowed rounded-full text-text-muted hover:text-text-primary transition-colors"
                                 title="Zoom in"
@@ -129,12 +207,20 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
                                 <span className="text-lg leading-none">+</span>
                             </button>
                         </div>
+
+                        {/* Help Button - Moved here */}
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onOpenHelp(); }}
+                            className="w-8 h-8 flex items-center justify-center bg-bg-secondary/60 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-accent-primary transition-colors border border-border-subtle/40 pointer-events-auto shadow-sm"
+                            title="Songwriter Wheel Guide"
+                        >
+                            <HelpCircle size={18} />
+                        </button>
                     </div>
 
                     {/* Wheel - centered with proper sizing */}
                     <div
-                        className="flex-1 flex justify-center p-2 overflow-visible min-h-0"
-                        onClick={onToggleImmersive}
+                        className="flex-1 flex justify-center p-2 overflow-visible min-h-0 w-full"
                         style={{ transform: 'scale(1.15)', transformOrigin: 'center center' }}
                     >
                         <div
@@ -144,6 +230,7 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
                                 height: `${computedWheelSize}px`,
                                 aspectRatio: '1 / 1',
                             }}
+                            onClick={(e) => e.stopPropagation()} /* Wheel click handled by onToggleUI inside or background */
                         >
                             <ChordWheel
                                 zoomScale={wheelZoom}
@@ -152,26 +239,16 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
                                 panOffset={wheelPanOffset}
                                 onPanChange={onPanChange}
                                 onOpenKeySelector={onOpenKeySelector}
-                                onToggleUI={onToggleImmersive}
+                                onToggleUI={onToggleImmersive} /* Keeps tap-center-to-toggle functionality */
                             />
                         </div>
                     </div>
                 </div>
 
-                {/* Corner Buttons - positioned relative to wheel area */}
-                {/* Help button - top right */}
-                <button
-                    onClick={onOpenHelp}
-                    className="absolute top-3 right-3 w-9 h-9 flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-accent-primary transition-colors shadow-lg border border-border-subtle z-50"
-                    title="Songwriter Wheel Guide"
-                >
-                    <HelpCircle size={16} />
-                </button>
-
-                {/* Voicing Picker button - top left (only when chord selected) */}
+                {/* Left/Bottom Corner Buttons */}
                 {selectedChord && (
                     <button
-                        onClick={handleOpenVoicingPicker}
+                        onClick={(e) => { e.stopPropagation(); handleOpenVoicingPicker(); }}
                         className="absolute top-3 left-3 w-9 h-9 flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-accent-primary transition-colors shadow-lg border border-border-subtle z-50"
                         title="Open Voicing Picker"
                     >
@@ -179,22 +256,21 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
                     </button>
                 )}
 
-                {/* Notes button - bottom left */}
                 <button
-                    onClick={onToggleNotes}
+                    onClick={(e) => { e.stopPropagation(); onToggleNotes(); }}
                     className="absolute bottom-3 left-3 w-9 h-9 flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-amber-400 transition-colors shadow-lg border border-border-subtle z-50"
-                    style={{ bottom: timelineVisible ? `${timelineHeight + 12}px` : `${collapsedHeight + 12}px` }}
+                    style={{ bottom: timelineVisible ? `${timelineHeight + 12}px` : `${collapsedHeight + 12}px`, transition: 'bottom 0.3s ease-out' }}
                     title="Song Notes & Lyrics"
                 >
                     <StickyNote size={16} />
                 </button>
 
-                {/* Chord badge - bottom right (only when chord selected) */}
                 {selectedChord && (
                     <div
                         className="absolute bottom-3 right-3 flex items-center gap-1 cursor-pointer touch-feedback active:scale-95 z-50"
                         style={{
                             bottom: timelineVisible ? `${timelineHeight + 12}px` : `${collapsedHeight + 12}px`,
+                            transition: 'bottom 0.3s ease-out',
                             color: chordColor,
                             padding: '4px 10px',
                             borderRadius: '8px',
@@ -217,24 +293,27 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
                     </div>
                 )}
 
-                {/* Timeline Drawer - collapsible bottom section */}
+                {/* Timeline Drawer */}
                 <div
-                    className="shrink-0 bg-bg-secondary border-t border-border-subtle transition-all duration-300 ease-out overflow-hidden"
+                    className="shrink-0 bg-bg-secondary border-t border-border-subtle transition-all duration-300 ease-out overflow-hidden touch-none select-none"
                     style={{ height: timelineVisible ? timelineHeight : collapsedHeight }}
+                    onClick={(e) => e.stopPropagation()}
                 >
                     {/* Timeline Header/Toggle */}
                     <div
-                        className={`h-8 w-full bg-bg-secondary flex items-center justify-center cursor-pointer hover:bg-bg-tertiary transition-colors ${timelineVisible ? 'border-b border-border-subtle' : ''
-                            }`}
-                        onClick={toggleTimeline}
-                        title={timelineVisible ? 'Collapse Timeline' : 'Expand Timeline'}
+                        className={`h-8 w-full bg-bg-secondary flex items-center justify-center cursor-pointer hover:bg-bg-tertiary transition-colors ${timelineVisible ? 'border-b border-border-subtle' : ''}`}
+                        onTouchStart={handleTouchStart}
+                        onTouchMove={handleTouchMove}
+                        onTouchEnd={handleTouchEnd}
+                        onMouseDown={handleMouseDown}
+                        onMouseMove={handleMouseMove}
+                        onMouseUp={handleMouseUp}
+                        onMouseLeave={handleMouseLeave}
+                        onClick={handleTimelineClick}
+                        title={timelineVisible ? 'Collapse Timeline' : 'Swipe to Resize'}
                     >
-                        <div className="flex items-center gap-1.5 text-[10px] text-text-muted font-bold tracking-wider uppercase">
-                            {timelineVisible ? (
-                                <ChevronDown size={12} />
-                            ) : (
-                                <ChevronUp size={12} />
-                            )}
+                        <div className="flex items-center gap-1.5 text-[10px] text-text-muted font-bold tracking-wider uppercase pointer-events-none">
+                            {timelineVisible ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
                             <span>Timeline</span>
                         </div>
                     </div>
