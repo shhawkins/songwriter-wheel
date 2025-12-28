@@ -859,22 +859,20 @@ function App() {
             </div>
           </div>
 
-          {/* Help button - pinned to upper left of wheel panel area */}
-          {isMobile && (
-            <button
-              onClick={() => setShowHelp(true)}
-              onTouchEnd={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setShowHelp(true);
-              }}
-              className={`absolute ${isLandscape ? 'top-2 right-2 w-8 h-8' : 'top-3 right-3 w-11 h-11'} flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-accent-primary transition-colors shadow-lg border border-border-subtle z-50`}
-              style={{ touchAction: 'auto', pointerEvents: 'auto' }}
-              title="Songwriter Wheel Guide"
-            >
-              <HelpCircle size={isLandscape ? 14 : 20} />
-            </button>
-          )}
+          {/* Help button - pinned to upper right of wheel panel area */}
+          <button
+            onClick={() => setShowHelp(true)}
+            onTouchEnd={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setShowHelp(true);
+            }}
+            className={`absolute ${isMobile && isLandscape ? 'top-2 right-2 w-8 h-8' : isMobile ? 'top-3 right-3 w-11 h-11' : 'top-3 right-3 w-9 h-9'} flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-accent-primary transition-colors shadow-lg border border-border-subtle z-50`}
+            style={{ touchAction: 'auto', pointerEvents: 'auto' }}
+            title="Songwriter Wheel Guide"
+          >
+            <HelpCircle size={isMobile && isLandscape ? 14 : isMobile ? 20 : 16} />
+          </button>
 
           {/* Voicing Picker button - pinned to upper left of wheel panel area */}
           {selectedChord && (
@@ -916,33 +914,31 @@ function App() {
                   });
                 }
               }}
-              className={`absolute ${isLandscape ? 'top-2 left-2 w-8 h-8' : 'top-3 left-3 w-11 h-11'} flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-accent-primary transition-colors shadow-lg border border-border-subtle z-50`}
+              className={`absolute ${isMobile && isLandscape ? 'top-2 left-2 w-8 h-8' : isMobile ? 'top-3 left-3 w-11 h-11' : 'top-3 left-3 w-9 h-9'} flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-accent-primary transition-colors shadow-lg border border-border-subtle z-50`}
               style={{ touchAction: 'auto', pointerEvents: 'auto' }}
               title="Open Voicing Picker"
             >
-              <ListMusic size={isLandscape ? 14 : 20} />
+              <ListMusic size={isMobile && isLandscape ? 14 : isMobile ? 20 : 16} />
             </button>
           )}
 
           {/* Notes button - pinned to lower left of wheel panel area */}
-          {isMobile && (
-            <button
-              onClick={() => toggleNotesModal(true)}
-              onTouchEnd={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                toggleNotesModal(true);
-              }}
-              className={`absolute ${isLandscape ? 'bottom-2 left-2 w-8 h-8' : 'bottom-3 left-3 w-11 h-11'} flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-amber-400 transition-colors shadow-lg border border-border-subtle z-50`}
-              style={{ touchAction: 'auto', pointerEvents: 'auto' }}
-              title="Song Notes & Lyrics"
-            >
-              <StickyNote size={isLandscape ? 14 : 20} />
-            </button>
-          )}
+          <button
+            onClick={() => toggleNotesModal(true)}
+            onTouchEnd={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              toggleNotesModal(true);
+            }}
+            className={`absolute ${isMobile && isLandscape ? 'bottom-2 left-2 w-8 h-8' : isMobile ? 'bottom-3 left-3 w-11 h-11' : 'bottom-3 left-3 w-9 h-9'} flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-amber-400 transition-colors shadow-lg border border-border-subtle z-50`}
+            style={{ touchAction: 'auto', pointerEvents: 'auto' }}
+            title="Song Notes & Lyrics"
+          >
+            <StickyNote size={isMobile && isLandscape ? 14 : isMobile ? 20 : 16} />
+          </button>
 
           {/* Chord badge - pinned to lower right of wheel panel area */}
-          {isMobile && selectedChord && (() => {
+          {selectedChord && (() => {
             const colors = getWheelColors();
             const chordColor = colors[selectedChord.root as keyof typeof colors] || '#6366f1';
             const quality = selectedChord.quality;
@@ -959,7 +955,7 @@ function App() {
 
             return (
               <div
-                className={`absolute ${isLandscape ? 'bottom-2 right-2' : 'bottom-3 right-3'} flex items-center gap-1 cursor-pointer touch-feedback active:scale-95 z-50`}
+                className={`absolute ${isMobile && isLandscape ? 'bottom-2 right-2' : 'bottom-3 right-3'} flex items-center gap-1 cursor-pointer touch-feedback active:scale-95 z-50`}
                 style={{
                   color: chordColor,
                   padding: '4px 10px',
