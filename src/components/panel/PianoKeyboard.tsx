@@ -87,11 +87,14 @@ export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
         }
     }, [onNotePlay]);
 
-    // Release the note currently held by this pointer without stopping tracking
-    const releaseNoteForPointer = useCallback((pointerId: number) => {
+    // Clean up a pointer when it's released
+    const cleanupPointer = useCallback((pointerId: number) => {
         const lastNote = lastPlayedByPointer.current.get(pointerId);
+        activePointers.current.delete(pointerId);
+        lastPlayedByPointer.current.delete(pointerId);
+
+        // Remove visual feedback for this pointer's note
         if (lastNote) {
-            lastPlayedByPointer.current.delete(pointerId);
             setActiveNotesState(prev => {
                 const newSet = new Set(prev);
                 newSet.delete(lastNote);
@@ -99,12 +102,6 @@ export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
             });
         }
     }, []);
-
-    // Clean up a pointer when it's released
-    const cleanupPointer = useCallback((pointerId: number) => {
-        releaseNoteForPointer(pointerId);
-        activePointers.current.delete(pointerId);
-    }, [releaseNoteForPointer]);
 
     // Get note info from a point on the keyboard
     const getNoteFromPoint = useCallback((clientX: number, clientY: number): { note: string; octave: number } | null => {
@@ -115,9 +112,6 @@ export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
         const y = clientY - rect.top;
         const width = rect.width;
         const height = rect.height;
-
-        // Check if pointer is within the bounds of the keyboard
-        if (x < 0 || x > width || y < 0 || y > height) return null;
 
         // Padding adjustments (3px 2px 2px 2px)
         const paddingTop = 3;
@@ -170,16 +164,18 @@ export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
         return null;
     }, [octave, whiteKeys]);
 
-    // Handle pointer/touch events for glissando - Use pointer capture for reliable tracking (Apple Pencil etc.)
+    // Handle pointer/touch events for glissando - NO pointer capture for multi-touch support
     const handlePointerDown = useCallback((e: React.PointerEvent) => {
         // Track this pointer
         activePointers.current.add(e.pointerId);
-        e.currentTarget.setPointerCapture(e.pointerId);
 
         const noteInfo = getNoteFromPoint(e.clientX, e.clientY);
         if (noteInfo) {
             playNoteForPointer(e.pointerId, noteInfo.note, noteInfo.octave);
         }
+
+        // DO NOT capture pointer - this blocks multi-touch on other elements
+        // The pointer will naturally stay associated with this element while in bounds
     }, [getNoteFromPoint, playNoteForPointer]);
 
     const handlePointerMove = useCallback((e: React.PointerEvent) => {
@@ -189,21 +185,11 @@ export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
         const noteInfo = getNoteFromPoint(e.clientX, e.clientY);
         if (noteInfo) {
             playNoteForPointer(e.pointerId, noteInfo.note, noteInfo.octave);
-        } else {
-            // Pointer slipped off the keys, release the note
-            releaseNoteForPointer(e.pointerId);
         }
-    }, [getNoteFromPoint, playNoteForPointer, releaseNoteForPointer]);
+    }, [getNoteFromPoint, playNoteForPointer]);
 
     const handlePointerUp = useCallback((e: React.PointerEvent) => {
-        if (activePointers.current.has(e.pointerId)) {
-            try {
-                e.currentTarget.releasePointerCapture(e.pointerId);
-            } catch (err) {
-                // Ignore errors if pointer wasn't captured
-            }
-            cleanupPointer(e.pointerId);
-        }
+        cleanupPointer(e.pointerId);
     }, [cleanupPointer]);
 
     const handlePointerLeave = useCallback((e: React.PointerEvent) => {
