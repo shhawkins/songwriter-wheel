@@ -163,6 +163,7 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
             if (
                 target.closest('.piano-keyboard') ||
                 target.closest('[data-chord-wheel]') ||
+                target.closest('[data-wheel-background]') ||
                 target.closest('.chord-details-drawer') ||
                 target.closest('.timeline-toggle') ||
                 target.closest('.mobile-timeline-drawer') ||
