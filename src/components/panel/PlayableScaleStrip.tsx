@@ -1,6 +1,6 @@
 import React, { useRef, useState, useCallback } from 'react';
 import { playNote } from '../../utils/audioEngine';
-import { formatChordForDisplay, NOTES } from '../../utils/musicTheory';
+import { formatChordForDisplay, NOTES, normalizeNote } from '../../utils/musicTheory';
 
 interface PlayableScaleStripProps {
     scaleNotes: string[]; // 7 notes
@@ -21,14 +21,19 @@ export const PlayableScaleStrip: React.FC<PlayableScaleStripProps> = ({
 
 
     // Determine octaves for playback with C3 baseline
+    // Fix: Normalize notes to sharps before comparing indices to handle flats correctly
     const playbackNotes = React.useMemo(() => {
         let currentOctave = 3;
         return fullScale.map((note, index) => {
             if (index > 0) {
                 const prev = fullScale[index - 1];
-                const prevIndex = NOTES.indexOf(prev);
-                const currIndex = NOTES.indexOf(note);
-                if (currIndex < prevIndex) {
+                // Normalize both notes to sharps for consistent comparison
+                const normalizedPrev = normalizeNote(prev);
+                const normalizedCurr = normalizeNote(note);
+                const prevIndex = NOTES.indexOf(normalizedPrev);
+                const currIndex = NOTES.indexOf(normalizedCurr);
+                // Only increment octave if we wrap around (e.g., B -> C)
+                if (prevIndex !== -1 && currIndex !== -1 && currIndex < prevIndex) {
                     currentOctave++;
                 }
             }
@@ -40,7 +45,20 @@ export const PlayableScaleStrip: React.FC<PlayableScaleStripProps> = ({
     const [highlightedIndex, setHighlightedIndex] = useState<number | null>(null);
 
     const handleInteraction = useCallback((e: React.PointerEvent) => {
-        e.preventDefault();
+        // Prevent default touch actions (scrolling)
+        if (e.type !== 'pointerup') {
+            e.preventDefault();
+        }
+
+        // Only trigger if button is pressed (1) or it's the initial pointerdown
+        if (e.buttons !== 1 && e.type !== 'pointerdown') {
+            // If we stopped pressing but verify cleanup
+            if (activeNoteRef.current !== null) {
+                handlePointerUp();
+            }
+            return;
+        }
+
         const target = document.elementFromPoint(e.clientX, e.clientY);
         if (!target) return;
 

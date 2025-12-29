@@ -1004,6 +1004,44 @@ export const playNote = async (note: string, octave: number = 4, duration: strin
 };
 
 /**
+ * Play a fretboard note with longer sustain for natural guitar-like sound.
+ * Uses a half-note duration by default for ringing notes.
+ * 
+ * Future enhancement: This can be extended to sync with timeline playback
+ * for jam sessions, allowing users to play along with their song.
+ */
+export const playFretboardNote = async (note: string, octave: number = 4, velocity: number = 0.8) => {
+    if (Tone.context.state !== 'running') {
+        await Tone.start();
+    }
+
+    if (Tone.context.state === 'suspended') {
+        await Tone.context.resume();
+    }
+
+    await initAudio();
+
+    let inst = instruments[currentInstrument];
+    if (!inst) {
+        inst = instruments.piano;
+    }
+    if (!inst) {
+        console.error('No instrument available to play!');
+        return;
+    }
+
+    const noteWithOctave = `${note}${octave}`;
+
+    try {
+        // Use a much longer duration for natural ringing sound
+        // Half note (2n) gives good sustain without being too long
+        inst.triggerAttackRelease(noteWithOctave, "2n", Tone.now(), velocity);
+    } catch (err) {
+        console.error(`Failed to play fretboard note ${noteWithOctave}`, err);
+    }
+};
+
+/**
  * Play a note on a specific instrument, ensuring it is loaded.
  */
 export const playInstrumentNote = async (note: string, octave: number = 4, duration: string = "8n", instrumentName: string = 'piano') => {
@@ -1024,6 +1062,48 @@ export const playInstrumentNote = async (note: string, octave: number = 4, durat
 
     const noteWithOctave = `${note}${octave}`;
     inst.triggerAttackRelease(noteWithOctave, duration);
+};
+
+/**
+ * Play a note with attack-only trigger, returning a release function.
+ * This is designed for future "jam mode" where notes should ring until released.
+ * 
+ * @param note - Note name (e.g., "C#")
+ * @param octave - Octave number
+ * @returns A function to release the note, or null if playback failed
+ */
+export const playNoteWithManualRelease = async (note: string, octave: number = 4): Promise<(() => void) | null> => {
+    if (Tone.context.state !== 'running') {
+        await Tone.start();
+    }
+
+    if (Tone.context.state === 'suspended') {
+        await Tone.context.resume();
+    }
+
+    await initAudio();
+
+    let inst = instruments[currentInstrument];
+    if (!inst) {
+        inst = instruments.piano;
+    }
+    if (!inst) return null;
+
+    const noteWithOctave = `${note}${octave}`;
+
+    try {
+        inst.triggerAttack(noteWithOctave);
+        return () => {
+            try {
+                inst!.triggerRelease(noteWithOctave);
+            } catch (e) {
+                // Note may have already been released
+            }
+        };
+    } catch (err) {
+        console.error(`Failed to trigger attack for ${noteWithOctave}`, err);
+        return null;
+    }
 };
 
 export const stopAudio = () => {

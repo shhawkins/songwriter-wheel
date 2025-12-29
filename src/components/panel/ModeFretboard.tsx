@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef, useCallback } from 'react';
+import React, { useMemo, useState, useRef, useCallback, useEffect } from 'react';
 import { normalizeNote } from '../../utils/musicTheory';
 import * as audioEngine from '../../utils/audioEngine';
 
@@ -27,7 +27,12 @@ export const ModeFretboard: React.FC<ModeFretboardProps> = ({
     ];
 
     const [isDragging, setIsDragging] = useState(false);
+    const [activeNote, setActiveNote] = useState<string | null>(null); // For visual feedback: "stringIdx-fret"
     const lastPlayedRef = useRef<string | null>(null);
+    const activeNoteTimeoutRef = useRef<number | null>(null);
+    const lastStringRef = useRef<number | null>(null); // Track last string to prevent accidental cross-string triggers
+    const lastPlayTimeRef = useRef<number>(0); // Debounce to prevent double-triggering
+    const touchStartedRef = useRef<boolean>(false); // Track if touch initiated interaction
 
     // Initial note mappings for semitone calculation
     const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -39,7 +44,7 @@ export const ModeFretboard: React.FC<ModeFretboardProps> = ({
     };
 
     // Helper to calculate actual pitch (e.g., "C#4")
-    const getPitch = (stringIdx: number, fret: number) => {
+    const getPitch = useCallback((stringIdx: number, fret: number) => {
         const base = stringBases[stringIdx];
         const baseVal = getNoteValue(base.note);
         const totalSemitones = baseVal + fret;
@@ -50,73 +55,165 @@ export const ModeFretboard: React.FC<ModeFretboardProps> = ({
         const noteName = notes[noteVal];
         const octave = base.octave + octaveShift;
         return `${noteName}${octave}`;
-    };
+    }, []);
 
-    const playNote = (stringIdx: number, fret: number) => {
+    const playNoteWithFeedback = useCallback((stringIdx: number, fret: number, isNewTouch: boolean = false) => {
         if (!interactive) return;
-        const pitch = getPitch(stringIdx, fret);
 
-        // Don't retrigger same note immediately in a drag if we just played it (optional de-bounce)
-        // But for glissando, re-triggering is usually okay as we move to new notes. 
-        // We'll just play it.
+        const now = Date.now();
+        const pitch = getPitch(stringIdx, fret);
+        const noteKey = `${stringIdx}-${fret}`;
+
+        // Debounce: prevent double-triggering within 50ms (handles both touch and mouse firing)
+        if (now - lastPlayTimeRef.current < 50 && lastPlayedRef.current === pitch) {
+            return;
+        }
+
+        // For glissando: only trigger if on same string or new touch
+        // This prevents accidental cross-string triggers with Apple Pencil
+        if (!isNewTouch && lastStringRef.current !== null && lastStringRef.current !== stringIdx) {
+            // Crossed to different string - only allow if significant movement
+            // For now, we'll just update lastString and allow it
+            // But we won't retrigger the same note
+        }
+
+        // Don't retrigger same note during a drag
+        if (lastPlayedRef.current === pitch && !isNewTouch) {
+            return;
+        }
+
+        lastPlayedRef.current = pitch;
+        lastStringRef.current = stringIdx;
+        lastPlayTimeRef.current = now;
+
+        // Set visual feedback - brief flash rather than persistent highlight
+        setActiveNote(noteKey);
+
+        // Clear the active note after a brief moment (200ms for subtlety)
+        if (activeNoteTimeoutRef.current) {
+            clearTimeout(activeNoteTimeoutRef.current);
+        }
+        activeNoteTimeoutRef.current = window.setTimeout(() => {
+            setActiveNote(null);
+        }, 200);
 
         // Robust parsing of pitch "C#4" -> note="C#", octave=4
         const octaveMatch = pitch.match(/(\d+)$/);
         const octave = octaveMatch ? parseInt(octaveMatch[1]) : 4;
         const note = pitch.replace(/\d+$/, '');
 
-        audioEngine.playInstrumentNote(note, octave, "8n", "guitar");
-    };
-
-    // Preload guitar instrument when interactive
-    React.useEffect(() => {
-        if (interactive) {
-            audioEngine.loadInstrument('guitar');
-        }
-    }, [interactive]);
+        // Use playFretboardNote for longer sustain and natural ring
+        audioEngine.playFretboardNote(note, octave, 0.8);
+    }, [interactive, getPitch]);
 
     const handleMouseDown = (stringIdx: number, fret: number) => {
         if (!interactive) return;
         setIsDragging(true);
-        playNote(stringIdx, fret);
+        lastStringRef.current = stringIdx;
+        playNoteWithFeedback(stringIdx, fret, true);
     };
 
     const handleMouseEnter = (stringIdx: number, fret: number) => {
         if (isDragging && interactive) {
-            playNote(stringIdx, fret);
+            playNoteWithFeedback(stringIdx, fret, false);
         }
     };
 
-    const handleMouseUp = () => {
+    const handleMouseUp = useCallback(() => {
         setIsDragging(false);
         lastPlayedRef.current = null;
-    };
+        lastStringRef.current = null;
+        // Clear active note immediately on release
+        if (activeNoteTimeoutRef.current) {
+            clearTimeout(activeNoteTimeoutRef.current);
+        }
+        setActiveNote(null);
+    }, []);
+
+    // Cleanup timeout on unmount
+    useEffect(() => {
+        return () => {
+            if (activeNoteTimeoutRef.current) {
+                clearTimeout(activeNoteTimeoutRef.current);
+            }
+        };
+    }, []);
+
+    // Dimensions for SVG Coordinate System (needed for touch hit detection)
+    const numFrets = 12;
+    const numStrings = 6;
+    const startX = 40;
+    const endX = 1000;
+    const startY = 30;
+    const endY = 230;
+    const stringSpacing = (endY - startY) / (numStrings - 1);
+    const fretWidth = (endX - startX) / (numFrets + 0.5);
 
     // For touch glissando: find which note is under the touch point
+    // Improved to be more precise about string detection
     const handleTouchMove = useCallback((e: React.TouchEvent) => {
         if (!interactive || !isDragging) return;
 
         const touch = e.touches[0];
-        const element = document.elementFromPoint(touch.clientX, touch.clientY);
-        if (!element) return;
+        const target = e.currentTarget as HTMLElement;
+        const svg = target.querySelector('svg');
+        if (!svg) return;
 
-        // Find the parent g element with data attributes
-        const noteGroup = element.closest('[data-string-idx]') as HTMLElement | null;
-        if (noteGroup) {
-            const stringIdx = parseInt(noteGroup.dataset.stringIdx || '-1');
-            const fret = parseInt(noteGroup.dataset.fret || '-1');
-            if (stringIdx >= 0 && fret >= 0) {
-                const pitch = getPitch(stringIdx, fret);
-                if (lastPlayedRef.current !== pitch) {
-                    lastPlayedRef.current = pitch;
-                    const octaveMatch = pitch.match(/(\d+)$/);
-                    const octave = octaveMatch ? parseInt(octaveMatch[1]) : 4;
-                    const note = pitch.replace(/\d+$/, '');
-                    audioEngine.playInstrumentNote(note, octave, "8n", "guitar");
-                }
+        const rect = svg.getBoundingClientRect();
+        const svgWidth = rect.width;
+        const svgHeight = rect.height;
+
+        // Convert touch coordinates to SVG viewBox coordinates
+        const viewBoxWidth = endX + 20;
+        const viewBoxHeight = endY + 50;
+
+        const scaleX = viewBoxWidth / svgWidth;
+        const scaleY = viewBoxHeight / svgHeight;
+
+        const svgX = (touch.clientX - rect.left) * scaleX;
+        const svgY = (touch.clientY - rect.top) * scaleY;
+
+        // Determine which string we're on based on Y position
+        // Add tolerance - must be within half the string spacing to count
+        const relativeY = svgY - startY;
+        const stringFloat = relativeY / stringSpacing;
+        const nearestString = Math.round(stringFloat);
+
+        // Only accept if within reasonable distance of the string (prevents cross-string glitches)
+        const distanceFromString = Math.abs(stringFloat - nearestString);
+        if (nearestString < 0 || nearestString >= numStrings || distanceFromString > 0.4) {
+            return; // Not close enough to any string
+        }
+
+        // Now find which fret based on X position
+        const relativeX = svgX - startX;
+        let fret = -1;
+
+        // Check open string position (before fret 0)
+        if (relativeX < 0 && relativeX > -40) {
+            fret = 0;
+        } else if (relativeX >= 0) {
+            // Estimate fret from position
+            const fretFloat = relativeX / fretWidth + 0.5;
+            fret = Math.round(fretFloat);
+            if (fret < 1) fret = 1;
+            if (fret > numFrets) fret = numFrets;
+        }
+
+        if (fret < 0) return;
+
+        // Check if there's actually a note at this position
+        const noteAtPosition = fretboardData.find(
+            d => d.stringIdx === nearestString && d.fret === fret
+        );
+
+        if (noteAtPosition) {
+            const pitch = getPitch(nearestString, fret);
+            if (lastPlayedRef.current !== pitch) {
+                playNoteWithFeedback(nearestString, fret, false);
             }
         }
-    }, [interactive, isDragging, getPitch]);
+    }, [interactive, isDragging, getPitch, stringSpacing, fretWidth, startX, startY, endX, endY, numStrings, numFrets]);
 
     // Calculate fret positions for scale notes
     const fretboardData = useMemo(() => {
@@ -148,22 +245,13 @@ export const ModeFretboard: React.FC<ModeFretboardProps> = ({
         return data;
     }, [scaleNotes, rootNote]);
 
-    // Dimensions for SVG Coordinate System
-    const numFrets = 12;
-    const numStrings = 6;
-    const startX = 40;
-    const endX = 1000;
-    const startY = 30;
-    const endY = 230;
-    const stringSpacing = (endY - startY) / (numStrings - 1);
-    const fretWidth = (endX - startX) / (numFrets + 0.5);
-
     return (
         <div
             className="w-full relative select-none touch-none"
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
             onTouchEnd={handleMouseUp}
+            onTouchCancel={handleMouseUp}
             onTouchMove={handleTouchMove}
         >
             {/* Aspect ratio container - roughly 4:1 */}
@@ -241,53 +329,67 @@ export const ModeFretboard: React.FC<ModeFretboardProps> = ({
                 ))}
 
                 {/* Notes */}
-                {fretboardData.map((d, i) => (
-                    <g
-                        key={`note-${i}`}
-                        className={interactive ? "cursor-pointer" : ""}
-                        data-string-idx={d.stringIdx}
-                        data-fret={d.fret}
-                        onMouseDown={(e) => {
-                            e.stopPropagation();
-                            handleMouseDown(d.stringIdx, d.fret);
-                        }}
-                        onTouchStart={(e) => {
-                            e.stopPropagation();
-                            handleMouseDown(d.stringIdx, d.fret);
-                        }}
-                        onMouseEnter={() => handleMouseEnter(d.stringIdx, d.fret)}
-                    >
-                        {/* Invisible hit area for easier tapping */}
-                        <circle
-                            cx={startX + (d.fret === 0 ? -15 : (d.fret - 0.5) * fretWidth)}
-                            cy={startY + d.stringIdx * stringSpacing}
-                            r={35} // Larger hit area
-                            fill="transparent"
-                        />
-                        <circle
-                            cx={startX + (d.fret === 0 ? -15 : (d.fret - 0.5) * fretWidth)}
-                            cy={startY + d.stringIdx * stringSpacing}
-                            r={d.isRoot ? 20 : 16}
-                            fill={d.isRoot ? color : "#e0e0e0"}
-                            stroke={d.isRoot ? "#fff" : "#2a2a35"}
-                            strokeWidth={3}
-                            className="transition-transform hover:scale-110 active:scale-95"
-                        />
-                        {/* Note name inside */}
-                        <text
-                            x={startX + (d.fret === 0 ? -15 : (d.fret - 0.5) * fretWidth)}
-                            y={startY + d.stringIdx * stringSpacing}
-                            dy="0.35em" // Center vertically
-                            fontSize={d.isRoot ? "18" : "14"}
-                            fill={d.isRoot ? "#ffffff" : "#1a1a1a"}
-                            textAnchor="middle"
-                            fontWeight="800"
-                            style={{ pointerEvents: 'none' }}
+                {fretboardData.map((d, i) => {
+                    const noteKey = `${d.stringIdx}-${d.fret}`;
+                    const isActive = activeNote === noteKey;
+                    const cx = startX + (d.fret === 0 ? -15 : (d.fret - 0.5) * fretWidth);
+                    const cy = startY + d.stringIdx * stringSpacing;
+
+                    return (
+                        <g
+                            key={`note-${i}`}
+                            className={interactive ? "cursor-pointer" : ""}
+                            data-string-idx={d.stringIdx}
+                            data-fret={d.fret}
+                            onMouseDown={(e) => {
+                                e.stopPropagation();
+                                handleMouseDown(d.stringIdx, d.fret);
+                            }}
+                            onTouchStart={(e) => {
+                                e.stopPropagation();
+                                handleMouseDown(d.stringIdx, d.fret);
+                            }}
+                            onMouseEnter={() => handleMouseEnter(d.stringIdx, d.fret)}
                         >
-                            {d.note.replace(/[0-9]/g, '')}
-                        </text>
-                    </g>
-                ))}
+                            {/* Invisible hit area - reduced vertical size to prevent cross-string triggers */}
+                            <rect
+                                x={cx - 25}
+                                y={cy - (stringSpacing * 0.35)}
+                                width={50}
+                                height={stringSpacing * 0.7}
+                                fill="transparent"
+                            />
+                            {/* Visual note circle */}
+                            <circle
+                                cx={cx}
+                                cy={cy}
+                                r={d.isRoot ? 20 : 16}
+                                fill={d.isRoot ? color : "#e0e0e0"}
+                                stroke={d.isRoot ? "#fff" : "#2a2a35"}
+                                strokeWidth={3}
+                                style={{
+                                    transform: isActive ? 'scale(0.9)' : 'scale(1)',
+                                    transformOrigin: `${cx}px ${cy}px`,
+                                    transition: 'transform 0.1s ease-out, opacity 0.1s ease-out',
+                                    opacity: isActive ? 0.8 : 1
+                                }}
+                            />
+                            {/* Note name inside */}
+                            <text
+                                x={cx}
+                                y={cy}
+                                dy="0.35em" // Center vertically
+                                fontSize={d.isRoot ? "18" : "14"}
+                                fill={d.isRoot ? "#ffffff" : "#1a1a1a"}
+                                textAnchor="middle"
+                                fontWeight="800"
+                                style={{ pointerEvents: 'none' }}
+                            >
+                                {d.note.replace(/[0-9]/g, '')}
+                            </text>
+                        </g>
+                    );
+                })}
             </svg>
         </div>
     );

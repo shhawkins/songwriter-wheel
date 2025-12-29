@@ -1,7 +1,8 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState, useCallback } from 'react';
 import { getGuitarChord, type GuitarChordShape } from '../../utils/guitarChordData';
 import { formatChordForDisplay, getQualitySymbol } from '../../utils/musicTheory';
 import { useIsMobile } from '../../hooks/useIsMobile';
+import * as audioEngine from '../../utils/audioEngine';
 
 interface GuitarChordProps {
     root: string;
@@ -9,6 +10,7 @@ interface GuitarChordProps {
     color?: string;
     onClick?: () => void;
     onDoubleClick?: () => void;
+    interactive?: boolean;
 }
 
 export const GuitarChord: React.FC<GuitarChordProps> = ({
@@ -16,18 +18,128 @@ export const GuitarChord: React.FC<GuitarChordProps> = ({
     quality,
     color = '#6366f1',
     onClick,
-    onDoubleClick
+    onDoubleClick,
+    interactive = true
 }) => {
     const isMobile = useIsMobile();
     const chord = getGuitarChord(root, quality);
     const lastClickTime = useRef(0);
     const clickTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+    // Strumming state
+    const [isDragging, setIsDragging] = useState(false);
+    const lastPlayedRef = useRef<string | null>(null);
+    // Track if we played any notes during the current interaction (drag/touch)
+    // to prevent firing the main onClick handler (which plays the full chord)
+    const hasStrummedRef = useRef(false);
+
+
+
     // Format chord name with proper flat symbols and quality symbol
     const chordName = formatChordForDisplay(`${root}${getQualitySymbol(quality)}`);
 
-    // Handle click with double-click detection
+    // Standard tuning base notes (Low E to High E)
+    // E2, A2, D3, G3, B3, E4
+    const stringBases = [
+        { note: 'E', octave: 2 },
+        { note: 'A', octave: 2 },
+        { note: 'D', octave: 3 },
+        { note: 'G', octave: 3 },
+        { note: 'B', octave: 3 },
+        { note: 'E', octave: 4 }
+    ];
+
+    const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+    const getNoteFromFret = (stringIdx: number, fret: number) => {
+        if (fret === -1) return null; // Muted
+
+        const base = stringBases[stringIdx];
+        const baseVal = notes.indexOf(base.note);
+        const totalSemitones = baseVal + fret;
+
+        const noteVal = totalSemitones % 12;
+        const octaveShift = Math.floor(totalSemitones / 12);
+
+        const noteName = notes[noteVal];
+        const octave = base.octave + octaveShift;
+
+        return { note: noteName, octave };
+    };
+
+    const playStringNote = (stringIdx: number) => {
+        if (!chord || !interactive) return;
+
+        // Find the fret for this string
+        const fret = chord.frets[stringIdx];
+
+        // If muted, don't play
+        if (fret === -1) return;
+
+        const noteInfo = getNoteFromFret(stringIdx, fret);
+        if (noteInfo) {
+            // Create unique key for this note play to prevent spamming same string
+            const key = `${stringIdx}-${fret}`;
+            // Allow retriggering if we moved to a new string
+            if (lastPlayedRef.current !== key) {
+                audioEngine.playNote(noteInfo.note, noteInfo.octave, "8n");
+                lastPlayedRef.current = key;
+                hasStrummedRef.current = true;
+
+
+            }
+        }
+    };
+
+    const handleInputStart = (stringIdx?: number) => {
+        if (!interactive) return;
+        setIsDragging(true);
+        hasStrummedRef.current = false; // Reset strum tracking on new interaction
+        if (stringIdx !== undefined) {
+            playStringNote(stringIdx);
+        }
+    };
+
+    const handleMouseDown = useCallback((stringIdx: number) => {
+        handleInputStart(stringIdx);
+    }, [interactive, chord]);
+
+    const handleMouseEnter = useCallback((stringIdx: number) => {
+        if (interactive && isDragging) {
+            playStringNote(stringIdx);
+        }
+    }, [interactive, isDragging, chord]);
+
+    const handleMouseUp = useCallback(() => {
+        setIsDragging(false);
+        lastPlayedRef.current = null;
+    }, []);
+
+    // Touch handling for strumming
+    const handleTouchMove = useCallback((e: React.TouchEvent) => {
+        if (!interactive || !isDragging) return;
+
+        const touch = e.touches[0];
+        const element = document.elementFromPoint(touch.clientX, touch.clientY);
+
+        // Look for string hit area
+        const stringArea = element?.closest('[data-string-idx]') as HTMLElement | null;
+
+        if (stringArea) {
+            const stringIdx = parseInt(stringArea.dataset.stringIdx || '-1');
+            if (stringIdx >= 0) {
+                playStringNote(stringIdx);
+            }
+        }
+    }, [interactive, isDragging, chord]);
+
+    // Handle click with double-click detection (for adding to timeline)
     const handleClick = () => {
+        // If we strummed any notes during this interaction, ignore the click
+        if (hasStrummedRef.current) {
+            return;
+        }
+
         const now = Date.now();
         const timeSinceLastClick = now - lastClickTime.current;
 
@@ -47,43 +159,17 @@ export const GuitarChord: React.FC<GuitarChordProps> = ({
             // Single click - wait to see if there's a second click
             lastClickTime.current = now;
             clickTimeout.current = setTimeout(() => {
-                if (onClick) onClick();
+                // Ensure we still check strict played state just in case
+                if (onClick && !hasStrummedRef.current) onClick();
                 clickTimeout.current = null;
             }, 300);
         }
     };
 
-    // Handle touch events for mobile double-tap detection
-    const lastTouchTime = useRef(0);
-    const touchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-
     const handleTouchEnd = (e: React.TouchEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-
-        const now = Date.now();
-        const timeSinceLastTouch = now - lastTouchTime.current;
-
-        // Clear any pending single-tap timeout
-        if (touchTimeout.current) {
-            clearTimeout(touchTimeout.current);
-            touchTimeout.current = null;
-        }
-
-        // Double-tap detected (within 300ms)
-        if (timeSinceLastTouch < 300 && timeSinceLastTouch > 0) {
-            lastTouchTime.current = 0;
-            if (onDoubleClick) {
-                onDoubleClick();
-            }
-        } else {
-            // Single tap - wait to see if there's a second tap
-            lastTouchTime.current = now;
-            touchTimeout.current = setTimeout(() => {
-                if (onClick) onClick();
-                touchTimeout.current = null;
-            }, 300);
-        }
+        e.preventDefault(); // Prevent ghost clicks output from touch interaction
+        setIsDragging(false);
+        handleClick();
     };
 
     if (!chord) {
@@ -98,13 +184,19 @@ export const GuitarChord: React.FC<GuitarChordProps> = ({
 
     return (
         <div
-            className={`flex flex-col items-center ${isClickable ? 'cursor-pointer touch-feedback hover:opacity-80 active:scale-95 transition-all' : ''}`}
+            className={`flex flex-col items-center select-none ${isClickable ? 'cursor-pointer' : ''}`}
             onClick={isClickable ? handleClick : undefined}
-            onTouchEnd={isClickable ? handleTouchEnd : undefined}
-            onTouchStart={isClickable ? (e) => e.stopPropagation() : undefined}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+            onTouchEnd={handleTouchEnd}
+            onTouchMove={handleTouchMove}
         >
             <span
-                className={`${isMobile ? 'text-xs' : 'text-[11px]'} font-bold mb-1 text-center`}
+                className={`${isMobile ? 'text-xs' : 'text-[11px]'} font-bold mb-1 text-center touch-feedback transition-all active:scale-95`}
+                onClick={(e) => {
+                    e.stopPropagation();
+                    if (isClickable) handleClick();
+                }}
                 style={{
                     backgroundColor: 'transparent',
                     color: color,
@@ -118,9 +210,16 @@ export const GuitarChord: React.FC<GuitarChordProps> = ({
             <svg
                 viewBox="0 0 100 120"
                 className={`w-full ${isMobile ? 'max-w-[110px]' : 'max-w-[120px]'}`}
-                style={{ minHeight: isMobile ? 110 : 120, pointerEvents: 'none' }}
+                style={{ minHeight: isMobile ? 110 : 120, touchAction: 'none' }}
+                onMouseDown={() => handleInputStart()}
+                onTouchStart={() => handleInputStart()}
             >
-                <ChordDiagram chord={chord} color={color} />
+                <ChordDiagram
+                    chord={chord}
+                    color={color}
+                    onMouseDown={handleMouseDown}
+                    onMouseEnter={handleMouseEnter}
+                />
             </svg>
         </div>
     );
@@ -129,9 +228,11 @@ export const GuitarChord: React.FC<GuitarChordProps> = ({
 interface ChordDiagramProps {
     chord: GuitarChordShape;
     color: string;
+    onMouseDown?: (stringIdx: number) => void;
+    onMouseEnter?: (stringIdx: number) => void;
 }
 
-const ChordDiagram: React.FC<ChordDiagramProps> = ({ chord, color }) => {
+const ChordDiagram: React.FC<ChordDiagramProps> = ({ chord, color, onMouseDown, onMouseEnter }) => {
     const { frets, fingers, barres, baseFret } = chord;
 
     // Layout constants
@@ -210,6 +311,27 @@ const ChordDiagram: React.FC<ChordDiagramProps> = ({ chord, color }) => {
                     y2={startY + fretSpacing * numFrets}
                     stroke="#d4d4d4"
                     strokeWidth={1.2 + (5 - i) * 0.25}
+                    style={{ pointerEvents: 'none' }}
+                />
+            ))}
+
+            {/* Interactive Hit Areas for Strings - Rendered invisible on top */}
+            {stringPositions.map((x, i) => (
+                <rect
+                    key={`hit-area-${i}`}
+                    x={x - stringSpacing / 2}
+                    y={startY - 10}
+                    width={stringSpacing}
+                    height={fretboardHeight + 20}
+                    fill="transparent"
+                    data-string-idx={i}
+                    onMouseDown={() => {
+                        // Prevent click propagation to avoid weird double handling
+                        // but we need to let the parent svg know dragging started
+                        onMouseDown?.(i);
+                    }}
+                    onMouseEnter={() => onMouseEnter?.(i)}
+                    style={{ cursor: 'pointer' }}
                 />
             ))}
 
@@ -238,6 +360,7 @@ const ChordDiagram: React.FC<ChordDiagramProps> = ({ chord, color }) => {
                         stroke={color}
                         strokeWidth={2}
                         rx={dotRadius}
+                        style={{ pointerEvents: 'none' }}
                     />
                 );
             })}
@@ -257,6 +380,7 @@ const ChordDiagram: React.FC<ChordDiagramProps> = ({ chord, color }) => {
                             fill="#ff6b6b"
                             textAnchor="middle"
                             fontWeight="bold"
+                            style={{ pointerEvents: 'none' }}
                         >
                             ×
                         </text>
@@ -274,6 +398,7 @@ const ChordDiagram: React.FC<ChordDiagramProps> = ({ chord, color }) => {
                             fill="none"
                             stroke="var(--color-text-secondary)"
                             strokeWidth={1.5}
+                            style={{ pointerEvents: 'none' }}
                         />
                     );
                 }
@@ -291,7 +416,7 @@ const ChordDiagram: React.FC<ChordDiagramProps> = ({ chord, color }) => {
                 const y = startY + (fret - 0.5) * fretSpacing;
 
                 return (
-                    <g key={`finger-${stringIndex}`}>
+                    <g key={`finger-${stringIndex}`} style={{ pointerEvents: 'none' }}>
                         <circle
                             cx={x}
                             cy={y}
@@ -337,6 +462,7 @@ const ChordDiagram: React.FC<ChordDiagramProps> = ({ chord, color }) => {
                         fill="#1a1a1a"
                         textAnchor="middle"
                         fontWeight="bold"
+                        style={{ pointerEvents: 'none' }}
                     >
                         {fingerNum}
                     </text>
