@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Music, Circle, Hash, Layers, Volume2, Hand, RotateCw, ListMusic, Map, Download, HelpCircle, Share, MoreVertical } from 'lucide-react';
+import { X, Music, Circle, Hash, Layers, Volume2, Hand, RotateCw, ListMusic, Download, HelpCircle, Share, MoreVertical, Sliders, KeyboardMusic, ClipboardPen } from 'lucide-react';
 import { PlayableProgression } from './interactive/PlayableProgression';
 import { PlayableCadence } from './interactive/PlayableCadence';
 import { PROGRESSION_PRESETS, CADENCE_PRESETS, numeralToChord } from '../utils/progressionPlayback';
@@ -182,46 +182,33 @@ const HelpContent: React.FC<HelpContentProps> = ({ onClose }) => {
                         </div>
                     </div>
 
-                    {/* Step 3 - Voice Selection */}
-                    <div className="flex items-start gap-4 group">
-                        <div className="shrink-0 w-10 h-10 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center group-hover:bg-violet-500/20 transition-colors">
-                            <Volume2 size={18} className="text-violet-400" />
-                        </div>
-                        <div className="pt-0.5">
-                            <h4 className="text-sm font-semibold text-white mb-1">Play chords with real instruments</h4>
-                            <p className="text-xs text-gray-400 leading-relaxed">
-                                Choose from instruments like <strong className="text-gray-300">piano, guitars, bass, harmonica, ocarina, melodica, wine glass,</strong> and more. Dial in the perfect sound with effects like <strong className="text-gray-300">reverb, delay, chorus, phaser, and vibrato.</strong>
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Step 4 */}
+                    {/* Step 3 - Add to Timeline */}
                     <div className="flex items-start gap-4 group">
                         <div className="shrink-0 w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center group-hover:bg-emerald-500/20 transition-colors">
                             <ListMusic size={18} className="text-emerald-400" />
                         </div>
                         <div className="pt-0.5">
-                            <h4 className="text-sm font-semibold text-white mb-1">Add to your timeline</h4>
+                            <h4 className="text-sm font-semibold text-white mb-1">Build your progression</h4>
                             <p className="text-xs text-gray-400 leading-relaxed">
-                                Tap the <strong className="text-emerald-400">+ Add</strong> button, or <strong className="text-gray-300">double-tap</strong> any chord preview to place it on your timeline.
+                                Tap <strong className="text-emerald-400">+ Add</strong> or <strong className="text-gray-300">double-tap</strong> a chord to place it on your timeline. Open the <strong className="text-gray-300">Song Map</strong> to arrange sections.
                             </p>
                         </div>
                     </div>
 
-                    {/* Step 5 */}
+                    {/* Step 4 - Corner Tools */}
                     <div className="flex items-start gap-4 group">
-                        <div className="shrink-0 w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center group-hover:bg-amber-500/20 transition-colors">
-                            <Map size={18} className="text-amber-400" />
+                        <div className="shrink-0 w-10 h-10 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center group-hover:bg-violet-500/20 transition-colors">
+                            <Sliders size={18} className="text-violet-400" />
                         </div>
                         <div className="pt-0.5">
-                            <h4 className="text-sm font-semibold text-white mb-1">Arrange your song</h4>
+                            <h4 className="text-sm font-semibold text-white mb-1">Use the corner tools</h4>
                             <p className="text-xs text-gray-400 leading-relaxed">
-                                Open the <strong className="text-gray-300">Song Map</strong> to see your full arrangement, reorder sections, and play back your progression.
+                                Look for <span className="inline-flex items-center justify-center w-5 h-5 bg-bg-secondary/80 rounded-full text-text-muted border border-border-subtle/60 mx-0.5"><Sliders size={10} /></span> <strong className="text-gray-300">Sound Controls</strong>, <span className="inline-flex items-center justify-center w-5 h-5 bg-bg-secondary/80 rounded-full text-text-muted border border-border-subtle/60 mx-0.5"><KeyboardMusic size={10} /></span> <strong className="text-gray-300">Scales</strong>, and <span className="inline-flex items-center justify-center w-5 h-5 bg-bg-secondary/80 rounded-full text-text-muted border border-border-subtle/60 mx-0.5"><ListMusic size={10} /></span> <strong className="text-gray-300">Voicings</strong> near the wheel.
                             </p>
                         </div>
                     </div>
 
-                    {/* Step 6 - Export */}
+                    {/* Step 5 - Export */}
                     <div className="flex items-start gap-4 group">
                         <div className="shrink-0 w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center group-hover:bg-sky-500/20 transition-colors">
                             <Download size={18} className="text-sky-400" />
@@ -229,7 +216,7 @@ const HelpContent: React.FC<HelpContentProps> = ({ onClose }) => {
                         <div className="pt-0.5">
                             <h4 className="text-sm font-semibold text-white mb-1">Export your song</h4>
                             <p className="text-xs text-gray-400 leading-relaxed">
-                                <strong className="text-gray-300">Tap the export icon</strong> in the header to download a printable PDF with chords, guitar diagrams, and lyrics. <strong className="text-gray-300">Or export MIDI and audio files for your DAW.</strong>
+                                <strong className="text-gray-300">Tap the export icon</strong> for printable PDFs, MIDI, or audio files for your DAW.
                             </p>
                         </div>
                     </div>
@@ -337,6 +324,77 @@ const HelpContent: React.FC<HelpContentProps> = ({ onClose }) => {
                                     </span>
                                     (Android) and select <strong className="text-gray-300">"Add to Home Screen"</strong>.
                                 </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* Your Toolkit - New Feature Buttons Section */}
+            <section>
+                <h3 className="text-accent-primary font-bold text-sm uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <Sliders size={12} />
+                    Your Toolkit
+                </h3>
+                <div className="bg-bg-elevated/50 rounded-lg p-4 space-y-4">
+                    <p className="text-sm text-gray-300">Find these powerful tools near the wheel corners — they unlock the full potential of your songwriting experience.</p>
+
+                    {/* Sound Controls */}
+                    <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                        <div className="flex items-start gap-3">
+                            <div className="shrink-0 w-10 h-10 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center">
+                                <Sliders size={18} className="text-violet-400" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <strong className="text-sm text-white block mb-1">Sound Controls</strong>
+                                <p className="text-xs text-gray-400 leading-relaxed">
+                                    Choose from <strong className="text-gray-300">piano, guitars, bass, harmonica, ocarina, melodica, wine glass,</strong> and more. Shape your sound with effects like <strong className="text-gray-300">reverb, delay, chorus, phaser, and vibrato.</strong>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Scales & Modes */}
+                    <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                        <div className="flex items-start gap-3">
+                            <div className="shrink-0 w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center">
+                                <KeyboardMusic size={18} className="text-purple-400" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <strong className="text-sm text-white block mb-1">Scales & Modes Explorer</strong>
+                                <p className="text-xs text-gray-400 leading-relaxed">
+                                    Open an interactive <strong className="text-gray-300">guitar fretboard</strong> to explore all 7 modes of the major scale. Tap strings to play notes and hear how each mode sounds. Perfect for <strong className="text-gray-300">writing melodies and solos</strong> over your chord progressions.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Voicing Picker */}
+                    <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                        <div className="flex items-start gap-3">
+                            <div className="shrink-0 w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+                                <ListMusic size={18} className="text-amber-400" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <strong className="text-sm text-white block mb-1">Voicing Picker</strong>
+                                <p className="text-xs text-gray-400 leading-relaxed">
+                                    Try different voicings of the selected chord — <strong className="text-gray-300">7ths, 9ths, suspensions, and more.</strong> See <strong className="text-gray-300">guitar diagrams</strong> and hear how each variation sounds. Double-tap any voicing to add it to your timeline.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Song Notes */}
+                    <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                        <div className="flex items-start gap-3">
+                            <div className="shrink-0 w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+                                <ClipboardPen size={18} className="text-amber-400" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <strong className="text-sm text-white block mb-1">Song Notes & Lyrics</strong>
+                                <p className="text-xs text-gray-400 leading-relaxed">
+                                    Jot down <strong className="text-gray-300">lyrics, ideas, and notes</strong> that travel with your song. They'll be included in your exported PDFs.
+                                </p>
                             </div>
                         </div>
                     </div>
