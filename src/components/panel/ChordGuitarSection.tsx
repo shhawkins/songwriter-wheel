@@ -2,7 +2,8 @@ import React from 'react';
 import { ChevronDown } from 'lucide-react';
 import { type Chord } from '../../utils/musicTheory';
 import { GuitarChord } from './GuitarChord';
-import { MusicStaff } from './MusicStaff';
+
+import { GrandStaff } from './GrandStaff';
 import { formatChordForDisplay, getAbsoluteDegree } from '../../utils/musicTheory';
 import { getSuggestedVoicings, VOICING_TOOLTIPS } from '../../utils/chordSuggestions';
 
@@ -122,13 +123,13 @@ export const ChordGuitarSection: React.FC<ChordGuitarSectionProps> = ({
                                     {/* Compact Musical Staff - below voicings, hidden when panel is narrow or compact landscape */}
                                     {!isNarrowPanel && !isCompactLandscape && (
                                         <div className="mt-auto" style={{ paddingTop: isCompactLandscape ? '2px' : '6px' }}>
-                                            <MusicStaff
+                                            <GrandStaff
                                                 notes={displayNotes}
                                                 rootNote={chord.root}
+                                                selectedKey={selectedKey}
                                                 color={chordColor}
                                                 numerals={displayNotes.map(note => getAbsoluteDegree(note, chord.root))}
                                                 onNotePlay={onNotePlay}
-                                                compact={true}
                                             />
                                         </div>
                                     )}
@@ -136,13 +137,13 @@ export const ChordGuitarSection: React.FC<ChordGuitarSectionProps> = ({
                             ) : (
                                 /* Out-of-key: show message inline with a larger, centered music staff */
                                 <div className="flex flex-col items-center justify-center flex-1">
-                                    <MusicStaff
+                                    <GrandStaff
                                         notes={displayNotes}
                                         rootNote={chord.root}
+                                        selectedKey={selectedKey}
                                         color={chordColor}
                                         numerals={displayNotes.map(note => getAbsoluteDegree(note, chord.root))}
                                         onNotePlay={onNotePlay}
-                                        compact={false}
                                     />
                                     <p className={`${isCompactLandscape ? 'text-[8px]' : isMobile ? 'text-[10px]' : 'text-[9px]'} text-text-muted italic text-center mt-1`}>
                                         Out of key — see <span className="font-semibold text-text-secondary">Voicings</span> below
