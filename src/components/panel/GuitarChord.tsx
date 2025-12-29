@@ -195,7 +195,27 @@ export const GuitarChord: React.FC<GuitarChordProps> = ({
                 className={`${isMobile ? 'text-xs' : 'text-[11px]'} font-bold mb-1 text-center touch-feedback transition-all active:scale-95`}
                 onClick={(e) => {
                     e.stopPropagation();
-                    if (isClickable) handleClick();
+                    // Badge tap: simple click handling, no strumming detection needed
+                    if (onClick) onClick();
+                }}
+                onDoubleClick={(e) => {
+                    e.stopPropagation();
+                    if (onDoubleClick) onDoubleClick();
+                }}
+                onTouchEnd={(e) => {
+                    // Prevent ghost clicks and handle touch directly
+                    e.stopPropagation();
+                    e.preventDefault();
+                    // Simple tap detection for badge - no need for strumming logic
+                    const now = Date.now();
+                    const timeSinceLastClick = now - lastClickTime.current;
+                    if (timeSinceLastClick < 300 && timeSinceLastClick > 0) {
+                        lastClickTime.current = 0;
+                        if (onDoubleClick) onDoubleClick();
+                    } else {
+                        lastClickTime.current = now;
+                        if (onClick) onClick();
+                    }
                 }}
                 style={{
                     backgroundColor: 'transparent',

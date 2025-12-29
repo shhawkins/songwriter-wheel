@@ -451,7 +451,7 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
         const now = Date.now();
         const timeSinceLastTouch = now - titleLastTouchTime.current;
 
-        // Clear any pending single-tap timeout
+        // Clear any pending timeout
         if (titleTouchTimeout.current) {
             clearTimeout(titleTouchTimeout.current);
             titleTouchTimeout.current = null;
@@ -462,12 +462,9 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
             titleLastTouchTime.current = 0;
             handleDiagramDoubleClick();
         } else {
-            // Single tap - wait to see if there's a second tap
+            // Single tap - play immediately, don't wait for potential double-tap
             titleLastTouchTime.current = now;
-            titleTouchTimeout.current = setTimeout(() => {
-                handleDiagramClick();
-                titleTouchTimeout.current = null;
-            }, 300);
+            handleDiagramClick();
         }
     }, [chord, handleDiagramClick, handleDiagramDoubleClick]);
 
