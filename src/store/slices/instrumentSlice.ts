@@ -22,6 +22,16 @@ export interface InstrumentState {
     instrumentManagerInitialView: 'list' | 'create';
     instrumentControlsModalVisible: boolean;
     instrumentControlsPosition: { x: number; y: number } | null;
+
+    // Lead channel state
+    leadInstrument: InstrumentType;
+    leadGain: number;
+    leadReverbMix: number;
+    leadDelayMix: number;
+    leadChorusMix: number;
+    leadVibratoDepth: number;
+    leadDistortionAmount: number;
+    leadTone: number;
 }
 
 export interface InstrumentActions {
@@ -56,6 +66,17 @@ export interface InstrumentActions {
     saveUserPatch: (name: string) => Promise<void>;
     deleteUserPatch: (id: string) => Promise<void>;
     applyPatch: (patch: InstrumentPatch) => void;
+
+    // Lead channel actions
+    setLeadInstrument: (instrument: InstrumentType) => void;
+    setLeadGain: (gain: number) => void;
+    setLeadReverbMix: (mix: number) => void;
+    setLeadDelayMix: (mix: number) => void;
+    setLeadChorusMix: (mix: number) => void;
+    setLeadVibratoDepth: (depth: number) => void;
+    setLeadDistortionAmount: (amount: number) => void;
+    setLeadTone: (val: number) => void;
+    resetLeadControls: () => void;
 }
 
 export type InstrumentSlice = InstrumentState & InstrumentActions;
@@ -85,6 +106,16 @@ export const createInstrumentSlice: StateCreator<
     instrumentManagerInitialView: 'list',
     instrumentControlsModalVisible: false,
     instrumentControlsPosition: null,
+
+    // Lead channel defaults
+    leadInstrument: 'piano',
+    leadGain: 0.75,
+    leadReverbMix: 0.2,
+    leadDelayMix: 0.1,
+    leadChorusMix: 0,
+    leadVibratoDepth: 0,
+    leadDistortionAmount: 0,
+    leadTone: 0,
 
     toggleInstrumentManagerModal: (force, view) => set((state: InstrumentState) => ({
         instrumentManagerModalVisible: force ?? !state.instrumentManagerModalVisible,
@@ -124,6 +155,25 @@ export const createInstrumentSlice: StateCreator<
         delayMix: 0,
         chorusMix: 0,
         vibratoDepth: 0
+    }),
+
+    // Lead channel setters
+    setLeadInstrument: (instrument) => set({ leadInstrument: instrument }),
+    setLeadGain: (gain) => set({ leadGain: gain }),
+    setLeadReverbMix: (mix) => set({ leadReverbMix: mix }),
+    setLeadDelayMix: (mix) => set({ leadDelayMix: mix }),
+    setLeadChorusMix: (mix) => set({ leadChorusMix: mix }),
+    setLeadVibratoDepth: (depth) => set({ leadVibratoDepth: depth }),
+    setLeadDistortionAmount: (amount) => set({ leadDistortionAmount: amount }),
+    setLeadTone: (val) => set({ leadTone: val }),
+    resetLeadControls: () => set({
+        leadGain: 0.75,
+        leadReverbMix: 0.2,
+        leadDelayMix: 0.1,
+        leadChorusMix: 0,
+        leadVibratoDepth: 0,
+        leadDistortionAmount: 0,
+        leadTone: 0
     }),
 
     addCustomInstrument: (instrument) => set((state: InstrumentState) => ({

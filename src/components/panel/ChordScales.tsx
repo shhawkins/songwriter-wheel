@@ -137,7 +137,7 @@ export const ChordScales: React.FC<ChordScalesProps> = ({
                                                     className="cursor-pointer hover:bg-white/10 rounded p-0.5 transition-colors"
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        useSongStore.getState().openModeFretboard({
+                                                        useSongStore.getState().openLeadScales({
                                                             scaleNotes: modeScaleNotes,
                                                             rootNote,
                                                             modeName: mode.name,
@@ -153,7 +153,7 @@ export const ChordScales: React.FC<ChordScalesProps> = ({
                                                 className="bg-black/40 rounded-lg p-2 border border-white/5 shadow-inner cursor-pointer hover:border-white/20 transition-colors group relative"
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    useSongStore.getState().openModeFretboard({
+                                                    useSongStore.getState().openLeadScales({
                                                         scaleNotes: modeScaleNotes,
                                                         rootNote,
                                                         modeName: mode.name,

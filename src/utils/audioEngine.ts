@@ -279,6 +279,34 @@ let masterPhaser: Tone.Phaser | null = null;
 let masterPitchShift: Tone.PitchShift | null = null;
 let effectsChainInitialized = false;
 
+// ============================================================================
+// LEAD CHANNEL - Separate audio channel for melody/lead instrument
+// ============================================================================
+
+let leadInstruments: Record<string, Tone.Sampler | Tone.PolySynth | null> = {};
+let currentLeadInstrument: InstrumentName = 'piano';
+let leadInstrumentLoadingPromises: Record<string, Promise<void> | undefined> = {};
+let leadEffectsChainInput: Tone.ToneAudioNode | null = null;
+
+// Lead channel effect values (independent from main channel)
+let leadVolumeGain = 0.75;
+let leadReverbMix = 0.2;
+let leadDelayMix = 0.1;
+let leadChorusMix = 0;
+let leadVibratoDepth = 0;
+let leadDistortionAmount = 0;
+let leadTone = 0;
+
+// Lead channel effects chain nodes
+let leadGain: Tone.Gain | null = null;
+let leadReverb: Tone.Reverb | null = null;
+let leadDelay: Tone.PingPongDelay | null = null;
+let leadChorus: Tone.Chorus | null = null;
+let leadEQ: Tone.EQ3 | null = null;
+let leadVibrato: Tone.Vibrato | null = null;
+let leadDistortion: Tone.Distortion | null = null;
+let leadEffectsChainInitialized = false;
+
 const initMasterEffectsChain = async () => {
     if (effectsChainInitialized) return;
 
@@ -392,6 +420,84 @@ const initMasterEffectsChain = async () => {
     }
 
     effectsChainInitialized = true;
+};
+
+/**
+ * Initialize the lead channel effects chain.
+ * This is a parallel chain to the main channel, connecting to the same master limiter.
+ * Chain: Instrument -> Vibrato -> Distortion -> EQ3 -> Gain -> Chorus -> Delay -> Reverb -> Limiter
+ */
+const initLeadEffectsChain = async () => {
+    if (leadEffectsChainInitialized) return;
+
+    // Ensure master limiter exists (shared between channels)
+    await initMasterEffectsChain();
+
+    // Create lead reverb (connects to master limiter)
+    if (!leadReverb) {
+        leadReverb = new Tone.Reverb({
+            decay: 3.0,
+            wet: leadReverbMix,
+            preDelay: 0.02
+        }).connect(masterLimiter!);
+        await leadReverb.ready;
+    }
+
+    // Create lead delay (connects to lead reverb)
+    if (!leadDelay) {
+        leadDelay = new Tone.PingPongDelay({
+            delayTime: 0.25,
+            feedback: 0.3,
+            wet: leadDelayMix
+        }).connect(leadReverb);
+    }
+
+    // Create lead chorus (connects to lead delay)
+    if (!leadChorus) {
+        leadChorus = new Tone.Chorus({
+            frequency: 1.5,
+            delayTime: 3.5,
+            depth: 0.7,
+            wet: leadChorusMix
+        }).connect(leadDelay);
+        leadChorus.start();
+    }
+
+    // Create lead gain (connects to lead chorus)
+    if (!leadGain) {
+        leadGain = new Tone.Gain(leadVolumeGain).connect(leadChorus);
+    }
+
+    // Create lead EQ (connects to lead gain)
+    if (!leadEQ) {
+        leadEQ = new Tone.EQ3({
+            low: -leadTone,
+            mid: 0,
+            high: leadTone,
+            lowFrequency: 250,
+            highFrequency: 2500
+        }).connect(leadGain);
+    }
+
+    // Create lead distortion (connects to lead EQ)
+    if (!leadDistortion) {
+        leadDistortion = new Tone.Distortion({
+            distortion: leadDistortionAmount,
+            wet: leadDistortionAmount > 0 ? 0.5 : 0
+        }).connect(leadEQ);
+    }
+
+    // Create lead vibrato (connects to lead distortion) - Entry point for lead instruments
+    if (!leadVibrato) {
+        leadVibrato = new Tone.Vibrato({
+            frequency: 5,
+            depth: leadVibratoDepth,
+            wet: leadVibratoDepth > 0 ? 1 : 0
+        }).connect(leadDistortion);
+    }
+
+    leadEffectsChainInput = leadVibrato;
+    leadEffectsChainInitialized = true;
 };
 
 /**
@@ -1040,6 +1146,241 @@ export const playFretboardNote = async (note: string, octave: number = 4, veloci
         console.error(`Failed to play fretboard note ${noteWithOctave}`, err);
     }
 };
+
+// ============================================================================
+// LEAD CHANNEL PLAYBACK & CONTROL
+// ============================================================================
+
+/**
+ * Load a lead instrument into the lead channel.
+ * Uses the same instrument factories as the main channel but connects to lead effects chain.
+ */
+export const loadLeadInstrument = async (name: InstrumentName) => {
+    // If already loaded, return
+    if (leadInstruments[name]) return;
+
+    // If currently loading, wait for that promise
+    if (leadInstrumentLoadingPromises[name]) {
+        return leadInstrumentLoadingPromises[name];
+    }
+
+    // Initialize loading promise
+    leadInstrumentLoadingPromises[name] = new Promise(async (resolve, reject) => {
+        try {
+            console.log(`Lazy loading lead instrument: ${name}`);
+
+            // Ensure lead effects chain is initialized
+            if (!leadEffectsChainInput) {
+                await initLeadEffectsChain();
+            }
+
+            const factory = instrumentFactories[name];
+            if (!factory) {
+                console.warn(`No factory found for lead instrument: ${name}`);
+                resolve();
+                return;
+            }
+
+            const instrument = factory(leadEffectsChainInput!);
+
+            if (instrument) {
+                leadInstruments[name] = instrument as any;
+
+                // If it's a sampler, wait for it to load
+                if (instrument instanceof Tone.Sampler) {
+                    await Tone.loaded();
+                }
+            }
+            resolve();
+        } catch (err) {
+            console.error(`Failed to load lead instrument ${name}`, err);
+            reject(err);
+        } finally {
+            delete leadInstrumentLoadingPromises[name];
+        }
+    });
+
+    return leadInstrumentLoadingPromises[name];
+};
+
+/**
+ * Set the current lead instrument.
+ */
+export const setLeadInstrument = async (name: string) => {
+    if (currentLeadInstrument !== name) {
+        currentLeadInstrument = name as InstrumentName;
+        if (!leadInstruments[name]) {
+            await loadLeadInstrument(name as InstrumentName);
+        }
+    }
+};
+
+/**
+ * Get the current lead instrument name.
+ */
+export const getLeadInstrument = () => currentLeadInstrument;
+
+/**
+ * Play a single note on the lead channel.
+ */
+export const playLeadNote = async (note: string, octave: number = 4, duration: string = "8n") => {
+    if (Tone.context.state !== 'running') {
+        await Tone.start();
+    }
+
+    if (Tone.context.state === 'suspended') {
+        await Tone.context.resume();
+    }
+
+    // Initialize lead effects chain if needed
+    if (!leadEffectsChainInput) {
+        await initLeadEffectsChain();
+    }
+
+    // Ensure instrument is loaded
+    if (!leadInstruments[currentLeadInstrument]) {
+        await loadLeadInstrument(currentLeadInstrument);
+    }
+
+    let inst = leadInstruments[currentLeadInstrument];
+    if (!inst) {
+        // Fallback to piano on lead channel
+        if (!leadInstruments.piano) {
+            await loadLeadInstrument('piano');
+        }
+        inst = leadInstruments.piano;
+    }
+    if (!inst) {
+        console.error('No lead instrument available to play!');
+        return;
+    }
+
+    const noteWithOctave = `${note}${octave}`;
+
+    try {
+        inst.triggerAttackRelease(noteWithOctave, duration);
+    } catch (err) {
+        console.error(`Failed to play lead note ${noteWithOctave}`, err);
+    }
+};
+
+/**
+ * Play a fretboard note on the lead channel with longer sustain.
+ */
+export const playLeadFretboardNote = async (note: string, octave: number = 4, velocity: number = 0.8) => {
+    if (Tone.context.state !== 'running') {
+        await Tone.start();
+    }
+
+    if (Tone.context.state === 'suspended') {
+        await Tone.context.resume();
+    }
+
+    // Initialize lead effects chain if needed
+    if (!leadEffectsChainInput) {
+        await initLeadEffectsChain();
+    }
+
+    // Ensure instrument is loaded
+    if (!leadInstruments[currentLeadInstrument]) {
+        await loadLeadInstrument(currentLeadInstrument);
+    }
+
+    let inst = leadInstruments[currentLeadInstrument];
+    if (!inst) {
+        if (!leadInstruments.piano) {
+            await loadLeadInstrument('piano');
+        }
+        inst = leadInstruments.piano;
+    }
+    if (!inst) {
+        console.error('No lead instrument available to play!');
+        return;
+    }
+
+    const noteWithOctave = `${note}${octave}`;
+
+    try {
+        inst.triggerAttackRelease(noteWithOctave, "2n", Tone.now(), velocity);
+    } catch (err) {
+        console.error(`Failed to play lead fretboard note ${noteWithOctave}`, err);
+    }
+};
+
+// Lead channel effect setters
+
+export const setLeadGain = async (gain: number) => {
+    await initLeadEffectsChain();
+    leadVolumeGain = Math.max(0, Math.min(3.0, gain));
+    if (leadGain) {
+        leadGain.gain.rampTo(leadVolumeGain, 0.05);
+    }
+};
+
+export const setLeadReverbMix = async (mix: number) => {
+    await initLeadEffectsChain();
+    leadReverbMix = Math.max(0, Math.min(1, mix));
+    if (leadReverb) {
+        leadReverb.wet.rampTo(leadReverbMix, 0.05);
+    }
+};
+
+export const setLeadDelayMix = async (mix: number) => {
+    await initLeadEffectsChain();
+    leadDelayMix = Math.max(0, Math.min(1, mix));
+    if (leadDelay) {
+        leadDelay.wet.rampTo(leadDelayMix, 0.05);
+    }
+};
+
+export const setLeadChorusMix = async (mix: number) => {
+    await initLeadEffectsChain();
+    leadChorusMix = Math.max(0, Math.min(1, mix));
+    if (leadChorus) {
+        leadChorus.wet.rampTo(leadChorusMix, 0.05);
+    }
+};
+
+export const setLeadTone = async (tone: number) => {
+    await initLeadEffectsChain();
+    leadTone = tone;
+    if (leadEQ) {
+        leadEQ.high.value = tone;
+        leadEQ.low.value = -tone;
+    }
+};
+
+export const setLeadVibratoDepth = async (depth: number) => {
+    await initLeadEffectsChain();
+    leadVibratoDepth = Math.max(0, Math.min(1, depth));
+    if (leadVibrato) {
+        leadVibrato.depth.rampTo(leadVibratoDepth, 0.1);
+        leadVibrato.wet.rampTo(leadVibratoDepth > 0 ? 1 : 0, 0.1);
+    }
+};
+
+export const setLeadDistortionAmount = async (amount: number) => {
+    await initLeadEffectsChain();
+    leadDistortionAmount = Math.max(0, Math.min(1, amount));
+    if (leadDistortion) {
+        leadDistortion.distortion = leadDistortionAmount;
+        leadDistortion.wet.rampTo(leadDistortionAmount > 0 ? 0.5 : 0, 0.1);
+    }
+};
+
+/**
+ * Get current lead channel effect values for UI sync.
+ */
+export const getLeadEffectValues = () => ({
+    instrument: currentLeadInstrument,
+    volume: leadVolumeGain,
+    reverb: leadReverbMix,
+    delay: leadDelayMix,
+    chorus: leadChorusMix,
+    tone: leadTone,
+    vibrato: leadVibratoDepth,
+    distortion: leadDistortionAmount
+});
 
 /**
  * Play a note on a specific instrument, ensuring it is loaded.

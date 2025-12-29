@@ -66,7 +66,7 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
         selectedChord,
         toggleInstrumentControlsModal,
         selectedKey,
-        openModeFretboard,
+        openLeadScales,
         chordInversion,
     } = useSongStore();
 
@@ -337,7 +337,7 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
                     data-scales-modes
                     onClick={(e) => {
                         e.stopPropagation();
-                        openModeFretboard({
+                        openLeadScales({
                             scaleNotes: [],
                             rootNote: selectedKey,
                             modeName: 'Ionian',

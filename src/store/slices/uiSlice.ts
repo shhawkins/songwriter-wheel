@@ -38,9 +38,9 @@ export interface UIState {
     // Modal Z-Index Management
     modalStack: string[];
 
-    // Mode Fretboard Modal State
-    modeFretboardModalVisible: boolean;
-    modeFretboardData: {
+    // Lead Scales Modal State
+    leadScalesModalVisible: boolean;
+    leadScalesData: {
         scaleNotes: string[];
         rootNote: string;
         modeName: string;
@@ -70,8 +70,8 @@ export interface UIActions {
     toggleKeyLock: () => void;
     toggleNotesModal: (force?: boolean) => void;
     bringToFront: (modalId: string) => void;
-    openModeFretboard: (data: { scaleNotes: string[]; rootNote: string; modeName: string; color: string }) => void;
-    closeModeFretboard: () => void;
+    openLeadScales: (data: { scaleNotes: string[]; rootNote: string; modeName: string; color: string }) => void;
+    closeLeadScales: () => void;
 }
 
 export type UISlice = UIState & UIActions;
@@ -123,8 +123,8 @@ export const createUISlice: StateCreator<
     isKeyLocked: false,
     notesModalVisible: false,
     modalStack: [],
-    modeFretboardModalVisible: false,
-    modeFretboardData: null,
+    leadScalesModalVisible: false,
+    leadScalesData: null,
 
     toggleKeyLock: () => set((state: UIState) => ({ isKeyLocked: !state.isKeyLocked })),
 
@@ -268,15 +268,15 @@ export const createUISlice: StateCreator<
     toggleNotesModal: (force) => set((state: UIState) => ({
         notesModalVisible: force !== undefined ? force : !state.notesModalVisible
     })),
-    openModeFretboard: (data) => set((state: UIState) => {
+    openLeadScales: (data) => set((state: UIState) => {
         // Automatically add to stack
-        const modalId = 'mode-fretboard-modal';
+        const modalId = 'lead-scales-modal';
         const newStack = state.modalStack.filter(id => id !== modalId);
         return {
-            modeFretboardModalVisible: true,
-            modeFretboardData: data,
+            leadScalesModalVisible: true,
+            leadScalesData: data,
             modalStack: [...newStack, modalId]
         };
     }),
-    closeModeFretboard: () => set({ modeFretboardModalVisible: false }),
+    closeLeadScales: () => set({ leadScalesModalVisible: false }),
 });

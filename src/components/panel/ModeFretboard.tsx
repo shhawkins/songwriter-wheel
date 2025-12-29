@@ -7,13 +7,15 @@ interface ModeFretboardProps {
     rootNote: string;
     color?: string;
     interactive?: boolean;
+    useLead?: boolean; // Use lead channel for playback
 }
 
 export const ModeFretboard: React.FC<ModeFretboardProps> = ({
     scaleNotes,
     rootNote,
     color = '#6366f1',
-    interactive = false
+    interactive = false,
+    useLead = false
 }) => {
     // Standard tuning base notes with octaves
     // Index 0 is top visual string (High E) -> E4
@@ -102,9 +104,13 @@ export const ModeFretboard: React.FC<ModeFretboardProps> = ({
         const octave = octaveMatch ? parseInt(octaveMatch[1]) : 4;
         const note = pitch.replace(/\d+$/, '');
 
-        // Use playFretboardNote for longer sustain and natural ring
-        audioEngine.playFretboardNote(note, octave, 0.8);
-    }, [interactive, getPitch]);
+        // Use lead channel or main channel based on useLead prop
+        if (useLead) {
+            audioEngine.playLeadFretboardNote(note, octave, 0.8);
+        } else {
+            audioEngine.playFretboardNote(note, octave, 0.8);
+        }
+    }, [interactive, getPitch, useLead]);
 
     const handleMouseDown = (stringIdx: number, fret: number) => {
         if (!interactive) return;

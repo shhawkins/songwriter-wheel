@@ -1,17 +1,19 @@
 import React, { useRef, useState, useCallback } from 'react';
-import { playNote } from '../../utils/audioEngine';
+import { playNote, playLeadNote } from '../../utils/audioEngine';
 import { formatChordForDisplay } from '../../utils/musicTheory';
 
 interface PlayableScaleStripProps {
     scaleNotes: string[]; // 7 notes
     boxColor?: string;
     height?: string | number;
+    useLead?: boolean; // Use lead channel for playback
 }
 
 export const PlayableScaleStrip: React.FC<PlayableScaleStripProps> = ({
     scaleNotes,
     boxColor = '#6366f1',
-    height = 48
+    height = 48,
+    useLead = false
 }) => {
     // We want 8 notes (octave included)
     // If scaleNotes has 7, repeat the first one at the end
@@ -67,7 +69,11 @@ export const PlayableScaleStrip: React.FC<PlayableScaleStripProps> = ({
             setHighlightedIndex(index);
             const noteData = playbackNotes[index];
             if (noteData) {
-                playNote(noteData.note, noteData.octave);
+                if (useLead) {
+                    playLeadNote(noteData.note, noteData.octave);
+                } else {
+                    playNote(noteData.note, noteData.octave);
+                }
             }
         }
     }, [playbackNotes]);

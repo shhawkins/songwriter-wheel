@@ -31,7 +31,7 @@ const NotesModal = React.lazy(() => import('./components/NotesModal').then(modul
 const AuthModal = React.lazy(() => import('./components/auth/AuthModal').then(module => ({ default: module.AuthModal })));
 const InstrumentManagerModal = React.lazy(() => import('./components/playback/InstrumentManagerModal').then(module => ({ default: module.InstrumentManagerModal })));
 const ExportModal = React.lazy(() => import('./components/ExportModal').then(module => ({ default: module.ExportModal })));
-const ModeFretboardModal = React.lazy(() => import('./components/panel/ModeFretboardModal').then(module => ({ default: module.ModeFretboardModal })));
+const LeadScalesModal = React.lazy(() => import('./components/panel/LeadScalesModal').then(module => ({ default: module.LeadScalesModal })));
 import { SongOverview } from './components/timeline/SongOverview';
 import { useAuthStore } from './stores/authStore';
 import { User as UserIcon } from 'lucide-react';
@@ -49,7 +49,7 @@ import { WheelDragGhost } from './components/wheel/WheelDragGhost';
 
 
 function App() {
-  const { currentSong, selectedKey, timelineVisible, toggleTimeline, openTimeline, setTitle, setArtist, setTags, setSongTimeSignature, loadSong: loadSongToStore, newSong, instrument, volume, isMuted, chordPanelVisible, isPlaying, songInfoModalVisible, toggleSongInfoModal, instrumentManagerModalVisible, toggleInstrumentManagerModal, toggleInstrumentControlsModal, cloudSongs, loadCloudSongs, saveToCloud, deleteFromCloud, isLoadingCloud, selectedChord, notesModalVisible, toggleNotesModal, isDirty, openModeFretboard, chordInversion, selectedSectionId, selectedSlotId, addChordToSlot, setSelectedSlot, setSelectedChord } = useSongStore();
+  const { currentSong, selectedKey, timelineVisible, toggleTimeline, openTimeline, setTitle, setArtist, setTags, setSongTimeSignature, loadSong: loadSongToStore, newSong, instrument, volume, isMuted, chordPanelVisible, isPlaying, songInfoModalVisible, toggleSongInfoModal, instrumentManagerModalVisible, toggleInstrumentManagerModal, toggleInstrumentControlsModal, cloudSongs, loadCloudSongs, saveToCloud, deleteFromCloud, isLoadingCloud, selectedChord, notesModalVisible, toggleNotesModal, isDirty, openLeadScales, chordInversion, selectedSectionId, selectedSlotId, addChordToSlot, setSelectedSlot, setSelectedChord } = useSongStore();
 
   // Audio Sync Logic
   useEffect(() => {
@@ -1057,7 +1057,7 @@ function App() {
             {/* Scales/Modes button - next to VoicingPicker on the LEFT */}
             <button
               onClick={() => {
-                openModeFretboard({
+                openLeadScales({
                   scaleNotes: [],
                   rootNote: selectedKey,
                   modeName: 'Ionian',
@@ -1067,7 +1067,7 @@ function App() {
               onTouchEnd={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                openModeFretboard({
+                openLeadScales({
                   scaleNotes: [],
                   rootNote: selectedKey,
                   modeName: 'Ionian',
@@ -1473,7 +1473,7 @@ function App() {
           />
         )}
 
-        <ModeFretboardModal />
+        <LeadScalesModal />
       </React.Suspense>
 
       {/* Instrument Controls Modal - rendered at app level to persist through header/footer visibility changes */}
