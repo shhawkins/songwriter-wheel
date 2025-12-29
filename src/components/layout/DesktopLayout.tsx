@@ -266,6 +266,7 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
 
                 {/* Instrument Controls Button - next to VoicingPicker */}
                 <button
+                    data-instrument-controls
                     onClick={(e) => { e.stopPropagation(); toggleInstrumentControlsModal(); }}
                     className="absolute bottom-3 right-14 w-9 h-9 flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-accent-primary transition-colors shadow-lg border border-border-subtle z-50"
                     style={{ bottom: timelineVisible ? `${timelineHeight + 12}px` : `${collapsedHeight + 12}px`, transition: 'bottom 0.3s ease-out' }}
