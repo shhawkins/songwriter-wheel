@@ -321,10 +321,10 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
                     <HelpCircle size={18} />
                 </button>
 
-                {/* Notes Button - Lower Right */}
+                {/* Notes Button - Lower Left */}
                 <button
                     onClick={(e) => { e.stopPropagation(); onToggleNotes(); }}
-                    className="absolute bottom-3 right-3 w-9 h-9 flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-amber-400 transition-colors shadow-lg border border-border-subtle z-50"
+                    className="absolute bottom-3 left-3 w-9 h-9 flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-amber-400 transition-colors shadow-lg border border-border-subtle z-50"
                     style={{ bottom: timelineVisible ? `${timelineHeight + 12}px` : `${collapsedHeight + 12}px`, transition: 'bottom 0.3s ease-out' }}
                     title="Song Notes & Lyrics"
                     aria-label="Song Notes and Lyrics"
@@ -332,7 +332,7 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
                     <ClipboardPen size={16} />
                 </button>
 
-                {/* Scales/Modes Button - next to VoicingPicker on the LEFT */}
+                {/* Scales/Modes Button - next to VoicingPicker on the RIGHT */}
                 <button
                     data-scales-modes
                     onClick={(e) => {
@@ -344,7 +344,7 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
                             color: '#EAB308'
                         });
                     }}
-                    className="absolute bottom-3 left-16 w-9 h-9 flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-purple-400 transition-colors shadow-lg border border-border-subtle z-50"
+                    className="absolute bottom-3 right-16 w-9 h-9 flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-purple-400 transition-colors shadow-lg border border-border-subtle z-50"
                     style={{ bottom: timelineVisible ? `${timelineHeight + 12}px` : `${collapsedHeight + 12}px`, transition: 'bottom 0.3s ease-out' }}
                     title="Open Scales & Modes"
                     aria-label="Open Scales and Modes"
@@ -352,11 +352,11 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
                     <KeyboardMusic size={16} />
                 </button>
 
-                {/* Instrument Controls Button - next to Notes on the RIGHT */}
+                {/* Instrument Controls Button - next to Notes on the LEFT */}
                 <button
                     data-instrument-controls
                     onClick={(e) => { e.stopPropagation(); toggleInstrumentControlsModal(); }}
-                    className="absolute bottom-3 right-16 w-9 h-9 flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-accent-primary transition-colors shadow-lg border border-border-subtle z-50"
+                    className="absolute bottom-3 left-16 w-9 h-9 flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-accent-primary transition-colors shadow-lg border border-border-subtle z-50"
                     style={{ bottom: timelineVisible ? `${timelineHeight + 12}px` : `${collapsedHeight + 12}px`, transition: 'bottom 0.3s ease-out' }}
                     title="Open Sound Controls"
                     aria-label="Open Sound Controls"
@@ -364,11 +364,11 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
                     <Sliders size={16} />
                 </button>
 
-                {/* Voicing Picker Button - Lower Left */}
+                {/* Voicing Picker Button - Lower Right */}
                 {selectedChord && (
                     <button
                         onClick={(e) => { e.stopPropagation(); handleOpenVoicingPicker(); }}
-                        className="absolute bottom-3 left-3 w-9 h-9 flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-accent-primary transition-colors shadow-lg border border-border-subtle z-50"
+                        className="absolute bottom-3 right-3 w-9 h-9 flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-accent-primary transition-colors shadow-lg border border-border-subtle z-50"
                         style={{ bottom: timelineVisible ? `${timelineHeight + 12}px` : `${collapsedHeight + 12}px`, transition: 'bottom 0.3s ease-out' }}
                         title="Open Voicing Picker"
                         aria-label="Open Voicing Picker"

@@ -1,6 +1,7 @@
 import type { StateCreator } from 'zustand';
 import type { InstrumentType, CustomInstrument, InstrumentPatch } from '../../types';
 import { supabase } from '../../lib/supabase';
+import * as audioEngine from '../../utils/audioEngine';
 
 export interface InstrumentState {
     instrument: InstrumentType;
@@ -37,6 +38,7 @@ export interface InstrumentState {
     leadPhaserMix: number;
     leadFilterMix: number;
     leadPitchShift: number;
+    leadChannelVolume: number;
 }
 
 export interface InstrumentActions {
@@ -86,6 +88,7 @@ export interface InstrumentActions {
     setLeadPhaserMix: (mix: number) => void;
     setLeadFilterMix: (mix: number) => void;
     setLeadPitchShift: (shift: number) => void;
+    setLeadChannelVolume: (volume: number) => void;
     resetLeadControls: () => void;
 }
 
@@ -131,6 +134,7 @@ export const createInstrumentSlice: StateCreator<
     leadPhaserMix: 0,
     leadFilterMix: 0,
     leadPitchShift: 0,
+    leadChannelVolume: 0.75,
 
     toggleInstrumentManagerModal: (force, view) => set((state: InstrumentState) => ({
         instrumentManagerModalVisible: force ?? !state.instrumentManagerModalVisible,
@@ -143,63 +147,176 @@ export const createInstrumentSlice: StateCreator<
 
     setInstrumentControlsPosition: (position) => set({ instrumentControlsPosition: position }),
 
-    setInstrument: (instrument) => set({ instrument }),
-    setTone: (val) => set({ tone: val }),
-    setInstrumentGain: (gain) => set({ instrumentGain: gain }),
-    setReverbMix: (mix) => set({ reverbMix: mix }),
-    setDelayMix: (mix) => set({ delayMix: mix }),
-    setChorusMix: (mix) => set({ chorusMix: mix }),
-    setVibratoDepth: (depth) => set({ vibratoDepth: depth }),
-    setDistortionAmount: (amount) => set({ distortionAmount: amount }),
-    setDelayFeedback: (amount) => set({ delayFeedback: amount }),
-    setTremoloDepth: (amount) => set({ tremoloDepth: amount }),
-    setPhaserMix: (amount) => set({ phaserMix: amount }),
-    setFilterMix: (amount) => set({ filterMix: amount }),
-    setPitchShift: (shift) => set({ pitchShift: shift }),
+    // Main channel setters - call audio engine to actually apply effects
+    setInstrument: (instrument) => {
+        set({ instrument });
+        audioEngine.setInstrument(instrument);
+    },
+    setTone: (val) => {
+        set({ tone: val });
+        audioEngine.setTone(val);
+    },
+    setInstrumentGain: (gain) => {
+        set({ instrumentGain: gain });
+        audioEngine.setMasterGain(gain);
+    },
+    setReverbMix: (mix) => {
+        set({ reverbMix: mix });
+        audioEngine.setReverbMix(mix);
+    },
+    setDelayMix: (mix) => {
+        set({ delayMix: mix });
+        audioEngine.setDelayMix(mix);
+    },
+    setChorusMix: (mix) => {
+        set({ chorusMix: mix });
+        audioEngine.setChorusMix(mix);
+    },
+    setVibratoDepth: (depth) => {
+        set({ vibratoDepth: depth });
+        audioEngine.setVibratoDepth(depth);
+    },
+    setDistortionAmount: (amount) => {
+        set({ distortionAmount: amount });
+        audioEngine.setDistortionAmount(amount);
+    },
+    setDelayFeedback: (amount) => {
+        set({ delayFeedback: amount });
+        audioEngine.setDelayFeedback(amount);
+    },
+    setTremoloDepth: (amount) => {
+        set({ tremoloDepth: amount });
+        audioEngine.setTremoloDepth(amount);
+    },
+    setPhaserMix: (amount) => {
+        set({ phaserMix: amount });
+        audioEngine.setPhaserMix(amount);
+    },
+    setFilterMix: (amount) => {
+        set({ filterMix: amount });
+        audioEngine.setFilterMix(amount);
+    },
+    setPitchShift: (shift) => {
+        set({ pitchShift: shift });
+        audioEngine.setPitchShift(shift);
+    },
 
-    resetInstrumentControls: () => set({
-        instrumentGain: 1.0,
-        tone: 0,
-        pitchShift: 0,
-        distortionAmount: 0,
-        delayFeedback: 0.3,
-        tremoloDepth: 0,
-        phaserMix: 0,
-        filterMix: 0,
-        reverbMix: 0.15,
-        delayMix: 0,
-        chorusMix: 0,
-        vibratoDepth: 0
-    }),
+    resetInstrumentControls: () => {
+        set({
+            instrumentGain: 1.0,
+            tone: 0,
+            pitchShift: 0,
+            distortionAmount: 0,
+            delayFeedback: 0.3,
+            tremoloDepth: 0,
+            phaserMix: 0,
+            filterMix: 0,
+            reverbMix: 0.15,
+            delayMix: 0,
+            chorusMix: 0,
+            vibratoDepth: 0
+        });
+        // Also reset audio engine values
+        audioEngine.setMasterGain(1.0);
+        audioEngine.setTone(0);
+        audioEngine.setPitchShift(0);
+        audioEngine.setDistortionAmount(0);
+        audioEngine.setDelayFeedback(0.3);
+        audioEngine.setTremoloDepth(0);
+        audioEngine.setPhaserMix(0);
+        audioEngine.setFilterMix(0);
+        audioEngine.setReverbMix(0.15);
+        audioEngine.setDelayMix(0);
+        audioEngine.setChorusMix(0);
+        audioEngine.setVibratoDepth(0);
+    },
 
-    // Lead channel setters
-    setLeadInstrument: (instrument) => set({ leadInstrument: instrument }),
-    setLeadGain: (gain) => set({ leadGain: gain }),
-    setLeadReverbMix: (mix) => set({ leadReverbMix: mix }),
-    setLeadDelayMix: (mix) => set({ leadDelayMix: mix }),
-    setLeadDelayFeedback: (feedback) => set({ leadDelayFeedback: feedback }),
-    setLeadChorusMix: (mix) => set({ leadChorusMix: mix }),
-    setLeadVibratoDepth: (depth) => set({ leadVibratoDepth: depth }),
-    setLeadDistortionAmount: (amount) => set({ leadDistortionAmount: amount }),
-    setLeadTone: (val) => set({ leadTone: val }),
-    setLeadTremoloDepth: (depth) => set({ leadTremoloDepth: depth }),
-    setLeadPhaserMix: (mix) => set({ leadPhaserMix: mix }),
-    setLeadFilterMix: (mix) => set({ leadFilterMix: mix }),
-    setLeadPitchShift: (shift) => set({ leadPitchShift: shift }),
-    resetLeadControls: () => set({
-        leadGain: 0.75,
-        leadReverbMix: 0.2,
-        leadDelayMix: 0.1,
-        leadDelayFeedback: 0.3,
-        leadChorusMix: 0,
-        leadVibratoDepth: 0,
-        leadDistortionAmount: 0,
-        leadTone: 0,
-        leadTremoloDepth: 0,
-        leadPhaserMix: 0,
-        leadFilterMix: 0,
-        leadPitchShift: 0
-    }),
+    // Lead channel setters - call audio engine to actually apply effects
+    setLeadInstrument: (instrument) => {
+        set({ leadInstrument: instrument });
+        audioEngine.setLeadInstrument(instrument);
+    },
+    setLeadGain: (gain) => {
+        set({ leadGain: gain });
+        audioEngine.setLeadGain(gain);
+    },
+    setLeadReverbMix: (mix) => {
+        set({ leadReverbMix: mix });
+        audioEngine.setLeadReverbMix(mix);
+    },
+    setLeadDelayMix: (mix) => {
+        set({ leadDelayMix: mix });
+        audioEngine.setLeadDelayMix(mix);
+    },
+    setLeadDelayFeedback: (feedback) => {
+        set({ leadDelayFeedback: feedback });
+        audioEngine.setLeadDelayFeedback(feedback);
+    },
+    setLeadChorusMix: (mix) => {
+        set({ leadChorusMix: mix });
+        audioEngine.setLeadChorusMix(mix);
+    },
+    setLeadVibratoDepth: (depth) => {
+        set({ leadVibratoDepth: depth });
+        audioEngine.setLeadVibratoDepth(depth);
+    },
+    setLeadDistortionAmount: (amount) => {
+        set({ leadDistortionAmount: amount });
+        audioEngine.setLeadDistortionAmount(amount);
+    },
+    setLeadTone: (val) => {
+        set({ leadTone: val });
+        audioEngine.setLeadTone(val);
+    },
+    setLeadTremoloDepth: (depth) => {
+        set({ leadTremoloDepth: depth });
+        audioEngine.setLeadTremoloDepth(depth);
+    },
+    setLeadPhaserMix: (mix) => {
+        set({ leadPhaserMix: mix });
+        audioEngine.setLeadPhaserMix(mix);
+    },
+    setLeadFilterMix: (mix) => {
+        set({ leadFilterMix: mix });
+        audioEngine.setLeadFilterMix(mix);
+    },
+    setLeadPitchShift: (shift) => {
+        set({ leadPitchShift: shift });
+        audioEngine.setLeadPitchShift(shift);
+    },
+    setLeadChannelVolume: (volume) => {
+        set({ leadChannelVolume: volume });
+        audioEngine.setLeadChannelVolume(volume);
+    },
+    resetLeadControls: () => {
+        set({
+            leadGain: 0.75,
+            leadReverbMix: 0.2,
+            leadDelayMix: 0.1,
+            leadDelayFeedback: 0.3,
+            leadChorusMix: 0,
+            leadVibratoDepth: 0,
+            leadDistortionAmount: 0,
+            leadTone: 0,
+            leadTremoloDepth: 0,
+            leadPhaserMix: 0,
+            leadFilterMix: 0,
+            leadPitchShift: 0
+        });
+        // Also reset audio engine values
+        audioEngine.setLeadGain(0.75);
+        audioEngine.setLeadReverbMix(0.2);
+        audioEngine.setLeadDelayMix(0.1);
+        audioEngine.setLeadDelayFeedback(0.3);
+        audioEngine.setLeadChorusMix(0);
+        audioEngine.setLeadVibratoDepth(0);
+        audioEngine.setLeadDistortionAmount(0);
+        audioEngine.setLeadTone(0);
+        audioEngine.setLeadTremoloDepth(0);
+        audioEngine.setLeadPhaserMix(0);
+        audioEngine.setLeadFilterMix(0);
+        audioEngine.setLeadPitchShift(0);
+    },
 
     addCustomInstrument: (instrument) => set((state: InstrumentState) => ({
         customInstruments: [...state.customInstruments, instrument]

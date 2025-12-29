@@ -301,6 +301,7 @@ let leadTremoloDepth = 0;
 let leadPhaserMix = 0;
 let leadFilterMix = 0;
 let leadPitchShiftAmount = 0;
+let leadChannelVolume = 0.75;
 
 // Lead channel effects chain nodes
 let leadGain: Tone.Gain | null = null;
@@ -314,6 +315,7 @@ let leadTremolo: Tone.Tremolo | null = null;
 let leadAutoFilter: Tone.AutoFilter | null = null;
 let leadPhaser: Tone.Phaser | null = null;
 let leadPitchShift: Tone.PitchShift | null = null;
+let leadOutputGain: Tone.Gain | null = null;
 let leadEffectsChainInitialized = false;
 
 const initMasterEffectsChain = async () => {
@@ -436,124 +438,89 @@ const initMasterEffectsChain = async () => {
  * This is a parallel chain to the main channel, connecting to the same master limiter.
  * Chain: Instrument -> PitchShift -> Vibrato -> Tremolo -> AutoFilter -> Phaser -> Distortion -> EQ3 -> Gain -> Chorus -> Delay -> Reverb -> Limiter
  */
+/**
+ * Initialize the lead channel effects chain.
+ * This is a parallel chain to the main channel, connecting to the same master limiter.
+ * Chain: Instrument -> PitchShift -> Vibrato -> Tremolo -> AutoFilter -> Phaser -> Distortion -> EQ3 -> Gain -> Chorus -> Delay -> Reverb -> Limiter
+ */
 const initLeadEffectsChain = async () => {
-    if (leadEffectsChainInitialized) return;
-
     // Ensure master limiter exists (shared between channels)
     await initMasterEffectsChain();
 
-    // Create lead reverb (connects to master limiter)
-    if (!leadReverb) {
-        leadReverb = new Tone.Reverb({
-            decay: 3.0,
-            wet: leadReverbMix,
-            preDelay: 0.02
-        }).connect(masterLimiter!);
-        await leadReverb.ready;
-    }
+    // 1. Create all nodes if they don't exist
+    if (!leadReverb) leadReverb = new Tone.Reverb({ decay: 3.0, wet: leadReverbMix, preDelay: 0.02 });
+    if (!leadOutputGain) leadOutputGain = new Tone.Gain(leadChannelVolume);
+    if (!leadDelay) leadDelay = new Tone.PingPongDelay({ delayTime: 0.25, feedback: leadDelayFeedback, wet: leadDelayMix });
+    if (!leadChorus) leadChorus = new Tone.Chorus({ frequency: 1.5, delayTime: 3.5, depth: 0.7, wet: leadChorusMix });
+    if (!leadGain) leadGain = new Tone.Gain(leadVolumeGain);
+    if (!leadEQ) leadEQ = new Tone.EQ3({ low: -leadTone, mid: 0, high: leadTone, lowFrequency: 250, highFrequency: 2500 });
+    if (!leadDistortion) leadDistortion = new Tone.Distortion({ distortion: leadDistortionAmount, wet: leadDistortionAmount > 0 ? 0.5 : 0 });
+    if (!leadPhaser) leadPhaser = new Tone.Phaser({ frequency: 0.5, octaves: 3, stages: 10, Q: 10, baseFrequency: 350, wet: leadPhaserMix });
+    if (!leadAutoFilter) leadAutoFilter = new Tone.AutoFilter({ frequency: 1, type: "sine", depth: 1, baseFrequency: 200, octaves: 2.6, filter: { type: "lowpass", rolloff: -12, Q: 1 }, wet: leadFilterMix });
+    if (!leadTremolo) leadTremolo = new Tone.Tremolo({ frequency: 9, depth: 0.75, wet: leadTremoloDepth });
+    if (!leadVibrato) leadVibrato = new Tone.Vibrato({ frequency: 5, depth: leadVibratoDepth, wet: leadVibratoDepth > 0 ? 1 : 0 });
+    if (!leadPitchShift) leadPitchShift = new Tone.PitchShift({ pitch: leadPitchShiftAmount });
 
-    // Create lead delay (connects to lead reverb)
-    if (!leadDelay) {
-        leadDelay = new Tone.PingPongDelay({
-            delayTime: 0.25,
-            feedback: leadDelayFeedback,
-            wet: leadDelayMix
-        }).connect(leadReverb);
-    }
+    // 2. Ensure they are initialized/started
+    await leadReverb.ready;
+    if (leadChorus.state !== 'started') leadChorus.start();
+    if (leadAutoFilter.state !== 'started') leadAutoFilter.start();
+    if (leadTremolo.state !== 'started') leadTremolo.start();
 
-    // Create lead chorus (connects to lead delay)
-    if (!leadChorus) {
-        leadChorus = new Tone.Chorus({
-            frequency: 1.5,
-            delayTime: 3.5,
-            depth: 0.7,
-            wet: leadChorusMix
-        }).connect(leadDelay);
-        leadChorus.start();
-    }
+    // 3. Force disconnect and reconnect (Back to Front) to ensure Chain Integrity
+    // Limiter <- OutputGain
+    leadOutputGain.disconnect();
+    leadOutputGain.connect(masterLimiter!);
 
-    // Create lead gain (connects to lead chorus)
-    if (!leadGain) {
-        leadGain = new Tone.Gain(leadVolumeGain).connect(leadChorus);
-    }
+    // OutputGain <- Reverb
+    leadReverb.disconnect();
+    leadReverb.connect(leadOutputGain);
 
-    // Create lead EQ (connects to lead gain)
-    if (!leadEQ) {
-        leadEQ = new Tone.EQ3({
-            low: -leadTone,
-            mid: 0,
-            high: leadTone,
-            lowFrequency: 250,
-            highFrequency: 2500
-        }).connect(leadGain);
-    }
+    // Reverb <- Delay
+    leadDelay.disconnect();
+    leadDelay.connect(leadReverb);
 
-    // Create lead distortion (connects to lead EQ)
-    if (!leadDistortion) {
-        leadDistortion = new Tone.Distortion({
-            distortion: leadDistortionAmount,
-            wet: leadDistortionAmount > 0 ? 0.5 : 0
-        }).connect(leadEQ);
-    }
+    // Delay <- Chorus
+    leadChorus.disconnect();
+    leadChorus.connect(leadDelay);
 
-    // Create lead phaser (connects to lead distortion)
-    if (!leadPhaser) {
-        leadPhaser = new Tone.Phaser({
-            frequency: 0.5,
-            octaves: 3,
-            stages: 10,
-            Q: 10,
-            baseFrequency: 350,
-            wet: leadPhaserMix
-        }).connect(leadDistortion);
-    }
+    // Chorus <- Gain
+    leadGain.disconnect();
+    leadGain.connect(leadChorus);
 
-    // Create lead auto filter (connects to lead phaser)
-    if (!leadAutoFilter) {
-        leadAutoFilter = new Tone.AutoFilter({
-            frequency: 1,
-            type: "sine",
-            depth: 1,
-            baseFrequency: 200,
-            octaves: 2.6,
-            filter: {
-                type: "lowpass",
-                rolloff: -12,
-                Q: 1
-            },
-            wet: leadFilterMix
-        }).connect(leadPhaser);
-        leadAutoFilter.start();
-    }
+    // Gain <- EQ
+    leadEQ.disconnect();
+    leadEQ.connect(leadGain);
 
-    // Create lead tremolo (connects to lead auto filter)
-    if (!leadTremolo) {
-        leadTremolo = new Tone.Tremolo({
-            frequency: 9,
-            depth: 0.75,
-            wet: leadTremoloDepth
-        }).connect(leadAutoFilter);
-        leadTremolo.start();
-    }
+    // EQ <- Distortion
+    leadDistortion.disconnect();
+    leadDistortion.connect(leadEQ);
 
-    // Create lead vibrato (connects to lead tremolo)
-    if (!leadVibrato) {
-        leadVibrato = new Tone.Vibrato({
-            frequency: 5,
-            depth: leadVibratoDepth,
-            wet: leadVibratoDepth > 0 ? 1 : 0
-        }).connect(leadTremolo);
-    }
+    // Distortion <- Phaser
+    leadPhaser.disconnect();
+    leadPhaser.connect(leadDistortion);
 
-    // Create lead pitch shift (connects to lead vibrato) - Entry point for lead instruments
-    if (!leadPitchShift) {
-        leadPitchShift = new Tone.PitchShift({
-            pitch: leadPitchShiftAmount
-        }).connect(leadVibrato);
-    }
+    // Phaser <- AutoFilter
+    leadAutoFilter.disconnect();
+    leadAutoFilter.connect(leadPhaser);
 
+    // AutoFilter <- Tremolo
+    leadTremolo.disconnect();
+    leadTremolo.connect(leadAutoFilter);
+
+    // Tremolo <- Vibrato
+    leadVibrato.disconnect();
+    leadVibrato.connect(leadTremolo);
+
+    // Vibrato <- PitchShift
+    leadPitchShift.disconnect();
+    leadPitchShift.connect(leadVibrato);
+
+    // 4. Set Entry Point
     leadEffectsChainInput = leadPitchShift;
     leadEffectsChainInitialized = true;
+
+    // console.log('[Audio] Lead effects chain initialized and connected');
 };
 
 /**
@@ -1462,6 +1429,14 @@ export const setLeadPitchShift = async (shift: number) => {
     leadPitchShiftAmount = shift;
     if (leadPitchShift) {
         leadPitchShift.pitch = leadPitchShiftAmount;
+    }
+};
+
+export const setLeadChannelVolume = async (volume: number) => {
+    await initLeadEffectsChain();
+    leadChannelVolume = Math.max(0, Math.min(2.0, volume));
+    if (leadOutputGain) {
+        leadOutputGain.gain.rampTo(leadChannelVolume, 0.05);
     }
 };
 

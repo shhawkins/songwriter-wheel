@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useSongStore } from '../../store/useSongStore';
 import { Volume2, Music, Waves, Play, Radio, Disc3, ChevronLeft, ChevronRight, RotateCcw, Folder, Save } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -100,6 +100,12 @@ export const LeadInstrumentControls: React.FC<LeadInstrumentControlsProps> = ({ 
     const { isMobile, isLandscape } = useMobileLayout();
     const isCompact = isMobile && isLandscape;
 
+    // Initial position: bottom-left corner with some padding
+    const initialPosition = useMemo(() => ({
+        x: 40,
+        y: Math.max(60, window.innerHeight - 450)
+    }), []);
+
     // Play sustained preview note
     const handlePlayPreview = () => {
         playLeadNote(previewNote, 4, '2n');
@@ -166,11 +172,13 @@ export const LeadInstrumentControls: React.FC<LeadInstrumentControlsProps> = ({ 
             isOpen={isOpen}
             onClose={onClose}
             compact={isCompact}
-            minWidth={isMobile ? '280px' : '320px'}
-            minHeight="200px"
+            minWidth={isMobile ? '220px' : '240px'}
+            minHeight="280px"
             maxWidth="800px"
             maxArea={280000}
-            width={isMobile ? '320px' : '650px'}
+            width={isMobile ? '240px' : '250px'}
+            height="420px"
+            position={initialPosition}
             resizable={true}
             dragExcludeSelectors={['button', '.touch-none', 'input', 'select', '.lead-voice-selector-dropdown']}
             zIndex={zIndex}
@@ -235,6 +243,6 @@ export const LeadInstrumentControls: React.FC<LeadInstrumentControlsProps> = ({ 
                     </button>
                 </div>
             </div>
-        </DraggableModal>
+        </DraggableModal >
     );
 };

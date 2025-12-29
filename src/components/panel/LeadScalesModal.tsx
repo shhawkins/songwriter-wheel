@@ -7,7 +7,7 @@ import { PlayableScaleStrip } from './PlayableScaleStrip';
 import { getMajorScale, formatChordForDisplay, getDiatonicChords } from '../../utils/musicTheory';
 import { ChevronLeft, ChevronRight, ChevronDown, Volume2 } from 'lucide-react';
 import { useMobileLayout } from '../../hooks/useIsMobile';
-import { playLeadNote, setLeadGain } from '../../utils/audioEngine';
+import { playLeadNote, setLeadChannelVolume } from '../../utils/audioEngine';
 import { LeadInstrumentControls } from '../playback/LeadInstrumentControls';
 import { LeadVoiceSelector } from '../playback/LeadVoiceSelector';
 
@@ -30,8 +30,8 @@ export const LeadScalesModal: React.FC = () => {
         selectedKey,
         bringToFront,
         modalStack,
-        leadGain,
-        setLeadGain: setStoreLeadGain
+        leadChannelVolume,
+        setLeadChannelVolume: setStoreLeadChannelVolume
     } = useSongStore();
 
     const MODAL_ID = 'lead-scales-modal';
@@ -146,9 +146,9 @@ export const LeadScalesModal: React.FC = () => {
 
     // Volume slider handler
     const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const val = parseFloat(e.target.value);
-        setStoreLeadGain(val);
-        setLeadGain(val);
+        const newVolume = parseFloat(e.target.value);
+        setStoreLeadChannelVolume(newVolume);
+        setLeadChannelVolume(newVolume);
     };
 
     // Memoize initial position
@@ -282,17 +282,17 @@ export const LeadScalesModal: React.FC = () => {
                                 min="0"
                                 max="2"
                                 step="0.01"
-                                value={leadGain}
+                                value={leadChannelVolume}
                                 onChange={handleVolumeChange}
                                 className="w-20 h-1.5 bg-white/20 rounded-full appearance-none cursor-pointer"
                                 style={{
-                                    background: `linear-gradient(to right, rgb(156 163 175) 0%, rgb(156 163 175) ${(leadGain / 2) * 100}%, rgba(255,255,255,0.2) ${(leadGain / 2) * 100}%, rgba(255,255,255,0.2) 100%)`
+                                    background: `linear-gradient(to right, rgb(156 163 175) 0%, rgb(156 163 175) ${(leadChannelVolume / 2) * 100}%, rgba(255,255,255,0.2) ${(leadChannelVolume / 2) * 100}%, rgba(255,255,255,0.2) 100%)`
                                 }}
                                 onClick={(e) => e.stopPropagation()}
                                 onMouseDown={(e) => e.stopPropagation()}
                                 onTouchStart={(e) => e.stopPropagation()}
                             />
-                            <span className="text-xs text-text-muted font-mono w-10">{Math.round(leadGain * 100)}%</span>
+                            <span className="text-xs text-text-muted font-mono w-10">{Math.round(leadChannelVolume * 100)}%</span>
                         </div>
 
                         {/* Voice Selector - reusing the component */}

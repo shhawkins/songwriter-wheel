@@ -135,6 +135,98 @@ export const useAudioSync = () => {
         import('../utils/audioEngine').then(mod => mod.setFilterMix(filterMix));
     }, [filterMix]);
 
+    // ============================================================================
+    // LEAD CHANNEL SYNC
+    // Syncs lead channel settings from the store to the audio engine.
+    // This ensures persisted values are applied on page load.
+    // ============================================================================
+    const {
+        leadInstrument,
+        leadGain,
+        leadReverbMix,
+        leadDelayMix,
+        leadDelayFeedback,
+        leadChorusMix,
+        leadVibratoDepth,
+        leadDistortionAmount,
+        leadTone,
+        leadTremoloDepth,
+        leadPhaserMix,
+        leadFilterMix,
+        leadPitchShift,
+        leadChannelVolume
+    } = useSongStore();
+
+    // Sync lead instrument
+    useEffect(() => {
+        import('../utils/audioEngine').then(mod => mod.setLeadInstrument(leadInstrument));
+    }, [leadInstrument]);
+
+    // Sync lead gain
+    useEffect(() => {
+        import('../utils/audioEngine').then(mod => mod.setLeadGain(leadGain));
+    }, [leadGain]);
+
+    // Sync lead reverb mix
+    useEffect(() => {
+        import('../utils/audioEngine').then(mod => mod.setLeadReverbMix(leadReverbMix));
+    }, [leadReverbMix]);
+
+    // Sync lead delay mix
+    useEffect(() => {
+        import('../utils/audioEngine').then(mod => mod.setLeadDelayMix(leadDelayMix));
+    }, [leadDelayMix]);
+
+    // Sync lead delay feedback
+    useEffect(() => {
+        import('../utils/audioEngine').then(mod => mod.setLeadDelayFeedback(leadDelayFeedback));
+    }, [leadDelayFeedback]);
+
+    // Sync lead chorus mix
+    useEffect(() => {
+        import('../utils/audioEngine').then(mod => mod.setLeadChorusMix(leadChorusMix));
+    }, [leadChorusMix]);
+
+    // Sync lead vibrato depth
+    useEffect(() => {
+        import('../utils/audioEngine').then(mod => mod.setLeadVibratoDepth(leadVibratoDepth));
+    }, [leadVibratoDepth]);
+
+    // Sync lead distortion amount
+    useEffect(() => {
+        import('../utils/audioEngine').then(mod => mod.setLeadDistortionAmount(leadDistortionAmount));
+    }, [leadDistortionAmount]);
+
+    // Sync lead tone
+    useEffect(() => {
+        import('../utils/audioEngine').then(mod => mod.setLeadTone(leadTone));
+    }, [leadTone]);
+
+    // Sync lead tremolo depth
+    useEffect(() => {
+        import('../utils/audioEngine').then(mod => mod.setLeadTremoloDepth(leadTremoloDepth));
+    }, [leadTremoloDepth]);
+
+    // Sync lead phaser mix
+    useEffect(() => {
+        import('../utils/audioEngine').then(mod => mod.setLeadPhaserMix(leadPhaserMix));
+    }, [leadPhaserMix]);
+
+    // Sync lead filter mix
+    useEffect(() => {
+        import('../utils/audioEngine').then(mod => mod.setLeadFilterMix(leadFilterMix));
+    }, [leadFilterMix]);
+
+    // Sync lead pitch shift
+    useEffect(() => {
+        import('../utils/audioEngine').then(mod => mod.setLeadPitchShift(leadPitchShift));
+    }, [leadPitchShift]);
+
+    // Sync lead channel volume
+    useEffect(() => {
+        import('../utils/audioEngine').then(mod => mod.setLeadChannelVolume(leadChannelVolume));
+    }, [leadChannelVolume]);
+
     // Preload audio on mount, but defer to avoid blocking main thread
     useEffect(() => {
         const deferAudio = () => {
