@@ -296,6 +296,11 @@ let leadChorusMix = 0;
 let leadVibratoDepth = 0;
 let leadDistortionAmount = 0;
 let leadTone = 0;
+let leadDelayFeedback = 0.3;
+let leadTremoloDepth = 0;
+let leadPhaserMix = 0;
+let leadFilterMix = 0;
+let leadPitchShiftAmount = 0;
 
 // Lead channel effects chain nodes
 let leadGain: Tone.Gain | null = null;
@@ -305,6 +310,10 @@ let leadChorus: Tone.Chorus | null = null;
 let leadEQ: Tone.EQ3 | null = null;
 let leadVibrato: Tone.Vibrato | null = null;
 let leadDistortion: Tone.Distortion | null = null;
+let leadTremolo: Tone.Tremolo | null = null;
+let leadAutoFilter: Tone.AutoFilter | null = null;
+let leadPhaser: Tone.Phaser | null = null;
+let leadPitchShift: Tone.PitchShift | null = null;
 let leadEffectsChainInitialized = false;
 
 const initMasterEffectsChain = async () => {
@@ -425,7 +434,7 @@ const initMasterEffectsChain = async () => {
 /**
  * Initialize the lead channel effects chain.
  * This is a parallel chain to the main channel, connecting to the same master limiter.
- * Chain: Instrument -> Vibrato -> Distortion -> EQ3 -> Gain -> Chorus -> Delay -> Reverb -> Limiter
+ * Chain: Instrument -> PitchShift -> Vibrato -> Tremolo -> AutoFilter -> Phaser -> Distortion -> EQ3 -> Gain -> Chorus -> Delay -> Reverb -> Limiter
  */
 const initLeadEffectsChain = async () => {
     if (leadEffectsChainInitialized) return;
@@ -447,7 +456,7 @@ const initLeadEffectsChain = async () => {
     if (!leadDelay) {
         leadDelay = new Tone.PingPongDelay({
             delayTime: 0.25,
-            feedback: 0.3,
+            feedback: leadDelayFeedback,
             wet: leadDelayMix
         }).connect(leadReverb);
     }
@@ -487,16 +496,63 @@ const initLeadEffectsChain = async () => {
         }).connect(leadEQ);
     }
 
-    // Create lead vibrato (connects to lead distortion) - Entry point for lead instruments
+    // Create lead phaser (connects to lead distortion)
+    if (!leadPhaser) {
+        leadPhaser = new Tone.Phaser({
+            frequency: 0.5,
+            octaves: 3,
+            stages: 10,
+            Q: 10,
+            baseFrequency: 350,
+            wet: leadPhaserMix
+        }).connect(leadDistortion);
+    }
+
+    // Create lead auto filter (connects to lead phaser)
+    if (!leadAutoFilter) {
+        leadAutoFilter = new Tone.AutoFilter({
+            frequency: 1,
+            type: "sine",
+            depth: 1,
+            baseFrequency: 200,
+            octaves: 2.6,
+            filter: {
+                type: "lowpass",
+                rolloff: -12,
+                Q: 1
+            },
+            wet: leadFilterMix
+        }).connect(leadPhaser);
+        leadAutoFilter.start();
+    }
+
+    // Create lead tremolo (connects to lead auto filter)
+    if (!leadTremolo) {
+        leadTremolo = new Tone.Tremolo({
+            frequency: 9,
+            depth: 0.75,
+            wet: leadTremoloDepth
+        }).connect(leadAutoFilter);
+        leadTremolo.start();
+    }
+
+    // Create lead vibrato (connects to lead tremolo)
     if (!leadVibrato) {
         leadVibrato = new Tone.Vibrato({
             frequency: 5,
             depth: leadVibratoDepth,
             wet: leadVibratoDepth > 0 ? 1 : 0
-        }).connect(leadDistortion);
+        }).connect(leadTremolo);
     }
 
-    leadEffectsChainInput = leadVibrato;
+    // Create lead pitch shift (connects to lead vibrato) - Entry point for lead instruments
+    if (!leadPitchShift) {
+        leadPitchShift = new Tone.PitchShift({
+            pitch: leadPitchShiftAmount
+        }).connect(leadVibrato);
+    }
+
+    leadEffectsChainInput = leadPitchShift;
     leadEffectsChainInitialized = true;
 };
 
@@ -1368,6 +1424,47 @@ export const setLeadDistortionAmount = async (amount: number) => {
     }
 };
 
+export const setLeadDelayFeedback = async (feedback: number) => {
+    await initLeadEffectsChain();
+    leadDelayFeedback = Math.max(0, Math.min(0.9, feedback));
+    if (leadDelay) {
+        leadDelay.feedback.value = leadDelayFeedback;
+    }
+};
+
+export const setLeadTremoloDepth = async (depth: number) => {
+    await initLeadEffectsChain();
+    leadTremoloDepth = Math.max(0, Math.min(1, depth));
+    if (leadTremolo) {
+        leadTremolo.depth.rampTo(leadTremoloDepth > 0 ? 0.75 : 0, 0.1);
+        leadTremolo.wet.rampTo(leadTremoloDepth, 0.1);
+    }
+};
+
+export const setLeadPhaserMix = async (mix: number) => {
+    await initLeadEffectsChain();
+    leadPhaserMix = Math.max(0, Math.min(1, mix));
+    if (leadPhaser) {
+        leadPhaser.wet.rampTo(leadPhaserMix, 0.1);
+    }
+};
+
+export const setLeadFilterMix = async (mix: number) => {
+    await initLeadEffectsChain();
+    leadFilterMix = Math.max(0, Math.min(1, mix));
+    if (leadAutoFilter) {
+        leadAutoFilter.wet.rampTo(leadFilterMix, 0.1);
+    }
+};
+
+export const setLeadPitchShift = async (shift: number) => {
+    await initLeadEffectsChain();
+    leadPitchShiftAmount = shift;
+    if (leadPitchShift) {
+        leadPitchShift.pitch = leadPitchShiftAmount;
+    }
+};
+
 /**
  * Get current lead channel effect values for UI sync.
  */
@@ -1376,10 +1473,15 @@ export const getLeadEffectValues = () => ({
     volume: leadVolumeGain,
     reverb: leadReverbMix,
     delay: leadDelayMix,
+    delayFeedback: leadDelayFeedback,
     chorus: leadChorusMix,
     tone: leadTone,
     vibrato: leadVibratoDepth,
-    distortion: leadDistortionAmount
+    distortion: leadDistortionAmount,
+    tremolo: leadTremoloDepth,
+    phaser: leadPhaserMix,
+    filter: leadFilterMix,
+    pitchShift: leadPitchShiftAmount
 });
 
 /**
