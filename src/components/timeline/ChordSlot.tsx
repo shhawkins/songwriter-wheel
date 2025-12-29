@@ -275,6 +275,7 @@ export const ChordSlot: React.FC<ChordSlotProps> = ({ slot, sectionId, measureId
         <div
             ref={setDroppableRef}
             data-slot-id={slot.id}
+            data-section-id={sectionId}
             onMouseDown={handleMouseDown}
             onClick={handleSlotClick}
             style={{ width: resolvedWidth, height: size }}

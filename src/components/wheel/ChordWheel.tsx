@@ -79,6 +79,23 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
         toggleKeyLock
     } = useSongStore();
 
+    // Handler for lock button - shows one-time hint about drag-to-timeline
+    const handleLockToggle = useCallback(() => {
+        const wasLocked = isKeyLocked;
+        toggleKeyLock();
+
+        // Show one-time hint when user first locks the wheel
+        if (!wasLocked) {
+            const hasSeenHint = localStorage.getItem('wheel-lock-drag-hint-seen');
+            if (!hasSeenHint) {
+                localStorage.setItem('wheel-lock-drag-hint-seen', 'true');
+                window.dispatchEvent(new CustomEvent('show-notification', {
+                    detail: { message: '🔒 Wheel locked! You can now drag chords directly to the timeline.' }
+                }));
+            }
+        }
+    }, [isKeyLocked, toggleKeyLock]);
+
     // Calculate wheel rotation
     // In fixed mode, the wheel doesn't rotate (C stays at top, highlighting moves)
     // In rotating mode, the wheel rotates to put the selected key at top
@@ -1006,6 +1023,7 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
                                         voicingSuggestion={(majorIsDiatonic || majorIsSecondary) ? getVoicingSuggestion(getRelativePosition(i), 'major') : undefined}
                                         segmentId={`major-${i}`}
                                         onHover={handleSegmentHover}
+                                        isDraggable={isKeyLocked}
                                     />
 
                                     {/* MIDDLE RING: ii chord (left 15° slot) */}
@@ -1029,6 +1047,7 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
                                         voicingSuggestion={iiIsDiatonic ? getVoicingSuggestion(getRelativePosition(i), 'ii') : undefined}
                                         segmentId={`ii-${i}`}
                                         onHover={handleSegmentHover}
+                                        isDraggable={isKeyLocked}
                                     />
 
                                     {/* MIDDLE RING: iii chord (right 15° slot) */}
@@ -1052,6 +1071,7 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
                                         voicingSuggestion={iiiIsDiatonic ? getVoicingSuggestion(getRelativePosition(i), 'iii') : undefined}
                                         segmentId={`iii-${i}`}
                                         onHover={handleSegmentHover}
+                                        isDraggable={isKeyLocked}
                                     />
 
                                     {/* OUTER RING: Diminished chord (narrow 15° notch, centered) */}
@@ -1075,6 +1095,7 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
                                         voicingSuggestion={dimIsDiatonic ? getVoicingSuggestion(getRelativePosition(i), 'dim') : undefined}
                                         segmentId={`dim-${i}`}
                                         onHover={handleSegmentHover}
+                                        isDraggable={isKeyLocked}
                                     />
                                 </g>
                             );
@@ -1181,12 +1202,12 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
                         transform={`translate(${cx}, ${cy - 46})`}
                         onClick={(e) => {
                             e.stopPropagation();
-                            toggleKeyLock();
+                            handleLockToggle();
                         }}
                         onTouchEnd={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            toggleKeyLock();
+                            handleLockToggle();
                         }}
                         className="cursor-pointer"
                         style={{ pointerEvents: 'all' }}

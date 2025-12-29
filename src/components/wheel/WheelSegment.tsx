@@ -4,6 +4,7 @@ import type { Chord } from '../../utils/musicTheory';
 import { formatChordForDisplay } from '../../utils/musicTheory';
 import clsx from 'clsx';
 import * as Tone from 'tone';
+import { wheelDragState } from '../../utils/wheelDragState';
 
 interface WheelSegmentProps {
     cx: number;
@@ -26,6 +27,8 @@ interface WheelSegmentProps {
     voicingSuggestion?: string;
     segmentId?: string;
     onHover?: (text: string | null, x: number, y: number) => void;
+    /** When true, the segment can be dragged to the timeline (enabled when wheel is locked) */
+    isDraggable?: boolean;
 }
 
 export const WheelSegment: React.FC<WheelSegmentProps> = ({
@@ -48,7 +51,8 @@ export const WheelSegment: React.FC<WheelSegmentProps> = ({
     romanNumeral,
     voicingSuggestion,
     segmentId = 'seg',
-    onHover
+    onHover,
+    isDraggable = false
 }) => {
     const path = describeSector(cx, cy, innerRadius, outerRadius, startAngle, endAngle);
     const midAngle = (startAngle + endAngle) / 2;
@@ -63,6 +67,11 @@ export const WheelSegment: React.FC<WheelSegmentProps> = ({
     const hasDraggedRef = React.useRef(false);
     // Track multi-touch gestures (like pinch-to-zoom) - these should not trigger chord playback
     const wasMultiTouchRef = React.useRef(false);
+
+    // Track if we're in a drag-to-timeline operation (when wheel is locked)
+    const isDragToTimelineRef = React.useRef(false);
+    const dragDistanceRef = React.useRef(0);
+    const [isMouseDown, setIsMouseDown] = React.useState(false);
 
     // All text is horizontal - counter-rotate to cancel wheel rotation
     const textRotation = -wheelRotation;
@@ -306,7 +315,10 @@ export const WheelSegment: React.FC<WheelSegmentProps> = ({
         const y = e.clientY;
 
         hoverTimerRef.current = setTimeout(() => {
-            onHover(`Select a chord slot in the timeline, then double-click a chord or chord voicing to add to the timeline.`, x, y);
+            const tooltipText = isDraggable
+                ? `Drag this chord to drop it on a timeline slot.`
+                : `Select a chord slot in the timeline, then double-click a chord or chord voicing to add to the timeline.`;
+            onHover(tooltipText, x, y);
         }, 3000);
     };
 
@@ -320,18 +332,130 @@ export const WheelSegment: React.FC<WheelSegmentProps> = ({
         }
     };
 
+    // ===== DRAG-TO-TIMELINE HANDLERS (when wheel is locked) =====
+    const mouseStartPosRef = React.useRef<{ x: number; y: number } | null>(null);
+
+    const handleDragMouseDown = (e: React.MouseEvent) => {
+        if (!isDraggable) return;
+        mouseStartPosRef.current = { x: e.clientX, y: e.clientY };
+        isDragToTimelineRef.current = false;
+        dragDistanceRef.current = 0;
+        setIsMouseDown(true); // Trigger effect to attach listeners
+    };
+
+    const handleDragMouseMove = React.useCallback((e: MouseEvent) => {
+        if (!isDraggable || !mouseStartPosRef.current) return;
+
+        const dx = e.clientX - mouseStartPosRef.current.x;
+        const dy = e.clientY - mouseStartPosRef.current.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        dragDistanceRef.current = distance;
+
+        // Start drag if moved more than 10px
+        if (distance > 10 && !isDragToTimelineRef.current) {
+            isDragToTimelineRef.current = true;
+            wheelDragState.startDrag(chord);
+        }
+
+        if (isDragToTimelineRef.current) {
+            wheelDragState.updatePosition(e.clientX, e.clientY);
+        }
+    }, [isDraggable, chord]);
+
+    const handleDragMouseUp = React.useCallback(() => {
+        mouseStartPosRef.current = null;
+        setIsMouseDown(false); // Trigger effect to detach listeners
+
+        if (isDragToTimelineRef.current) {
+            // The drop will be handled by WheelDragGhost
+            // We just need to clear after a small delay to allow drop detection
+            setTimeout(() => {
+                wheelDragState.endDrag();
+            }, 50);
+        }
+        isDragToTimelineRef.current = false;
+        dragDistanceRef.current = 0;
+    }, []);
+
+    // Attach global mouse listeners when mouse is down and draggable
+    React.useEffect(() => {
+        if (isDraggable && isMouseDown) {
+            document.addEventListener('mousemove', handleDragMouseMove);
+            document.addEventListener('mouseup', handleDragMouseUp);
+            return () => {
+                document.removeEventListener('mousemove', handleDragMouseMove);
+                document.removeEventListener('mouseup', handleDragMouseUp);
+            };
+        }
+    }, [isDraggable, isMouseDown, handleDragMouseMove, handleDragMouseUp]);
+
+    // Touch-based drag to timeline
+    const handleDragTouchStart = (e: React.TouchEvent) => {
+        if (!isDraggable) return;
+        if (e.touches.length === 1) {
+            const touch = e.touches[0];
+            mouseStartPosRef.current = { x: touch.clientX, y: touch.clientY };
+            isDragToTimelineRef.current = false;
+            dragDistanceRef.current = 0;
+        }
+    };
+
+    const handleDragTouchMove = (e: React.TouchEvent) => {
+        if (!isDraggable || !mouseStartPosRef.current || e.touches.length !== 1) return;
+
+        const touch = e.touches[0];
+        const dx = touch.clientX - mouseStartPosRef.current.x;
+        const dy = touch.clientY - mouseStartPosRef.current.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        dragDistanceRef.current = distance;
+
+        // Start drag if moved more than 15px
+        if (distance > 15 && !isDragToTimelineRef.current) {
+            isDragToTimelineRef.current = true;
+            wheelDragState.startDrag(chord);
+            e.preventDefault(); // Prevent scrolling while dragging
+        }
+
+        if (isDragToTimelineRef.current) {
+            wheelDragState.updatePosition(touch.clientX, touch.clientY);
+            e.preventDefault();
+        }
+    };
+
+    const handleDragTouchEnd = () => {
+        mouseStartPosRef.current = null;
+        if (isDragToTimelineRef.current) {
+            setTimeout(() => {
+                wheelDragState.endDrag();
+            }, 50);
+        }
+        isDragToTimelineRef.current = false;
+        dragDistanceRef.current = 0;
+    };
+
     return (
         <g
             className={clsx(
-                "cursor-pointer transition-all duration-200",
+                "transition-all duration-200",
+                isDraggable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
                 !isHighlighted && "hover:opacity-70",
                 isTouching && "opacity-80"
             )}
             onClick={handleMouseClick}
             onDoubleClick={handleMouseDoubleClick}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
+            onMouseDown={handleDragMouseDown}
+            onTouchStart={(e) => {
+                handleTouchStart(e);
+                handleDragTouchStart(e);
+            }}
+            onTouchMove={(e) => {
+                handleTouchMove(e);
+                handleDragTouchMove(e);
+            }}
+            onTouchEnd={(e) => {
+                handleTouchEnd(e);
+                handleDragTouchEnd();
+            }}
             onTouchCancel={handleTouchCancel}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}

@@ -40,6 +40,7 @@ import { MobilePortraitDrawers } from './components/layout/MobilePortraitDrawers
 import { DesktopLayout } from './components/layout/DesktopLayout';
 import { UnsavedChangesDialog } from './components/ui/UnsavedChangesDialog';
 import { SaveStatusIndicator } from './components/ui/SaveStatusIndicator';
+import { WheelDragGhost } from './components/wheel/WheelDragGhost';
 
 
 
@@ -252,9 +253,17 @@ function App() {
 
     window.addEventListener('show-auth-toast', handleAuthToast);
     window.addEventListener('show-auth-error', handleAuthError);
+
+    // Simple notification event for one-off toasts from components
+    const handleShowNotification = (e: any) => {
+      setNotification({ message: e.detail.message });
+    };
+    window.addEventListener('show-notification', handleShowNotification);
+
     return () => {
       window.removeEventListener('show-auth-toast', handleAuthToast);
       window.removeEventListener('show-auth-error', handleAuthError);
+      window.removeEventListener('show-notification', handleShowNotification);
     };
   }, []);
 
@@ -1430,6 +1439,9 @@ function App() {
 
       {/* Vercel Analytics */}
       <Analytics />
+
+      {/* Wheel-to-Timeline Drag Ghost */}
+      <WheelDragGhost />
     </div>
   );
 }
