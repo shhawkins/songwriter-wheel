@@ -109,31 +109,46 @@ const addOctavesToNotes = (notes: string[], baseOctave: number = 3): string[] =>
 
 /**
  * Create effects chain for wet export
- * Simplified for offline context - just essential effects
+ * Uses simple delay-based effects that work in all contexts (no AudioWorklets).
+ * 
+ * Note: We avoid Tone.Reverb (async convolution), Tone.Freeverb, and Tone.JCReverb
+ * because they use AudioWorklets which require HTTPS/localhost and fail in Tone.Offline
+ * when accessed via local network IP.
  */
-const createEffectsChain = async (settings: EffectSettings, destination: Tone.ToneAudioNode) => {
-    // Create a simpler effects chain for offline rendering
-    // Full effects chain can cause issues in offline context
+const createEffectsChain = (settings: EffectSettings, destination: Tone.ToneAudioNode) => {
+    // Create a simple effects chain for offline rendering
+    // Avoid any effects that use AudioWorklets (Freeverb, JCReverb, etc.)
 
     const limiter = new Tone.Limiter(-3).connect(destination);
 
-    // Reverb needs to be awaited
-    const reverb = new Tone.Reverb({
-        decay: 2.0, // Shorter decay for offline
-        wet: settings.reverbMix,
-        preDelay: 0.01,
-    }).connect(limiter);
+    // Create a pseudo-reverb using multiple parallel delays with different times
+    // This creates a diffuse, reverb-like effect without AudioWorklets
+    const reverbMix = settings.reverbMix;
 
-    // MUST await reverb.ready or it will hang
-    await reverb.ready;
+    // Dry/wet mixer for reverb simulation
+    const reverbWet = new Tone.Gain(reverbMix * 0.5).connect(limiter);
+    const reverbDry = new Tone.Gain(1 - reverbMix * 0.3).connect(limiter);
 
-    const delay = new Tone.FeedbackDelay({
+    // Multiple delays at different times create diffusion (reverb-like)
+    const delay1 = new Tone.FeedbackDelay({ delayTime: 0.037, feedback: 0.3, wet: 1 }).connect(reverbWet);
+    const delay2 = new Tone.FeedbackDelay({ delayTime: 0.053, feedback: 0.25, wet: 1 }).connect(reverbWet);
+    const delay3 = new Tone.FeedbackDelay({ delayTime: 0.071, feedback: 0.2, wet: 1 }).connect(reverbWet);
+
+    // Split input to multiple delays and dry path
+    const reverbSplit = new Tone.Gain(1);
+    reverbSplit.connect(delay1);
+    reverbSplit.connect(delay2);
+    reverbSplit.connect(delay3);
+    reverbSplit.connect(reverbDry);
+
+    // Main delay effect (user-controlled)
+    const mainDelay = new Tone.FeedbackDelay({
         delayTime: 0.25,
         feedback: settings.delayFeedback * 0.5, // Reduce feedback for stability
         wet: settings.delayMix,
-    }).connect(reverb);
+    }).connect(reverbSplit);
 
-    const gain = new Tone.Gain(settings.instrumentGain).connect(delay);
+    const gain = new Tone.Gain(settings.instrumentGain).connect(mainDelay);
 
     const eq = new Tone.EQ3({
         low: -settings.tone,
@@ -147,8 +162,13 @@ const createEffectsChain = async (settings: EffectSettings, destination: Tone.To
         dispose: () => {
             eq.dispose();
             gain.dispose();
-            delay.dispose();
-            reverb.dispose();
+            mainDelay.dispose();
+            delay1.dispose();
+            delay2.dispose();
+            delay3.dispose();
+            reverbWet.dispose();
+            reverbDry.dispose();
+            reverbSplit.dispose();
             limiter.dispose();
         },
     };
@@ -318,12 +338,12 @@ export const exportSongAsAudio = async (
 
     // Use Tone.Offline to render audio
     const buffer = await Tone.Offline(async ({ transport, destination }) => {
-        let effectsChain: Awaited<ReturnType<typeof createEffectsChain>> | null = null;
+        let effectsChain: ReturnType<typeof createEffectsChain> | null = null;
         let instrumentDest: Tone.ToneAudioNode = destination;
 
         // Create destination (with or without effects)
         if (wet) {
-            effectsChain = await createEffectsChain(effectSettings, destination);
+            effectsChain = createEffectsChain(effectSettings, destination);
             instrumentDest = effectsChain.input;
         }
 

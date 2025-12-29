@@ -4,9 +4,8 @@
  * Supports multi-instrument batch export with ZIP bundling
  */
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import JSZip from 'jszip';
-import { saveAs } from 'file-saver';
 import {
     X,
     Download,
@@ -58,6 +57,7 @@ interface ExportProgress {
 export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, getPdfBlob }) => {
     const currentSong = useSongStore((state) => state.currentSong);
     const currentInstrument = useSongStore((state) => state.instrument);
+    const progressRef = useRef<HTMLDivElement>(null);
 
     // Selected instruments (default to current instrument)
     const [selectedInstruments, setSelectedInstruments] = useState<InstrumentType[]>([currentInstrument]);
@@ -74,6 +74,13 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, getPd
     const [isExporting, setIsExporting] = useState(false);
     const [progress, setProgress] = useState<ExportProgress | null>(null);
     const [error, setError] = useState<string | null>(null);
+
+    // Scroll to progress when it appears
+    useEffect(() => {
+        if (isExporting && progress && progressRef.current) {
+            progressRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    }, [isExporting, progress?.currentItem]); // Trigger when current item changes to keep it in view
 
     // Calculate total export items
     const totalExportItems = useMemo(() => {
@@ -216,29 +223,20 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, getPd
             const zipBlob = await zip.generateAsync({ type: 'blob' });
             const filename = `${baseFilename}-export.zip`;
 
-            // Try using File System Access API (Chrome) for reliable filename
-            if ('showSaveFilePicker' in window) {
-                try {
-                    const handle = await (window as any).showSaveFilePicker({
-                        suggestedName: filename,
-                        types: [{
-                            description: 'ZIP Archive',
-                            accept: { 'application/zip': ['.zip'] }
-                        }]
-                    });
-                    const writable = await handle.createWritable();
-                    await writable.write(zipBlob);
-                    await writable.close();
-                } catch (e: any) {
-                    // User cancelled or API failed - fall back to saveAs
-                    if (e.name !== 'AbortError') {
-                        saveAs(zipBlob, filename);
-                    }
-                }
-            } else {
-                // Fallback for browsers without File System Access API
-                saveAs(zipBlob, filename);
-            }
+            // Use a reliable download approach that works across browsers
+            // Create a temporary anchor element with download attribute
+            const url = URL.createObjectURL(zipBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+
+            // Append to body, click, and remove (required for Firefox)
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            // Revoke the object URL after a short delay to ensure download starts
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
 
             // Success - close modal
             onClose();
@@ -443,7 +441,10 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, getPd
 
                     {/* Progress */}
                     {isExporting && progress && (
-                        <div className="space-y-2 p-4 bg-gray-800/50 rounded-xl border border-gray-700/30">
+                        <div
+                            ref={progressRef}
+                            className="space-y-2 p-4 bg-gray-800/50 rounded-xl border border-gray-700/30"
+                        >
                             <div className="flex items-center gap-3">
                                 <Loader2 className="w-5 h-5 text-emerald-400 animate-spin" />
                                 <span className="text-sm text-gray-300">{progress.currentItem}</span>
