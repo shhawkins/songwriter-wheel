@@ -262,7 +262,7 @@ export const InstrumentManagerModal: React.FC<InstrumentManagerModalProps> = ({ 
                 <div className="bg-bg-elevated border border-border-subtle rounded-xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh]">
                     <div className="p-4 border-b border-border-subtle flex items-center justify-between">
                         <h2 className="text-lg font-bold text-text-primary">Create Instrument</h2>
-                        <button onClick={() => setView('list')} className="text-text-secondary hover:text-text-primary">
+                        <button onClick={() => setView('list')} className="text-text-secondary hover:text-text-primary" aria-label="Close">
                             <X size={20} />
                         </button>
                     </div>
@@ -322,7 +322,7 @@ export const InstrumentManagerModal: React.FC<InstrumentManagerModalProps> = ({ 
                                                 <span className="text-xs text-green-500 font-medium flex items-center gap-1">
                                                     <Check size={12} /> Recorded
                                                 </span>
-                                                <button onClick={() => handlePreview(note)} className="p-1 text-text-secondary hover:text-text-primary">
+                                                <button onClick={() => handlePreview(note)} className="p-1 text-text-secondary hover:text-text-primary" aria-label={`Preview ${note}`}>
                                                     <Play size={12} />
                                                 </button>
                                             </div>
@@ -352,6 +352,7 @@ export const InstrumentManagerModal: React.FC<InstrumentManagerModalProps> = ({ 
                                                     return next;
                                                 })}
                                                 className="p-2 rounded-full hover:bg-bg-elevated text-text-secondary hover:text-red-400 transition-colors"
+                                                aria-label={`Remove ${note} sample`}
                                             >
                                                 <Trash2 size={16} />
                                             </button>
@@ -395,7 +396,7 @@ export const InstrumentManagerModal: React.FC<InstrumentManagerModalProps> = ({ 
             <div className="bg-bg-elevated border border-border-subtle rounded-xl w-full max-w-md shadow-2xl flex flex-col max-h-[80vh]">
                 <div className="p-4 border-b border-border-subtle flex items-center justify-between">
                     <h2 className="text-lg font-bold text-text-primary">Manage Instruments</h2>
-                    <button onClick={onClose} className="text-text-secondary hover:text-text-primary">
+                    <button onClick={onClose} className="text-text-secondary hover:text-text-primary" aria-label="Close">
                         <X size={20} />
                     </button>
                 </div>
@@ -422,6 +423,7 @@ export const InstrumentManagerModal: React.FC<InstrumentManagerModalProps> = ({ 
                                     <button
                                         onClick={() => setDeleteConfirm({ id: inst.id, name: inst.name })}
                                         className="p-2 text-text-secondary hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
+                                        aria-label={`Delete ${inst.name}`}
                                     >
                                         <Trash2 size={16} />
                                     </button>

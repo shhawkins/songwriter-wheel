@@ -59,6 +59,7 @@ export interface Chord {
     notes: string[];
     symbol: string;
     inversion?: number; // 0 = root position, 1 = first inversion, 2 = second, etc.
+    bassNote?: string; // The lowest note in the chord (usually root, but different for inversions/slashed chords)
 }
 
 // CHORD_FORMULAS removed - using EXTENDED_CHORD_FORMULAS instead

@@ -15,9 +15,12 @@
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
 
-  <!-- Optimized viewport for mobile - prevent zoom, enable safe area -->
-  <meta name="viewport"
-    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <!-- Optimized viewport for mobile - enable safe area, allow user scaling for accessibility -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+  <!-- SEO Meta Description -->
+  <meta name="description"
+    content="Songwriter Wheel is an interactive chord wheel for songwriting and music theory. Build chord progressions, explore harmonies, and export your compositions as PDF, MIDI, or audio." />
 
   <!-- iOS-specific meta tags for PWA -->
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -36,13 +39,19 @@
 </head>
 
 <body>
-  <!-- Static elements for Google crawler verification -->
-  <h1 style="position:absolute;left:-9999px;top:-9999px;">Songwriter Wheel</h1>
+  <!-- Main landmark for accessibility -->
+  <main id="root"></main>
+
+  <!-- Fallback content for no-JS and SEO -->
   <noscript>
-    <a href="/privacy.html">Privacy Policy</a> | <a href="/terms.html">Terms of Service</a>
+    <h1>Songwriter Wheel</h1>
+    <p>An interactive chord wheel for songwriting and music theory. Build chord progressions, explore harmonies, and
+      export your compositions.</p>
+    <nav>
+      <a href="/privacy.html">Privacy Policy</a> | <a href="/terms.html">Terms of Service</a>
+    </nav>
   </noscript>
 
-  <div id="root"></div>
   <script type="module" src="/src/main.tsx"></script>
 
 </body>

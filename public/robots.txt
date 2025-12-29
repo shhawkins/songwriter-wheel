@@ -1,0 +1,8 @@
+# robots.txt for Songwriter Wheel
+# https://www.robotstxt.org/
+
+User-agent: *
+Allow: /
+
+# Sitemap (optional - add when you have one)
+# Sitemap: https://songwriterwheel.com/sitemap.xml

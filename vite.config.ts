@@ -78,6 +78,44 @@ export default defineConfig({
   build: {
     // Copy public folder contents to dist
     copyPublicDir: true,
+
+    // Minification - use terser for better compression
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true, // Remove console logs in production
+        drop_debugger: true,
+        pure_funcs: ['console.log', 'console.debug'],
+      },
+    },
+
+    // Code splitting with manual chunks
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Core React runtime - small, loads first, cached aggressively
+          'react-vendor': ['react', 'react-dom'],
+
+          // Audio libraries - large, only needed when user interacts
+          'audio-vendor': ['tone'],
+
+          // PDF/Export libraries - large, only needed for export
+          'export-vendor': ['jspdf', 'html2canvas', 'file-saver', 'jszip', 'midi-writer-js'],
+
+          // Auth & data
+          'data-vendor': ['@supabase/supabase-js', 'zustand'],
+
+          // UI utilities
+          'ui-vendor': ['lucide-react', 'clsx'],
+
+          // DnD libraries
+          'dnd-vendor': ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],
+        },
+      },
+    },
+
+    // Report chunk sizes
+    chunkSizeWarningLimit: 500, // Warn if chunk > 500KB
   }
 })
 

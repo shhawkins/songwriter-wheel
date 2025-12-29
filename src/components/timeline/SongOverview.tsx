@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, Suspense } from 'react';
 import { useMobileLayout } from '../../hooks/useIsMobile';
 import { VoiceSelector } from '../playback/VoiceSelector';
 import { useSongStore } from '../../store/useSongStore';
@@ -47,7 +47,9 @@ import { CSS } from '@dnd-kit/utilities';
 import { getSectionDisplayName, type Section } from '../../types';
 import { SongTimeline } from './SongTimeline';
 import { SectionOptionsPopup } from './SectionOptionsPopup';
-import { ExportModal } from '../ExportModal';
+
+// Lazy load ExportModal to reduce initial bundle (includes heavy PDF/audio export libs)
+const ExportModal = React.lazy(() => import('../ExportModal').then(module => ({ default: module.ExportModal })));
 
 interface SongOverviewProps {
     onSave?: () => void;
@@ -1358,16 +1360,17 @@ export const SongOverview: React.FC<SongOverviewProps> = ({ onSave, onExport }) 
                             <div className="flex items-center justify-between px-4 py-1">
                                 {/* Left: Zoom - Compact */}
                                 <div className="flex items-center gap-2 w-32">
-                                    <button onClick={() => setZoomLevel(Math.max(0.02, zoomLevel - 0.05))} className="p-1 active:text-white text-white/50"><ZoomOut size={16} /></button>
-                                    <input type="range" min="0.02" max="2" step="0.02" value={zoomLevel} onChange={handleZoomChange} className="flex-1 h-1 bg-white/10 rounded-full appearance-none" />
-                                    <button onClick={() => setZoomLevel(Math.min(2, zoomLevel + 0.05))} className="p-1 active:text-white text-white/50"><ZoomIn size={16} /></button>
+                                    <button onClick={() => setZoomLevel(Math.max(0.02, zoomLevel - 0.05))} className="p-1 active:text-white text-white/50" aria-label="Zoom Out"><ZoomOut size={16} /></button>
+                                    <input aria-label="Zoom Level" type="range" min="0.02" max="2" step="0.02" value={zoomLevel} onChange={handleZoomChange} className="flex-1 h-1 bg-white/10 rounded-full appearance-none" />
+                                    <button onClick={() => setZoomLevel(Math.min(2, zoomLevel + 0.05))} className="p-1 active:text-white text-white/50" aria-label="Zoom In"><ZoomIn size={16} /></button>
                                 </div>
 
                                 {/* Center: Play Controls - Inline */}
                                 <div className="flex items-center gap-6">
-                                    <button onClick={() => handleSkip('prev')} className="text-accent-primary p-2 active:scale-95"><SkipBack size={20} fill="currentColor" /></button>
+                                    <button onClick={() => handleSkip('prev')} className="text-accent-primary p-2 active:scale-95" aria-label="Previous Section"><SkipBack size={20} fill="currentColor" /></button>
                                     <button
                                         onClick={handlePlayPause}
+                                        aria-label={isPlaying ? "Pause" : "Play"}
                                         className={clsx(
                                             "w-8 h-8 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95",
                                             isPlaying ? "bg-accent-primary text-white" : "bg-accent-primary/20 text-accent-primary border border-accent-primary"
@@ -1375,7 +1378,7 @@ export const SongOverview: React.FC<SongOverviewProps> = ({ onSave, onExport }) 
                                     >
                                         {isPlaying ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" className="ml-0.5" />}
                                     </button>
-                                    <button onClick={() => handleSkip('next')} className="text-accent-primary p-2 active:scale-95"><SkipForward size={20} fill="currentColor" /></button>
+                                    <button onClick={() => handleSkip('next')} className="text-accent-primary p-2 active:scale-95" aria-label="Next Section"><SkipForward size={20} fill="currentColor" /></button>
                                 </div>
 
                                 {/* Right: Tempo - Minimal */}
@@ -1401,11 +1404,13 @@ export const SongOverview: React.FC<SongOverviewProps> = ({ onSave, onExport }) 
                                     <button
                                         onClick={() => setZoomLevel(Math.max(0.02, zoomLevel - 0.05))}
                                         className="p-2 -m-2 text-text-secondary active:text-white transition-colors"
+                                        aria-label="Zoom Out"
                                     >
                                         <ZoomOut size={18} />
                                     </button>
                                     <input
                                         type="range"
+                                        aria-label="Zoom Level"
                                         min="0.02"
                                         max="2"
                                         step="0.02"
@@ -1419,6 +1424,7 @@ export const SongOverview: React.FC<SongOverviewProps> = ({ onSave, onExport }) 
                                     <button
                                         onClick={() => setZoomLevel(Math.min(2, zoomLevel + 0.05))}
                                         className="p-2 -m-2 text-text-secondary active:text-white transition-colors"
+                                        aria-label="Zoom In"
                                     >
                                         <ZoomIn size={18} />
                                     </button>
@@ -1432,12 +1438,14 @@ export const SongOverview: React.FC<SongOverviewProps> = ({ onSave, onExport }) 
                                     <button
                                         onClick={() => handleSkip('prev')}
                                         className="text-accent-primary/80 hover:text-accent-primary transition-colors p-2 active:scale-95"
+                                        aria-label="Previous Section"
                                     >
                                         <SkipBack size={26} fill="currentColor" />
                                     </button>
 
                                     <button
                                         onClick={handlePlayPause}
+                                        aria-label={isPlaying ? "Pause" : "Play"}
                                         className={clsx(
                                             "w-16 h-16 rounded-full flex items-center justify-center shadow-xl transition-all active:scale-95",
                                             isPlaying ? "bg-accent-primary text-white shadow-accent-primary/30" : "bg-accent-primary/20 text-accent-primary border-2 border-accent-primary"
@@ -1453,6 +1461,7 @@ export const SongOverview: React.FC<SongOverviewProps> = ({ onSave, onExport }) 
                                     <button
                                         onClick={() => handleSkip('next')}
                                         className="text-accent-primary/80 hover:text-accent-primary transition-colors p-2 active:scale-95"
+                                        aria-label="Next Section"
                                     >
                                         <SkipForward size={26} fill="currentColor" />
                                     </button>
@@ -1507,11 +1516,15 @@ export const SongOverview: React.FC<SongOverviewProps> = ({ onSave, onExport }) 
 
             </div>
 
-            {/* Export Modal for Audio/MIDI export */}
-            <ExportModal
-                isOpen={exportModalOpen}
-                onClose={() => setExportModalOpen(false)}
-            />
+            {/* Export Modal for Audio/MIDI export - lazy loaded */}
+            <Suspense fallback={null}>
+                {exportModalOpen && (
+                    <ExportModal
+                        isOpen={exportModalOpen}
+                        onClose={() => setExportModalOpen(false)}
+                    />
+                )}
+            </Suspense>
         </>
     );
 };

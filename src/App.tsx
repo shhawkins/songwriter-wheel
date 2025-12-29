@@ -18,16 +18,16 @@ import { formatChordForDisplay, getQualitySymbol, getWheelColors } from './utils
 import { playChord } from './utils/audioEngine';
 
 import { ConfirmDialog } from './components/ui/ConfirmDialog';
-import { HelpModal } from './components/HelpModal';
 import { OnboardingTooltip } from './components/OnboardingTooltip';
 import { SongInfoModal } from './components/SongInfoModal';
 import { KeySelectorModal } from './components/KeySelectorModal';
 import { InstrumentControls } from './components/playback/InstrumentControls';
 import { PatchManagerModal } from './components/playback/PatchManagerModal';
-import { NotesModal } from './components/NotesModal';
-import { AuthModal } from './components/auth/AuthModal';
 
-// Lazy load heavy components
+// Lazy load heavy components - these are not needed on initial render
+const HelpModal = React.lazy(() => import('./components/HelpModal').then(module => ({ default: module.HelpModal })));
+const NotesModal = React.lazy(() => import('./components/NotesModal').then(module => ({ default: module.NotesModal })));
+const AuthModal = React.lazy(() => import('./components/auth/AuthModal').then(module => ({ default: module.AuthModal })));
 const InstrumentManagerModal = React.lazy(() => import('./components/playback/InstrumentManagerModal').then(module => ({ default: module.InstrumentManagerModal })));
 const ExportModal = React.lazy(() => import('./components/ExportModal').then(module => ({ default: module.ExportModal })));
 import { useAuthStore } from './stores/authStore';
@@ -1335,11 +1335,15 @@ function App() {
       {/* Song Overview Modal (Map) */}
       <SongOverview onSave={handleSave} onExport={handleExport} />
 
-      {/* Help Modal */}
-      <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
+      {/* Help Modal - Lazy Loaded */}
+      <React.Suspense fallback={null}>
+        {showHelp && <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} />}
+      </React.Suspense>
 
-      {/* Notes Modal */}
-      <NotesModal isOpen={notesModalVisible} onClose={() => toggleNotesModal(false)} />
+      {/* Notes Modal - Lazy Loaded */}
+      <React.Suspense fallback={null}>
+        {notesModalVisible && <NotesModal isOpen={notesModalVisible} onClose={() => toggleNotesModal(false)} />}
+      </React.Suspense>
 
       {/* Key Selector Modal */}
       <KeySelectorModal
@@ -1428,8 +1432,10 @@ function App() {
 
 
 
-      {/* Auth Modal */}
-      <AuthModal isOpen={isAuthModalOpen} onClose={() => useAuthStore.getState().setAuthModalOpen(false)} />
+      {/* Auth Modal - Lazy Loaded */}
+      <React.Suspense fallback={null}>
+        {isAuthModalOpen && <AuthModal isOpen={isAuthModalOpen} onClose={() => useAuthStore.getState().setAuthModalOpen(false)} />}
+      </React.Suspense>
 
 
 
