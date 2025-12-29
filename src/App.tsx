@@ -1,24 +1,24 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Analytics } from '@vercel/analytics/react';
+// Lazy load heavy UI components
 import { ChordWheel } from './components/wheel/ChordWheel';
 import { MobileTimeline } from './components/timeline/MobileTimeline';
 import { ChordDetails } from './components/panel/ChordDetails';
 import { PlaybackControls } from './components/playback/PlaybackControls';
-import { SongOverview } from './components/timeline/SongOverview';
+
 import { useSongStore } from './store/useSongStore';
-import { Download, Save, ChevronDown, ChevronUp, Plus, Minus, Clock, FolderOpen, FilePlus, Trash2, HelpCircle, FileAudio, FileText, ListMusic, ClipboardPen, Sliders } from 'lucide-react';
+import { Download, Save, ChevronDown, ChevronUp, Plus, Minus, Clock, FolderOpen, FilePlus, Trash2, HelpCircle, FileAudio, FileText, ListMusic, ClipboardPen, Sliders, Music2 } from 'lucide-react';
 import { Logo } from './components/Logo';
-import * as Tone from 'tone';
+// Tone import removed for code splitting
 import { saveAs } from 'file-saver';
 import { deleteSong } from './utils/storage';
-import { generatePdfDocument } from './utils/pdfGenerator';
+
 import { type Song } from './types';
-import { setInstrument, setVolume, setMute, initAudio, startSilentAudioForIOS, unlockAudioForIOS, setAudioResumeNeededCallback, tryResumeAudioContext } from './utils/audioEngine';
 import { formatChordForDisplay, getQualitySymbol, getWheelColors } from './utils/musicTheory';
-import { playChord } from './utils/audioEngine';
 
 import { ConfirmDialog } from './components/ui/ConfirmDialog';
 import { OnboardingTooltip } from './components/OnboardingTooltip';
+// Lazy load remaining modals/controls
 import { SongInfoModal } from './components/SongInfoModal';
 import { KeySelectorModal } from './components/KeySelectorModal';
 import { InstrumentControls } from './components/playback/InstrumentControls';
@@ -30,6 +30,8 @@ const NotesModal = React.lazy(() => import('./components/NotesModal').then(modul
 const AuthModal = React.lazy(() => import('./components/auth/AuthModal').then(module => ({ default: module.AuthModal })));
 const InstrumentManagerModal = React.lazy(() => import('./components/playback/InstrumentManagerModal').then(module => ({ default: module.InstrumentManagerModal })));
 const ExportModal = React.lazy(() => import('./components/ExportModal').then(module => ({ default: module.ExportModal })));
+const ModeFretboardModal = React.lazy(() => import('./components/panel/ModeFretboardModal').then(module => ({ default: module.ModeFretboardModal })));
+import { SongOverview } from './components/timeline/SongOverview';
 import { useAuthStore } from './stores/authStore';
 import { User as UserIcon } from 'lucide-react';
 import { useAudioSync } from './hooks/useAudioSync';
@@ -46,19 +48,19 @@ import { WheelDragGhost } from './components/wheel/WheelDragGhost';
 
 
 function App() {
-  const { currentSong, selectedKey, timelineVisible, toggleTimeline, setTitle, setArtist, setTags, setSongTimeSignature, loadSong: loadSongToStore, newSong, instrument, volume, isMuted, chordPanelVisible, isPlaying, songInfoModalVisible, toggleSongInfoModal, instrumentManagerModalVisible, toggleInstrumentManagerModal, toggleInstrumentControlsModal, cloudSongs, loadCloudSongs, saveToCloud, deleteFromCloud, isLoadingCloud, selectedChord, notesModalVisible, toggleNotesModal, isDirty } = useSongStore();
+  const { currentSong, selectedKey, timelineVisible, toggleTimeline, setTitle, setArtist, setTags, setSongTimeSignature, loadSong: loadSongToStore, newSong, instrument, volume, isMuted, chordPanelVisible, isPlaying, songInfoModalVisible, toggleSongInfoModal, instrumentManagerModalVisible, toggleInstrumentManagerModal, toggleInstrumentControlsModal, cloudSongs, loadCloudSongs, saveToCloud, deleteFromCloud, isLoadingCloud, selectedChord, notesModalVisible, toggleNotesModal, isDirty, openModeFretboard } = useSongStore();
 
   // Audio Sync Logic
   useEffect(() => {
-    setInstrument(instrument);
+    import('./utils/audioEngine').then(mod => mod.setInstrument(instrument));
   }, [instrument]);
 
   useEffect(() => {
-    setVolume(volume);
+    import('./utils/audioEngine').then(mod => mod.setVolume(volume));
   }, [volume]);
 
   useEffect(() => {
-    setMute(isMuted);
+    import('./utils/audioEngine').then(mod => mod.setMute(isMuted));
   }, [isMuted]);
 
   // Audio effects sync - MUST be in App.tsx (always mounted)
@@ -361,11 +363,13 @@ function App() {
 
   // Register callback for audio resume prompt (handles iOS edge cases)
   useEffect(() => {
-    setAudioResumeNeededCallback((needed: boolean) => {
-      setShowAudioResumePrompt(needed);
+    import('./utils/audioEngine').then(mod => {
+      mod.setAudioResumeNeededCallback((needed: boolean) => {
+        setShowAudioResumePrompt(needed);
+      });
     });
     return () => {
-      setAudioResumeNeededCallback(null);
+      import('./utils/audioEngine').then(mod => mod.setAudioResumeNeededCallback(null));
     };
   }, []);
 
@@ -374,10 +378,11 @@ function App() {
       try {
         // Start the silent audio element first - critical for iOS ringer switch workaround
         // This must happen BEFORE Tone.js starts
-        startSilentAudioForIOS();
+        const audioEngine = await import('./utils/audioEngine');
+        audioEngine.startSilentAudioForIOS();
 
-        await Tone.start();
-        await initAudio();
+        // Tone.start() moved to audioEngine/deferred
+        await audioEngine.initAudio();
         setAudioReady(true);
       } catch (error) {
         console.error('Audio initialization failed:', error);
@@ -388,7 +393,8 @@ function App() {
     const handleInteraction = async () => {
       if (!audioReady) {
         // Unlock iOS audio first (this also starts silent audio if not started)
-        await unlockAudioForIOS();
+        const audioEngine = await import('./utils/audioEngine');
+        await audioEngine.unlockAudioForIOS();
         startAudio();
       }
     };
@@ -594,15 +600,17 @@ function App() {
   /**
    * Get PDF as blob for export bundling
    */
-  const getPdfBlob = useCallback((): Blob => {
+  const getPdfBlob = useCallback(async (): Promise<Blob> => {
+    const { generatePdfDocument } = await import('./utils/pdfGenerator');
     const doc = generatePdfDocument(currentSong, selectedKey);
     return doc.output('blob');
-  }, [currentSong.title, currentSong.artist, currentSong.key, currentSong.tempo, currentSong.sections]);
+  }, [currentSong, selectedKey]);
 
   /**
    * Export PDF directly (for single-click PDF export)
    */
-  const handleExport = () => {
+  const handleExport = async () => {
+    const { generatePdfDocument } = await import('./utils/pdfGenerator');
     const doc = generatePdfDocument(currentSong, selectedKey);
 
     // Generate filename
@@ -628,18 +636,15 @@ function App() {
   // Note: We render conditionally inside the return statement instead of early return
   // to maintain consistent hook ordering across renders
 
-  return authLoading ? (
-    <div className="h-full w-full flex items-center justify-center bg-bg-secondary">
-      <div className="w-8 h-8 border-2 border-accent-primary border-t-transparent rounded-full animate-spin" />
-    </div>
-  ) : (
+  return (
     <div className={`h-full w-full flex flex-col bg-bg-secondary text-text-primary overflow-hidden pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]`}>
       {/* Audio Resume Prompt - appears when returning to suspended audio context on iOS */}
       {showAudioResumePrompt && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in"
           onClick={async () => {
-            const resumed = await tryResumeAudioContext();
+            const audioEngine = await import('./utils/audioEngine');
+            const resumed = await audioEngine.tryResumeAudioContext();
             if (resumed) {
               setShowAudioResumePrompt(false);
             }
@@ -697,9 +702,16 @@ function App() {
             onClick={() => useAuthStore.getState().setAuthModalOpen(true)}
             className={`flex items-center gap-2 p-[10px] ${isMobile ? 'text-xs' : 'text-[10px]'} text-text-muted hover:bg-bg-tertiary rounded-lg transition-colors touch-feedback`}
             title={user ? `Logged in as ${user.email}` : "Sign In / Sign Up"}
+            aria-label={user ? "Account settings" : "Sign In or Sign Up"}
           >
-            <UserIcon size={isMobile ? 16 : 14} className={user ? "text-accent-primary" : ""} />
-            {!isMobile && <span className="font-bold uppercase hidden sm:inline">{user ? 'Account' : 'Login'}</span>}
+            {authLoading ? (
+              <div className="w-3 h-3 border-2 border-text-muted border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <>
+                <UserIcon size={isMobile ? 16 : 14} className={user ? "text-accent-primary" : ""} />
+                {!isMobile && <span className="font-bold uppercase hidden sm:inline">{user ? 'Account' : 'Login'}</span>}
+              </>
+            )}
           </button>
 
 
@@ -1041,7 +1053,34 @@ function App() {
               </button>
             )}
 
-            {/* Instrument Controls button - next to VoicingPicker button */}
+            {/* Scales/Modes button - next to Notes on the LEFT */}
+            <button
+              onClick={() => {
+                openModeFretboard({
+                  scaleNotes: [],
+                  rootNote: selectedKey,
+                  modeName: 'Ionian',
+                  color: '#EAB308'
+                });
+              }}
+              onTouchEnd={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                openModeFretboard({
+                  scaleNotes: [],
+                  rootNote: selectedKey,
+                  modeName: 'Ionian',
+                  color: '#EAB308'
+                });
+              }}
+              className={`absolute ${isMobile && isLandscape ? 'bottom-2 left-12 w-8 h-8' : isMobile ? 'bottom-3 left-16 w-11 h-11' : 'bottom-3 left-14 w-9 h-9'} flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-purple-400 transition-colors shadow-lg border border-border-subtle z-50`}
+              style={{ touchAction: 'auto', pointerEvents: 'auto' }}
+              title="Open Scales & Modes"
+            >
+              <Music2 size={isMobile && isLandscape ? 14 : isMobile ? 20 : 16} />
+            </button>
+
+            {/* Instrument Controls button - on the RIGHT */}
             <button
               onClick={() => toggleInstrumentControlsModal()}
               onTouchEnd={(e) => {
@@ -1097,7 +1136,7 @@ function App() {
                   onClick={(e) => {
                     e.stopPropagation();
                     e.preventDefault();
-                    playChord(selectedChord.notes);
+                    import('./utils/audioEngine').then(mod => mod.playChord(selectedChord.notes));
                   }}
                   onTouchStart={(e) => {
                     e.stopPropagation();
@@ -1105,7 +1144,7 @@ function App() {
                   onTouchEnd={(e) => {
                     e.stopPropagation();
                     e.preventDefault();
-                    playChord(selectedChord.notes);
+                    import('./utils/audioEngine').then(mod => mod.playChord(selectedChord.notes));
                   }}
                 >
                   <span className="text-sm font-bold leading-none">{shortName}</span>
@@ -1346,21 +1385,25 @@ function App() {
       </React.Suspense>
 
       {/* Key Selector Modal */}
-      <KeySelectorModal
-        isOpen={showKeySelector}
-        onClose={() => setShowKeySelector(false)}
-      />
+      {showKeySelector && (
+        <KeySelectorModal
+          isOpen={showKeySelector}
+          onClose={() => setShowKeySelector(false)}
+        />
+      )}
 
       {/* Song Info Modal */}
-      <SongInfoModal
-        isOpen={songInfoModalVisible}
-        onClose={() => toggleSongInfoModal(false)}
-        title={currentSong.title}
-        artist={currentSong.artist || ''}
-        tags={currentSong.tags || []}
-        timeSignature={currentSong.timeSignature}
-        onSave={handleSongInfoSave}
-      />
+      {songInfoModalVisible && (
+        <SongInfoModal
+          isOpen={songInfoModalVisible}
+          onClose={() => toggleSongInfoModal(false)}
+          title={currentSong.title}
+          artist={currentSong.artist || ''}
+          tags={currentSong.tags || []}
+          timeSignature={currentSong.timeSignature}
+          onSave={handleSongInfoSave}
+        />
+      )}
 
       {/* Lazy loaded modals */}
       <React.Suspense fallback={
@@ -1379,6 +1422,8 @@ function App() {
             getPdfBlob={getPdfBlob}
           />
         )}
+
+        <ModeFretboardModal />
       </React.Suspense>
 
       {/* Instrument Controls Modal - rendered at app level to persist through header/footer visibility changes */}

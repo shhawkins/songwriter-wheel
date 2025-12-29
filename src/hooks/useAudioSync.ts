@@ -12,25 +12,26 @@
 
 import { useEffect } from 'react';
 import { useSongStore } from '../store/useSongStore';
-import {
-    scheduleSong,
-    setTempo as setAudioTempo,
-    setInstrument as setAudioInstrument,
-    toggleLoopMode,
-    setTone as setAudioTone,
-    setMasterGain as setAudioMasterGain,
-    setReverbMix as setAudioReverbMix,
-    setDelayMix as setAudioDelayMix,
-    setChorusMix as setAudioChorusMix,
-    setVibratoDepth as setAudioVibratoDepth,
-    setDistortionAmount as setAudioDistortionAmount,
-    setDelayFeedback as setAudioDelayFeedback,
-    setTremoloDepth as setAudioTremoloDepth,
-    setPhaserMix as setAudioPhaserMix,
-    setFilterMix as setAudioFilterMix,
-    setPitchShift as setAudioPitchShift,
-    preloadAudio
-} from '../utils/audioEngine';
+// Static imports removed to allow code splitting of audio engine
+// import {
+//     scheduleSong,
+//     setTempo as setAudioTempo,
+//     setInstrument as setAudioInstrument,
+//     toggleLoopMode,
+//     setTone as setAudioTone,
+//     setMasterGain as setAudioMasterGain,
+//     setReverbMix as setAudioReverbMix,
+//     setDelayMix as setAudioDelayMix,
+//     setChorusMix as setAudioChorusMix,
+//     setVibratoDepth as setAudioVibratoDepth,
+//     setDistortionAmount as setAudioDistortionAmount,
+//     setDelayFeedback as setAudioDelayFeedback,
+//     setTremoloDepth as setAudioTremoloDepth,
+//     setPhaserMix as setAudioPhaserMix,
+//     setFilterMix as setAudioFilterMix,
+//     setPitchShift as setAudioPitchShift,
+//     preloadAudio
+// } from '../utils/audioEngine';
 
 export const useAudioSync = () => {
     const {
@@ -56,86 +57,101 @@ export const useAudioSync = () => {
 
     // Sync song structure to audio engine
     useEffect(() => {
-        scheduleSong(currentSong);
+        import('../utils/audioEngine').then(mod => mod.scheduleSong(currentSong));
     }, [currentSong]);
 
     // Sync tempo to audio engine
     useEffect(() => {
-        setAudioTempo(tempo);
+        import('../utils/audioEngine').then(mod => mod.setTempo(tempo));
     }, [tempo]);
 
     // Sync instrument to audio engine
     useEffect(() => {
-        setAudioInstrument(instrument);
+        import('../utils/audioEngine').then(mod => mod.setInstrument(instrument));
     }, [instrument]);
 
     // Sync looping state to audio engine
     useEffect(() => {
-        toggleLoopMode();
+        import('../utils/audioEngine').then(mod => mod.toggleLoopMode());
     }, [isLooping, currentSong, playingSectionId, selectedSectionId]);
 
     // Sync tone control (tilt)
     useEffect(() => {
-        setAudioTone(tone);
+        import('../utils/audioEngine').then(mod => mod.setTone(tone));
     }, [tone]);
 
     // Sync master gain
     useEffect(() => {
-        setAudioMasterGain(instrumentGain);
+        import('../utils/audioEngine').then(mod => mod.setMasterGain(instrumentGain));
     }, [instrumentGain]);
 
     // Sync reverb mix
     useEffect(() => {
-        setAudioReverbMix(reverbMix);
+        import('../utils/audioEngine').then(mod => mod.setReverbMix(reverbMix));
     }, [reverbMix]);
 
     // Sync delay mix
     useEffect(() => {
-        setAudioDelayMix(delayMix);
+        import('../utils/audioEngine').then(mod => mod.setDelayMix(delayMix));
     }, [delayMix]);
 
     // Sync chorus mix
     useEffect(() => {
-        setAudioChorusMix(chorusMix);
+        import('../utils/audioEngine').then(mod => mod.setChorusMix(chorusMix));
     }, [chorusMix]);
 
     // Sync vibrato depth
     useEffect(() => {
-        setAudioVibratoDepth(vibratoDepth);
+        import('../utils/audioEngine').then(mod => mod.setVibratoDepth(vibratoDepth));
     }, [vibratoDepth]);
 
     // Sync distortion amount
     useEffect(() => {
-        setAudioDistortionAmount(distortionAmount);
+        import('../utils/audioEngine').then(mod => mod.setDistortionAmount(distortionAmount));
     }, [distortionAmount]);
 
     // Sync pitch shift
     useEffect(() => {
-        setAudioPitchShift(pitchShift);
+        import('../utils/audioEngine').then(mod => mod.setPitchShift(pitchShift));
     }, [pitchShift]);
 
     // Sync delay feedback
     useEffect(() => {
-        setAudioDelayFeedback(delayFeedback);
+        import('../utils/audioEngine').then(mod => mod.setDelayFeedback(delayFeedback));
     }, [delayFeedback]);
 
     // Sync tremolo depth
     useEffect(() => {
-        setAudioTremoloDepth(tremoloDepth);
+        import('../utils/audioEngine').then(mod => mod.setTremoloDepth(tremoloDepth));
     }, [tremoloDepth]);
 
     // Sync phaser mix
     useEffect(() => {
-        setAudioPhaserMix(phaserMix);
+        import('../utils/audioEngine').then(mod => mod.setPhaserMix(phaserMix));
     }, [phaserMix]);
 
     // Sync filter mix
     useEffect(() => {
-        setAudioFilterMix(filterMix);
+        import('../utils/audioEngine').then(mod => mod.setFilterMix(filterMix));
     }, [filterMix]);
 
-    // Preload audio on mount
+    // Preload audio on mount, but defer to avoid blocking main thread
     useEffect(() => {
-        preloadAudio().catch(console.error);
+        const deferAudio = () => {
+            // Using a timeout gives the UI a chance to settle first (LCP)
+            setTimeout(() => {
+                setTimeout(() => {
+                    import('../utils/audioEngine').then(mod => mod.preloadAudio().catch(console.error));
+                }, 2000); // 2 second delay to prioritize visual rendering
+            }, 2000); // 2 second delay to prioritize visual rendering
+        };
+
+        if ('requestIdleCallback' in window) {
+            (window as any).requestIdleCallback(() => {
+                deferAudio();
+            });
+        } else {
+            deferAudio();
+        }
     }, []);
 };

@@ -234,6 +234,9 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
                         variant === 'compact' ? "h-9 px-3 text-xs" :
                             "h-10 px-4 text-sm"
                 )}
+                aria-label="Select Instrument"
+                aria-haspopup="true"
+                aria-expanded={showMenu}
             >
                 {getInstrumentIcon(instrument)}
                 {showLabel && <span className="font-medium whitespace-nowrap">{currentLabel}</span>}
@@ -264,78 +267,85 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
                         onInteraction?.();
                     }}
                     title="Open instrument settings"
+                    aria-label="Instrument Settings"
                 >
                     <Settings2
                         size={variant === 'tiny' ? 14 : 16}
                     />
                 </button>
-            )}
+            )
+            }
 
-            {showMenu && createPortal(
-                <div
-                    className={clsx(
-                        "voice-selector-menu", // Identifier for click-outside check
-                        "bg-bg-elevated border border-border-medium rounded-xl shadow-2xl overflow-y-auto max-h-72 flex flex-col p-1.5",
-                        "animate-in fade-in zoom-in-95 duration-150"
-                    )}
-                    style={{
-                        ...menuStyle,
-                        width: '12rem', // w-48
-                    }}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onTouchStart={(e) => e.stopPropagation()}
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    <div className="px-2 py-1.5 mb-1 text-[10px] font-bold text-text-muted uppercase tracking-wider">
-                        Select Voice
-                    </div>
-                    {instrumentOptions.map((opt) => (
-                        <button
-                            key={opt.value}
-                            onClick={() => handleSelect(opt.value)}
-                            onTouchStart={handleItemTouchStart}
-                            onTouchEnd={(e) => handleItemTouchEnd(e, opt.value)}
-                            className={clsx(
-                                "text-left px-3 py-2 rounded-lg text-sm transition-all flex items-center justify-between group",
-                                instrument === opt.value
-                                    ? "bg-accent-primary/20 text-accent-primary"
-                                    : "text-text-secondary hover:text-text-primary hover:bg-bg-tertiary"
-                            )}
-                        >
-                            <div className="flex items-center gap-2.5">
-                                <span className={clsx(
-                                    "transition-colors",
-                                    instrument === opt.value ? "text-accent-primary" : "text-text-muted group-hover:text-text-secondary"
-                                )}>
-                                    {getInstrumentIcon(opt.value)}
-                                </span>
-                                <span className="font-medium">{opt.label}</span>
-                            </div>
-                            {instrument === opt.value && <Check size={14} className="text-accent-primary" />}
-                        </button>
-                    ))}
-
-                    <div className="h-px bg-border-subtle my-1.5 mx-2" />
-
-                    <button
-                        onClick={() => {
-                            toggleInstrumentManagerModal(true);
-                            setShowMenu(false);
-                            onInteraction?.();
-                        }}
-                        onTouchStart={handleItemTouchStart}
-                        onTouchEnd={handleManageButtonTouchEnd}
+            {
+                showMenu && createPortal(
+                    <div
                         className={clsx(
-                            "text-left px-3 py-2.5 rounded-lg text-sm transition-all flex items-center gap-2.5",
-                            "text-accent-primary hover:bg-accent-primary/10 font-semibold"
+                            "voice-selector-menu", // Identifier for click-outside check
+                            "bg-bg-elevated border border-border-medium rounded-xl shadow-2xl overflow-y-auto max-h-72 flex flex-col p-1.5",
+                            "animate-in fade-in zoom-in-95 duration-150"
                         )}
+                        style={{
+                            ...menuStyle,
+                            width: '12rem', // w-48
+                        }}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onTouchStart={(e) => e.stopPropagation()}
+                        onClick={(e) => e.stopPropagation()}
+                        role="menu"
                     >
-                        <Plus size={16} />
-                        Manage Instruments
-                    </button>
-                </div>,
-                document.body
-            )}
-        </div>
+                        <div className="px-2 py-1.5 mb-1 text-[10px] font-bold text-text-muted uppercase tracking-wider">
+                            Select Voice
+                        </div>
+                        {instrumentOptions.map((opt) => (
+                            <button
+                                key={opt.value}
+                                onClick={() => handleSelect(opt.value)}
+                                onTouchStart={handleItemTouchStart}
+                                onTouchEnd={(e) => handleItemTouchEnd(e, opt.value)}
+                                className={clsx(
+                                    "text-left px-3 py-2 rounded-lg text-sm transition-all flex items-center justify-between group",
+                                    instrument === opt.value
+                                        ? "bg-accent-primary/20 text-accent-primary"
+                                        : "text-text-secondary hover:text-text-primary hover:bg-bg-tertiary"
+                                )}
+                                role="menuitem"
+                            >
+                                <div className="flex items-center gap-2.5">
+                                    <span className={clsx(
+                                        "transition-colors",
+                                        instrument === opt.value ? "text-accent-primary" : "text-text-muted group-hover:text-text-secondary"
+                                    )}>
+                                        {getInstrumentIcon(opt.value)}
+                                    </span>
+                                    <span className="font-medium">{opt.label}</span>
+                                </div>
+                                {instrument === opt.value && <Check size={14} className="text-accent-primary" />}
+                            </button>
+                        ))}
+
+                        <div className="h-px bg-border-subtle my-1.5 mx-2" />
+
+                        <button
+                            onClick={() => {
+                                toggleInstrumentManagerModal(true);
+                                setShowMenu(false);
+                                onInteraction?.();
+                            }}
+                            onTouchStart={handleItemTouchStart}
+                            onTouchEnd={handleManageButtonTouchEnd}
+                            className={clsx(
+                                "text-left px-3 py-2.5 rounded-lg text-sm transition-all flex items-center gap-2.5",
+                                "text-accent-primary hover:bg-accent-primary/10 font-semibold"
+                            )}
+                            role="menuitem"
+                        >
+                            <Plus size={16} />
+                            Manage Instruments
+                        </button>
+                    </div>,
+                    document.body
+                )
+            }
+        </div >
     );
 };

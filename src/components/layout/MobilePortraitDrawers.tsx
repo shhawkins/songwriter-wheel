@@ -127,6 +127,9 @@ export const MobilePortraitDrawers: React.FC<MobilePortraitDrawersProps> = ({
                 onTouchMove={handleToggleBarTouchMove}
                 onTouchEnd={handleToggleBarTouchEnd}
                 onClick={handleToggleBarClick}
+                role="button"
+                tabIndex={0}
+                aria-label={chordPanelVisible ? "Collapse details" : "Expand details and timeline"}
             >
                 {/* Actual handle area - stays at top */}
                 <div className="h-6 w-full flex items-center justify-center">

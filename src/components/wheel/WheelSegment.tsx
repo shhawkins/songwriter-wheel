@@ -4,6 +4,7 @@ import type { Chord } from '../../utils/musicTheory';
 import { formatChordForDisplay } from '../../utils/musicTheory';
 import clsx from 'clsx';
 import * as Tone from 'tone';
+import { useSongStore } from '../../store/useSongStore';
 import { wheelDragState } from '../../utils/wheelDragState';
 
 interface WheelSegmentProps {
@@ -355,6 +356,12 @@ export const WheelSegment: React.FC<WheelSegmentProps> = ({
         if (distance > 10 && !isDragToTimelineRef.current) {
             isDragToTimelineRef.current = true;
             wheelDragState.startDrag(chord);
+
+            // Auto-open timeline if needed
+            const state = useSongStore.getState();
+            if (!state.timelineVisible) {
+                state.openTimeline();
+            }
         }
 
         if (isDragToTimelineRef.current) {
@@ -413,6 +420,13 @@ export const WheelSegment: React.FC<WheelSegmentProps> = ({
         if (distance > 15 && !isDragToTimelineRef.current) {
             isDragToTimelineRef.current = true;
             wheelDragState.startDrag(chord);
+
+            // Auto-open timeline if needed
+            const state = useSongStore.getState();
+            if (!state.timelineVisible) {
+                state.openTimeline();
+            }
+
             e.preventDefault(); // Prevent scrolling while dragging
         }
 

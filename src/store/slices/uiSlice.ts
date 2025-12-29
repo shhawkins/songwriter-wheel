@@ -37,6 +37,15 @@ export interface UIState {
 
     // Modal Z-Index Management
     modalStack: string[];
+
+    // Mode Fretboard Modal State
+    modeFretboardModalVisible: boolean;
+    modeFretboardData: {
+        scaleNotes: string[];
+        rootNote: string;
+        modeName: string;
+        color: string;
+    } | null;
 }
 
 export interface UIActions {
@@ -61,6 +70,8 @@ export interface UIActions {
     toggleKeyLock: () => void;
     toggleNotesModal: (force?: boolean) => void;
     bringToFront: (modalId: string) => void;
+    openModeFretboard: (data: { scaleNotes: string[]; rootNote: string; modeName: string; color: string }) => void;
+    closeModeFretboard: () => void;
 }
 
 export type UISlice = UIState & UIActions;
@@ -112,6 +123,8 @@ export const createUISlice: StateCreator<
     isKeyLocked: false,
     notesModalVisible: false,
     modalStack: [],
+    modeFretboardModalVisible: false,
+    modeFretboardData: null,
 
     toggleKeyLock: () => set((state: UIState) => ({ isKeyLocked: !state.isKeyLocked })),
 
@@ -255,4 +268,15 @@ export const createUISlice: StateCreator<
     toggleNotesModal: (force) => set((state: UIState) => ({
         notesModalVisible: force !== undefined ? force : !state.notesModalVisible
     })),
+    openModeFretboard: (data) => set((state: UIState) => {
+        // Automatically add to stack
+        const modalId = 'mode-fretboard-modal';
+        const newStack = state.modalStack.filter(id => id !== modalId);
+        return {
+            modeFretboardModalVisible: true,
+            modeFretboardData: data,
+            modalStack: [...newStack, modalId]
+        };
+    }),
+    closeModeFretboard: () => set({ modeFretboardModalVisible: false }),
 });

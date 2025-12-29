@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { ChevronDown, Guitar } from 'lucide-react';
+import { ChevronDown, Guitar, Search } from 'lucide-react';
 import { getMajorScale, formatChordForDisplay, getDiatonicChords } from '../../utils/musicTheory';
 import { ModeFretboard } from './ModeFretboard';
 import { PlayableScaleStrip } from './PlayableScaleStrip';
+import { useSongStore } from '../../store/useSongStore';
 
 interface ChordScalesProps {
     selectedKey: string;
@@ -131,9 +132,36 @@ export const ChordScales: React.FC<ChordScalesProps> = ({
                                                 <span className="text-[11px] uppercase tracking-wider text-text-secondary font-bold">
                                                     Guitar Fretboard
                                                 </span>
+                                                <div className="flex-1" />
+                                                <div
+                                                    className="cursor-pointer hover:bg-white/10 rounded p-0.5 transition-colors"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        useSongStore.getState().openModeFretboard({
+                                                            scaleNotes: modeScaleNotes,
+                                                            rootNote,
+                                                            modeName: mode.name,
+                                                            color: modeColor
+                                                        });
+                                                    }}
+                                                >
+                                                    <Search size={14} className="text-text-secondary opacity-70 hover:opacity-100" />
+                                                </div>
                                             </div>
 
-                                            <div className="bg-black/40 rounded-lg p-2 border border-white/5 shadow-inner">
+                                            <div
+                                                className="bg-black/40 rounded-lg p-2 border border-white/5 shadow-inner cursor-pointer hover:border-white/20 transition-colors group relative"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    useSongStore.getState().openModeFretboard({
+                                                        scaleNotes: modeScaleNotes,
+                                                        rootNote,
+                                                        modeName: mode.name,
+                                                        color: modeColor
+                                                    });
+                                                }}
+                                                title="Tap to enlarge"
+                                            >
                                                 <ModeFretboard
                                                     scaleNotes={modeScaleNotes}
                                                     rootNote={rootNote}

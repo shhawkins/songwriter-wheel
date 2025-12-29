@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { wheelDragState } from '../../utils/wheelDragState';
 import { formatChordForDisplay, getWheelColors } from '../../utils/musicTheory';
 import { useSongStore } from '../../store/useSongStore';
-import { playChord } from '../../utils/audioEngine';
+
 
 /**
  * Visual ghost that follows the cursor when dragging a chord from the wheel to the timeline.
@@ -75,7 +75,7 @@ export const WheelDragGhost: React.FC = () => {
             addChordToSlot(state.chord, hoveredSectionId, hoveredSlotId);
             setSelectedSlot(hoveredSectionId, hoveredSlotId);
             setSelectedChord(state.chord);
-            playChord(state.chord.notes || []);
+            import('../../utils/audioEngine').then(mod => mod.playChord(state.chord.notes || []));
         }
 
         // Clean up CSS classes

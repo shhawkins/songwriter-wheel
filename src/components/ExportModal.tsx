@@ -29,7 +29,7 @@ interface ExportModalProps {
     isOpen: boolean;
     onClose: () => void;
     /** Function to generate PDF as Blob */
-    getPdfBlob?: () => Blob;
+    getPdfBlob?: () => Blob | Promise<Blob>;
 }
 
 // Built-in instruments available for export (matches VoiceSelector.tsx)
@@ -127,7 +127,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, getPd
                     currentItem: 'Creating PDF...',
                 });
 
-                const pdfBlob = getPdfBlob();
+                const pdfBlob = await getPdfBlob();
                 zip.file(`${baseFilename}.pdf`, pdfBlob);
                 currentProgress++;
             }

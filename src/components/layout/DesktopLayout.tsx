@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { ChevronDown, ChevronUp, HelpCircle, ListMusic, ClipboardPen, Sliders } from 'lucide-react';
+import { ChevronDown, ChevronUp, HelpCircle, ListMusic, ClipboardPen, Sliders, Music2 } from 'lucide-react';
 import { useSongStore } from '../../store/useSongStore';
 import { MobileTimeline } from '../timeline/MobileTimeline';
 import { ChordDetails } from '../panel/ChordDetails';
@@ -63,6 +63,8 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
         toggleTimeline,
         selectedChord,
         toggleInstrumentControlsModal,
+        selectedKey,
+        openModeFretboard,
     } = useSongStore();
 
     // Timeline height - compact design matching mobile aesthetic
@@ -251,6 +253,7 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
                     onClick={(e) => { e.stopPropagation(); onOpenHelp(); }}
                     className="absolute top-3 right-3 w-9 h-9 flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-accent-primary transition-colors shadow-lg border border-border-subtle z-50"
                     title="Songwriter Wheel Guide"
+                    aria-label="Songwriter Wheel Guide"
                 >
                     <HelpCircle size={18} />
                 </button>
@@ -260,17 +263,39 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
                     className="absolute bottom-3 left-3 w-9 h-9 flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-amber-400 transition-colors shadow-lg border border-border-subtle z-50"
                     style={{ bottom: timelineVisible ? `${timelineHeight + 12}px` : `${collapsedHeight + 12}px`, transition: 'bottom 0.3s ease-out' }}
                     title="Song Notes & Lyrics"
+                    aria-label="Song Notes and Lyrics"
                 >
                     <ClipboardPen size={16} />
                 </button>
 
-                {/* Instrument Controls Button - next to VoicingPicker */}
+                {/* Scales/Modes Button - next to Notes on the LEFT */}
+                <button
+                    data-scales-modes
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        openModeFretboard({
+                            scaleNotes: [],
+                            rootNote: selectedKey,
+                            modeName: 'Ionian',
+                            color: '#EAB308'
+                        });
+                    }}
+                    className="absolute bottom-3 left-16 w-9 h-9 flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-purple-400 transition-colors shadow-lg border border-border-subtle z-50"
+                    style={{ bottom: timelineVisible ? `${timelineHeight + 12}px` : `${collapsedHeight + 12}px`, transition: 'bottom 0.3s ease-out' }}
+                    title="Open Scales & Modes"
+                    aria-label="Open Scales and Modes"
+                >
+                    <Music2 size={16} />
+                </button>
+
+                {/* Instrument Controls Button - on the RIGHT */}
                 <button
                     data-instrument-controls
                     onClick={(e) => { e.stopPropagation(); toggleInstrumentControlsModal(); }}
                     className="absolute bottom-3 right-16 w-9 h-9 flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-accent-primary transition-colors shadow-lg border border-border-subtle z-50"
                     style={{ bottom: timelineVisible ? `${timelineHeight + 12}px` : `${collapsedHeight + 12}px`, transition: 'bottom 0.3s ease-out' }}
                     title="Open Sound Controls"
+                    aria-label="Open Sound Controls"
                 >
                     <Sliders size={16} />
                 </button>
@@ -281,6 +306,7 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
                         className="absolute bottom-3 right-3 w-9 h-9 flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-accent-primary transition-colors shadow-lg border border-border-subtle z-50"
                         style={{ bottom: timelineVisible ? `${timelineHeight + 12}px` : `${collapsedHeight + 12}px`, transition: 'bottom 0.3s ease-out' }}
                         title="Open Voicing Picker"
+                        aria-label="Open Voicing Picker"
                     >
                         <ListMusic size={16} />
                     </button>
@@ -305,6 +331,9 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
                         onMouseLeave={handleMouseLeave}
                         onClick={handleTimelineClick}
                         title={timelineVisible ? 'Click to collapse' : 'Click to expand'}
+                        role="button"
+                        aria-label={timelineVisible ? 'Collapse Timeline' : 'Expand Timeline'}
+                        tabIndex={0}
                     >
                         <div className="flex items-center gap-1.5 text-[10px] text-text-muted font-bold tracking-wider uppercase pointer-events-none">
                             {timelineVisible ? <ChevronDown size={12} /> : <ChevronUp size={12} />}

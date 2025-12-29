@@ -1003,6 +1003,29 @@ export const playNote = async (note: string, octave: number = 4, duration: strin
     }
 };
 
+/**
+ * Play a note on a specific instrument, ensuring it is loaded.
+ */
+export const playInstrumentNote = async (note: string, octave: number = 4, duration: string = "8n", instrumentName: string = 'piano') => {
+    if (Tone.context.state !== 'running') {
+        await Tone.start();
+    }
+    if (Tone.context.state === 'suspended') {
+        await Tone.context.resume();
+    }
+
+    // Ensure loaded
+    if (!instruments[instrumentName]) {
+        await loadInstrument(instrumentName as InstrumentName);
+    }
+
+    let inst = instruments[instrumentName];
+    if (!inst) return;
+
+    const noteWithOctave = `${note}${octave}`;
+    inst.triggerAttackRelease(noteWithOctave, duration);
+};
+
 export const stopAudio = () => {
     Object.values(instruments).forEach(inst => inst?.releaseAll());
     Tone.Transport.stop();

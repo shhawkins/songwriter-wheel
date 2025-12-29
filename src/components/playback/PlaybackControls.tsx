@@ -207,6 +207,7 @@ export const PlaybackControls: React.FC = () => {
                     <button
                         onClick={() => handleSkip('prev')}
                         className={`${isMobile && isLandscape ? 'p-1' : 'p-1.5'} text-text-secondary hover:text-text-primary transition-colors touch-feedback flex items-center justify-center`}
+                        aria-label="Previous Section"
                     >
                         <SkipBack size={isMobile && isLandscape ? 12 : 16} />
                     </button>
@@ -214,6 +215,7 @@ export const PlaybackControls: React.FC = () => {
                         onClick={handlePlayPause}
                         disabled={isLoading}
                         className={`${isMobile && isLandscape ? 'w-6 h-6' : isMobile ? 'w-8 h-8' : 'w-8 h-8'} rounded-full bg-accent-primary hover:bg-indigo-500 disabled:bg-accent-primary/50 flex items-center justify-center text-white shadow-md transition-all hover:scale-105 active:scale-95 touch-feedback`}
+                        aria-label={isPlaying ? "Pause" : "Play"}
                     >
                         {isLoading ? (
                             <Loader2 size={isMobile && isLandscape ? 12 : 16} className="animate-spin" />
@@ -226,6 +228,7 @@ export const PlaybackControls: React.FC = () => {
                     <button
                         onClick={() => handleSkip('next')}
                         className={`${isMobile && isLandscape ? 'p-1' : 'p-1.5'} text-text-secondary hover:text-text-primary transition-colors touch-feedback flex items-center justify-center`}
+                        aria-label="Next Section"
                     >
                         <SkipForward size={isMobile && isLandscape ? 12 : 16} />
                     </button>
@@ -235,6 +238,7 @@ export const PlaybackControls: React.FC = () => {
                             onClick={handleLoopToggle}
                             className={`${isLandscape ? 'p-1' : 'p-1.5'} transition-colors touch-feedback ${isLooping ? 'text-accent-primary' : 'text-text-secondary hover:text-text-primary'}`}
                             title="Loop Section"
+                            aria-label={isLooping ? "Disable Loop" : "Enable Loop"}
                         >
                             <Repeat size={isLandscape ? 12 : 14} />
                         </button>
@@ -243,6 +247,7 @@ export const PlaybackControls: React.FC = () => {
                             onClick={handleLoopToggle}
                             className={`p-1.5 transition-colors ml-1 ${isLooping ? 'text-accent-primary' : 'text-text-secondary hover:text-text-primary'}`}
                             title="Loop Section"
+                            aria-label={isLooping ? "Disable Loop" : "Enable Loop"}
                         >
                             <Repeat size={14} />
                         </button>
@@ -263,6 +268,7 @@ export const PlaybackControls: React.FC = () => {
                                     className="w-14 text-[11px] h-5 bg-bg-tertiary border border-accent-primary rounded px-2 text-center text-text-primary font-medium focus:outline-none"
                                     min={40}
                                     max={240}
+                                    aria-label="Tempo BPM"
                                 />
                             ) : (
                                 <div
@@ -271,6 +277,10 @@ export const PlaybackControls: React.FC = () => {
                                     onTouchMove={handleBpmTouchMove}
                                     onTouchEnd={handleBpmTouchEnd}
                                     className={`text-[11px] px-2 h-5 font-medium ${isSwiping ? 'text-accent-primary' : 'text-text-secondary'} hover:text-text-primary transition-colors cursor-ew-resize whitespace-nowrap flex items-center rounded hover:bg-bg-tertiary select-none`}
+                                    role="button"
+                                    tabIndex={0}
+                                    aria-label={`Tempo ${tempo} BPM. Click to edit`}
+                                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleBpmTap(); }}
                                 >
                                     {tempo} <span className={`${isSwiping ? 'text-accent-primary/70' : 'text-text-muted'} ml-0.5`}>BPM</span>
                                 </div>
@@ -294,6 +304,7 @@ export const PlaybackControls: React.FC = () => {
                                 className={`${isLandscape ? 'w-10 text-[9px] h-4' : 'w-12 text-[11px] h-5'} bg-bg-tertiary border border-accent-primary rounded-sm px-1 text-center text-text-primary font-medium focus:outline-none`}
                                 min={40}
                                 max={240}
+                                aria-label="Tempo BPM"
                             />
                         ) : (
                             <div
@@ -302,6 +313,9 @@ export const PlaybackControls: React.FC = () => {
                                 onTouchEnd={handleBpmTouchEnd}
                                 onClick={handleBpmTap}
                                 className={`${isLandscape ? 'text-[9px] px-1.5 h-4' : 'text-[11px] px-2 h-5'} font-medium ${isSwiping ? 'text-accent-primary' : 'text-text-secondary'} hover:text-text-primary transition-colors touch-feedback whitespace-nowrap flex items-center cursor-ew-resize select-none`}
+                                role="button"
+                                tabIndex={0}
+                                aria-label={`Tempo ${tempo} BPM. Tap to edit`}
                             >
                                 {tempo} <span className={`${isSwiping ? 'text-accent-primary/70' : 'text-text-muted'} ml-0.5`}>BPM</span>
                             </div>
@@ -327,6 +341,7 @@ export const PlaybackControls: React.FC = () => {
                             onClick={toggleMute}
                             className={`${isMobile ? 'p-1.5' : 'p-1'} text-text-secondary hover:text-text-primary transition-colors touch-feedback flex items-center justify-center rounded`}
                             title={isMuted ? "Unmute" : "Mute"}
+                            aria-label={isMuted ? "Unmute" : "Mute"}
                         >
                             {isMuted || volume === 0 ? <VolumeX size={isMobile ? 16 : 14} /> : <Volume2 size={isMobile ? 16 : 14} />}
                         </button>
@@ -342,6 +357,7 @@ export const PlaybackControls: React.FC = () => {
                                     setVolume(Number(e.target.value));
                                 }}
                                 className={`w-full h-1 bg-bg-tertiary rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:bg-accent-primary [&::-webkit-slider-thumb]:rounded-full ${isMuted ? 'opacity-50' : ''}`}
+                                aria-label="Volume"
                             />
                         )}
                     </div>
