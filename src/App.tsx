@@ -22,12 +22,14 @@ import { HelpModal } from './components/HelpModal';
 import { OnboardingTooltip } from './components/OnboardingTooltip';
 import { SongInfoModal } from './components/SongInfoModal';
 import { KeySelectorModal } from './components/KeySelectorModal';
-import { InstrumentManagerModal } from './components/playback/InstrumentManagerModal';
 import { InstrumentControls } from './components/playback/InstrumentControls';
 import { PatchManagerModal } from './components/playback/PatchManagerModal';
-import { ExportModal } from './components/ExportModal';
 import { NotesModal } from './components/NotesModal';
 import { AuthModal } from './components/auth/AuthModal';
+
+// Lazy load heavy components
+const InstrumentManagerModal = React.lazy(() => import('./components/playback/InstrumentManagerModal').then(module => ({ default: module.InstrumentManagerModal })));
+const ExportModal = React.lazy(() => import('./components/ExportModal').then(module => ({ default: module.ExportModal })));
 import { useAuthStore } from './stores/authStore';
 import { User as UserIcon } from 'lucide-react';
 import { useAudioSync } from './hooks/useAudioSync';
@@ -1347,10 +1349,24 @@ function App() {
         onSave={handleSongInfoSave}
       />
 
-      {/* Instrument Manager Modal */}
-      {instrumentManagerModalVisible && (
-        <InstrumentManagerModal onClose={() => toggleInstrumentManagerModal(false)} />
-      )}
+      {/* Lazy loaded modals */}
+      <React.Suspense fallback={
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
+          <div className="w-8 h-8 border-2 border-accent-primary border-t-transparent rounded-full animate-spin" />
+        </div>
+      }>
+        {instrumentManagerModalVisible && (
+          <InstrumentManagerModal onClose={() => toggleInstrumentManagerModal(false)} />
+        )}
+
+        {exportModalOpen && (
+          <ExportModal
+            isOpen={exportModalOpen}
+            onClose={() => setExportModalOpen(false)}
+            getPdfBlob={getPdfBlob}
+          />
+        )}
+      </React.Suspense>
 
       {/* Instrument Controls Modal - rendered at app level to persist through header/footer visibility changes */}
       <InstrumentControls />
@@ -1401,12 +1417,7 @@ function App() {
         </div>
       )}
 
-      {/* Export Modal */}
-      <ExportModal
-        isOpen={exportModalOpen}
-        onClose={() => setExportModalOpen(false)}
-        getPdfBlob={getPdfBlob}
-      />
+
 
       {/* Auth Modal */}
       <AuthModal isOpen={isAuthModalOpen} onClose={() => useAuthStore.getState().setAuthModalOpen(false)} />

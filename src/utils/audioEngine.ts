@@ -33,6 +33,10 @@ let initPromise: Promise<void> | null = null;
 let scheduledEvents: number[] = [];
 let sectionStartTimes: Record<string, number> = {}; // Map sectionId -> startTime (beats)
 
+// Lazy loading infrastructure
+let instrumentLoadingPromises: Record<string, Promise<void> | undefined> = {};
+let effectsChainInput: Tone.ToneAudioNode | null = null;
+
 // iOS-specific audio unlock state
 let isAudioUnlocked = false;
 let silentAudioElement: HTMLAudioElement | null = null;
@@ -608,12 +612,23 @@ export const reloadCustomInstruments = () => {
     });
 };
 
-export const setInstrument = (name: string) => {
+export const setInstrument = async (name: string) => {
     if (currentInstrument !== name) {
         currentInstrument = name as InstrumentName;
-        // If it's a custom instrument we haven't loaded yet (e.g. added recently), try loading it
+        // Trigger lazy loading of the instrument if not already loaded
         if (!instruments[name]) {
-            reloadCustomInstruments();
+            // Check if it's a custom instrument first
+            const { customInstruments } = useSongStore.getState();
+            const customInst = customInstruments.find((inst: CustomInstrument) => inst.id === name);
+            if (customInst) {
+                const sampler = createCustomSampler(customInst);
+                if (sampler) {
+                    instruments[name] = sampler;
+                }
+            } else {
+                // Load built-in instrument lazily
+                await loadInstrument(name as InstrumentName);
+            }
         }
     }
 };
@@ -632,32 +647,11 @@ export const setMute = (muted: boolean) => {
     Tone.Destination.mute = muted;
 };
 
-export const initAudio = async () => {
-    if (initPromise) return initPromise;
-
-    initPromise = (async () => {
-        // Initialize Master Effects Chain first
-        await initMasterEffectsChain();
-        // Entry point is now PitchShift or whatever is first in chain (masterPitchShift)
-        const chainInput = masterPitchShift || Tone.Destination;
-
-        // Use a free soundfont URL or basic synth fallback
-        // Salamander Grand Piano is a good free option often used with Tone.js
+// Instrument factory definitions
+const instrumentFactories: Record<string, (chainInput: Tone.ToneAudioNode) => Tone.PolySynth | Tone.Sampler | null> = {
+    'piano': (chainInput) => {
         const baseUrl = "https://tonejs.github.io/audio/salamander/";
-
-        const safeCreate = <T>(label: InstrumentName, factory: () => T | null) => {
-            if (instruments[label]) return;
-            try {
-                const created = factory();
-                if (created) {
-                    instruments[label] = created as any;
-                }
-            } catch (err) {
-                console.error(`Failed to init instrument "${label}"`, err);
-            }
-        };
-
-        safeCreate('piano', () => new Tone.Sampler({
+        return new Tone.Sampler({
             urls: {
                 "C4": "C4.mp3",
                 "D#4": "Ds4.mp3",
@@ -667,12 +661,10 @@ export const initAudio = async () => {
             release: 1,
             attack: 0.05,
             baseUrl,
-        }).connect(chainInput));
-
-        // Sampled guitars - same simple pattern as piano, all through master limiter
-        const guitarBaseUrl = "/samples/";
-
-        safeCreate('guitar', () => new Tone.Sampler({
+        }).connect(chainInput);
+    },
+    'guitar': (chainInput) => {
+        return new Tone.Sampler({
             urls: {
                 "C3": "electric-guitar-c3.m4a",
                 "C4": "electric-guitar-c4.m4a",
@@ -680,10 +672,11 @@ export const initAudio = async () => {
             },
             release: 2,
             attack: 0.05,
-            baseUrl: guitarBaseUrl,
-        }).connect(chainInput));
-
-        safeCreate('guitar-jazzmaster', () => new Tone.Sampler({
+            baseUrl: "/samples/",
+        }).connect(chainInput);
+    },
+    'guitar-jazzmaster': (chainInput) => {
+        return new Tone.Sampler({
             urls: {
                 "C3": "electric-guitar-c3.m4a",
                 "C4": "electric-guitar-c4.m4a",
@@ -691,187 +684,200 @@ export const initAudio = async () => {
             },
             release: 2,
             attack: 0.05,
-            baseUrl: guitarBaseUrl,
-        }).connect(chainInput));
+            baseUrl: "/samples/",
+        }).connect(chainInput);
+    },
+    'organ': (chainInput) => new Tone.PolySynth(Tone.AMSynth, {
+        harmonicity: 3,
+        detune: 0,
+        oscillator: { type: "sine" },
+        envelope: { attack: 0.01, decay: 0.01, sustain: 1, release: 0.5 },
+        modulation: { type: "square" },
+        modulationEnvelope: { attack: 0.5, decay: 0, sustain: 1, release: 0.5 }
+    }).connect(chainInput),
+    'synth': (chainInput) => new Tone.PolySynth(Tone.FMSynth, {
+        harmonicity: 3,
+        modulationIndex: 10,
+        detune: 0,
+        oscillator: { type: "sine" },
+        envelope: { attack: 0.01, decay: 0.01, sustain: 1, release: 0.5 },
+        modulation: { type: "square" },
+        modulationEnvelope: { attack: 0.5, decay: 0, sustain: 1, release: 0.5 }
+    }).connect(chainInput),
+    'epiano': (chainInput) => new Tone.PolySynth(Tone.AMSynth, {
+        harmonicity: 2,
+        oscillator: { type: "triangle" },
+        envelope: { attack: 0.01, decay: 0.2, sustain: 0.7, release: 0.8 },
+        modulation: { type: "sine" },
+        modulationEnvelope: { attack: 0.2, decay: 0.1, sustain: 0.6, release: 0.6 }
+    }).connect(chainInput),
+    'strings': (chainInput) => new Tone.PolySynth(Tone.Synth, {
+        oscillator: { type: "sawtooth" },
+        envelope: { attack: 0.2, decay: 0.2, sustain: 0.8, release: 1.2 }
+    }).connect(chainInput),
+    'pad': (chainInput) => new Tone.PolySynth(Tone.FMSynth, {
+        harmonicity: 1.5,
+        modulationIndex: 8,
+        oscillator: { type: "sine" },
+        envelope: { attack: 0.5, decay: 0.3, sustain: 0.9, release: 1.5 },
+        modulation: { type: "triangle" },
+        modulationEnvelope: { attack: 0.8, decay: 0.3, sustain: 0.8, release: 1.2 }
+    }).connect(chainInput),
+    'brass': (chainInput) => new Tone.PolySynth(Tone.MonoSynth, {
+        oscillator: { type: "square" },
+        filter: { Q: 2, type: "lowpass", rolloff: -12 },
+        envelope: { attack: 0.02, decay: 0.25, sustain: 0.6, release: 0.7 },
+        filterEnvelope: { attack: 0.01, decay: 0.2, sustain: 0.8, release: 0.4, baseFrequency: 200, octaves: 2.5 }
+    }).connect(chainInput),
+    'marimba': (chainInput) => new Tone.PolySynth(Tone.Synth, {
+        oscillator: { type: "triangle" },
+        envelope: { attack: 0.001, decay: 0.35, sustain: 0, release: 0.6 }
+    }).connect(chainInput),
+    'bell': (chainInput) => new Tone.PolySynth(Tone.FMSynth, {
+        harmonicity: 8,
+        modulationIndex: 2,
+        oscillator: { type: "sine" },
+        envelope: { attack: 0.01, decay: 1.2, sustain: 0, release: 1.2 },
+        modulation: { type: "square" },
+        modulationEnvelope: { attack: 0.01, decay: 0.5, sustain: 0, release: 1.2 }
+    }).connect(chainInput),
+    'lead': (chainInput) => new Tone.PolySynth(Tone.Synth, {
+        oscillator: { type: "sawtooth" },
+        envelope: { attack: 0.005, decay: 0.15, sustain: 0.6, release: 0.35 }
+    }).connect(chainInput),
+    'bass': (chainInput) => new Tone.PolySynth(Tone.MonoSynth, {
+        oscillator: { type: "square" },
+        filter: { type: "lowpass", rolloff: -24, Q: 2 },
+        envelope: { attack: 0.01, decay: 0.2, sustain: 0.6, release: 0.4 },
+        filterEnvelope: { attack: 0.001, decay: 0.15, sustain: 0.4, release: 0.2, baseFrequency: 80, octaves: 3 }
+    }).connect(chainInput),
+    'harmonica': (chainInput) => new Tone.Sampler({
+        urls: {
+            "C3": "harmonica-c3.mp3",
+            "C4": "harmonica-c4.mp3",
+            "C5": "harmonica-c5.mp3",
+        },
+        release: 2,
+        attack: 0.05,
+        baseUrl: "/samples/",
+    }).connect(chainInput),
+    'choir': (chainInput) => new Tone.PolySynth(Tone.Synth, {
+        oscillator: { type: "sine" },
+        envelope: { attack: 0.8, decay: 0.3, sustain: 0.9, release: 1.8 }
+    }).connect(chainInput),
+    'ocarina': (chainInput) => new Tone.Sampler({
+        urls: {
+            "C3": "ocarina-c3.mp3",
+            "C4": "ocarina-c4.mp3",
+            "C5": "ocarina-c5.mp3",
+        },
+        release: 2,
+        attack: 0.05,
+        baseUrl: "/samples/",
+    }).connect(chainInput),
+    'acoustic-archtop': (chainInput) => new Tone.Sampler({
+        urls: {
+            "C3": "acoustic-archtop-c3.mp3",
+            "C4": "acoustic-archtop-c4.mp3",
+            "C5": "acoustic-archtop-c5.mp3",
+        },
+        release: 2,
+        attack: 0.05,
+        baseUrl: "/samples/",
+    }).connect(chainInput),
+    'nylon-string': (chainInput) => new Tone.Sampler({
+        urls: {
+            "C3": "guitalele-c3.mp3",
+            "C4": "guitalele-c4.mp3",
+            "C5": "guitalele-c5.mp3",
+        },
+        release: 2,
+        attack: 0.05,
+        baseUrl: "/samples/",
+    }).connect(chainInput),
+    'melodica': (chainInput) => new Tone.Sampler({
+        urls: {
+            "C3": "melodica-c3.mp3",
+            "C4": "melodica-c4.mp3",
+            "C5": "melodica-c5.mp3",
+        },
+        release: 2,
+        attack: 0.05,
+        baseUrl: "/samples/",
+    }).connect(chainInput),
+    'wine-glass': (chainInput) => new Tone.Sampler({
+        urls: {
+            "C3": "wine-glass-c3.mp3",
+            "C4": "wine-glass-c4.mp3",
+            "C5": "wine-glass-c5.mp3",
+        },
+        release: 2,
+        attack: 0.05,
+        baseUrl: "/samples/",
+    }).connect(chainInput),
+};
 
+export const loadInstrument = async (name: InstrumentName) => {
+    // If already loaded, return
+    if (instruments[name]) return;
 
+    // If currently loading, wait for that promise
+    if (instrumentLoadingPromises[name]) {
+        return instrumentLoadingPromises[name];
+    }
 
-        safeCreate('organ', () => new Tone.PolySynth(Tone.AMSynth, {
-            harmonicity: 3,
-            detune: 0,
-            oscillator: {
-                type: "sine"
-            },
-            envelope: {
-                attack: 0.01,
-                decay: 0.01,
-                sustain: 1,
-                release: 0.5
-            },
-            modulation: {
-                type: "square"
-            },
-            modulationEnvelope: {
-                attack: 0.5,
-                decay: 0,
-                sustain: 1,
-                release: 0.5
+    // Initialize loading promise
+    instrumentLoadingPromises[name] = new Promise(async (resolve, reject) => {
+        try {
+            console.log(`Lazy loading instrument: ${name}`);
+
+            // Ensure audio context is ready/effects chain initialized
+            if (!effectsChainInput) {
+                await initMasterEffectsChain();
+                effectsChainInput = masterPitchShift || Tone.Destination;
             }
-        }).connect(chainInput));
 
-        safeCreate('synth', () => new Tone.PolySynth(Tone.FMSynth, {
-            harmonicity: 3,
-            modulationIndex: 10,
-            detune: 0,
-            oscillator: {
-                type: "sine"
-            },
-            envelope: {
-                attack: 0.01,
-                decay: 0.01,
-                sustain: 1,
-                release: 0.5
-            },
-            modulation: {
-                type: "square"
-            },
-            modulationEnvelope: {
-                attack: 0.5,
-                decay: 0,
-                sustain: 1,
-                release: 0.5
+            const factory = instrumentFactories[name];
+            if (!factory) {
+                console.warn(`No factory found for instrument: ${name}`);
+                resolve();
+                return;
             }
-        }).connect(chainInput));
 
-        safeCreate('epiano', () => new Tone.PolySynth(Tone.AMSynth, {
-            harmonicity: 2,
-            oscillator: { type: "triangle" },
-            envelope: { attack: 0.01, decay: 0.2, sustain: 0.7, release: 0.8 },
-            modulation: { type: "sine" },
-            modulationEnvelope: { attack: 0.2, decay: 0.1, sustain: 0.6, release: 0.6 }
-        }).connect(chainInput));
+            const instrument = factory(effectsChainInput!); // Assert non-null because we init above
 
-        safeCreate('strings', () => new Tone.PolySynth(Tone.Synth, {
-            oscillator: { type: "sawtooth" },
-            envelope: { attack: 0.2, decay: 0.2, sustain: 0.8, release: 1.2 }
-        }).connect(chainInput));
+            if (instrument) {
+                instruments[name] = instrument as any;
 
-        safeCreate('pad', () => new Tone.PolySynth(Tone.FMSynth, {
-            harmonicity: 1.5,
-            modulationIndex: 8,
-            oscillator: { type: "sine" },
-            envelope: { attack: 0.5, decay: 0.3, sustain: 0.9, release: 1.5 },
-            modulation: { type: "triangle" },
-            modulationEnvelope: { attack: 0.8, decay: 0.3, sustain: 0.8, release: 1.2 }
-        }).connect(chainInput));
+                // If it's a sampler, wait for it to load
+                if (instrument instanceof Tone.Sampler) {
+                    await Tone.loaded();
+                }
+            }
+            resolve();
+        } catch (err) {
+            console.error(`Failed to load instrument ${name}`, err);
+            reject(err);
+        } finally {
+            // Cleanup promise
+            delete instrumentLoadingPromises[name];
+        }
+    });
 
-        safeCreate('brass', () => new Tone.PolySynth(Tone.MonoSynth, {
-            oscillator: { type: "square" },
-            filter: { Q: 2, type: "lowpass", rolloff: -12 },
-            envelope: { attack: 0.02, decay: 0.25, sustain: 0.6, release: 0.7 },
-            filterEnvelope: { attack: 0.01, decay: 0.2, sustain: 0.8, release: 0.4, baseFrequency: 200, octaves: 2.5 }
-        }).connect(chainInput));
+    return instrumentLoadingPromises[name];
+};
 
-        safeCreate('marimba', () => new Tone.PolySynth(Tone.Synth, {
-            oscillator: { type: "triangle" },
-            envelope: { attack: 0.001, decay: 0.35, sustain: 0, release: 0.6 }
-        }).connect(chainInput));
+export const initAudio = async () => {
+    if (initPromise) return initPromise;
 
-        safeCreate('bell', () => new Tone.PolySynth(Tone.FMSynth, {
-            harmonicity: 8,
-            modulationIndex: 2,
-            oscillator: { type: "sine" },
-            envelope: { attack: 0.01, decay: 1.2, sustain: 0, release: 1.2 },
-            modulation: { type: "square" },
-            modulationEnvelope: { attack: 0.01, decay: 0.5, sustain: 0, release: 1.2 }
-        }).connect(chainInput));
+    initPromise = (async () => {
+        // Initialize Master Effects Chain first
+        await initMasterEffectsChain();
+        // Entry point is now PitchShift or whatever is first in chain (masterPitchShift)
+        effectsChainInput = masterPitchShift || Tone.Destination;
 
-        safeCreate('lead', () => new Tone.PolySynth(Tone.Synth, {
-            oscillator: { type: "sawtooth" },
-            envelope: { attack: 0.005, decay: 0.15, sustain: 0.6, release: 0.35 }
-        }).connect(chainInput));
-
-        safeCreate('bass', () => new Tone.PolySynth(Tone.MonoSynth, {
-            oscillator: { type: "square" },
-            filter: { type: "lowpass", rolloff: -24, Q: 2 },
-            envelope: { attack: 0.01, decay: 0.2, sustain: 0.6, release: 0.4 },
-            filterEnvelope: { attack: 0.001, decay: 0.15, sustain: 0.4, release: 0.2, baseFrequency: 80, octaves: 3 }
-        }).connect(chainInput));
-
-
-        safeCreate('harmonica', () => new Tone.Sampler({
-            urls: {
-                "C3": "harmonica-c3.mp3",
-                "C4": "harmonica-c4.mp3",
-                "C5": "harmonica-c5.mp3",
-            },
-            release: 2,
-            attack: 0.05,
-            baseUrl: "/samples/",
-        }).connect(chainInput));
-
-        safeCreate('choir', () => new Tone.PolySynth(Tone.Synth, {
-            oscillator: { type: "sine" },
-            envelope: { attack: 0.8, decay: 0.3, sustain: 0.9, release: 1.8 }
-        }).connect(chainInput));
-
-        safeCreate('ocarina', () => new Tone.Sampler({
-            urls: {
-                "C3": "ocarina-c3.mp3",
-                "C4": "ocarina-c4.mp3",
-                "C5": "ocarina-c5.mp3",
-            },
-            release: 2,
-            attack: 0.05,
-            baseUrl: "/samples/",
-        }).connect(chainInput));
-
-        safeCreate('acoustic-archtop', () => new Tone.Sampler({
-            urls: {
-                "C3": "acoustic-archtop-c3.mp3",
-                "C4": "acoustic-archtop-c4.mp3",
-                "C5": "acoustic-archtop-c5.mp3",
-            },
-            release: 2,
-            attack: 0.05,
-            baseUrl: "/samples/",
-        }).connect(chainInput));
-
-        safeCreate('nylon-string', () => new Tone.Sampler({
-            urls: {
-                "C3": "guitalele-c3.mp3",
-                "C4": "guitalele-c4.mp3",
-                "C5": "guitalele-c5.mp3",
-            },
-            release: 2,
-            attack: 0.05,
-            baseUrl: "/samples/",
-        }).connect(chainInput));
-
-        safeCreate('melodica', () => new Tone.Sampler({
-            urls: {
-                "C3": "melodica-c3.mp3",
-                "C4": "melodica-c4.mp3",
-                "C5": "melodica-c5.mp3",
-            },
-            release: 2,
-            attack: 0.05,
-            baseUrl: "/samples/",
-        }).connect(chainInput));
-
-        safeCreate('wine-glass', () => new Tone.Sampler({
-            urls: {
-                "C3": "wine-glass-c3.mp3",
-                "C4": "wine-glass-c4.mp3",
-                "C5": "wine-glass-c5.mp3",
-            },
-            release: 2,
-            attack: 0.05,
-            baseUrl: "/samples/",
-        }).connect(chainInput));
-
-        // Load custom instruments
-        reloadCustomInstruments();
+        // Only load the default instrument (piano) initially
+        await loadInstrument('piano');
 
         await Tone.loaded();
     })();
