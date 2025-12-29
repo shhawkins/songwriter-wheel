@@ -143,12 +143,19 @@ export const ModeFretboardModal: React.FC = () => {
         setDropdownOpen(!dropdownOpen);
     };
 
-    // Memoize initial position to prevent recalculation on re-renders causing jumps
-    // This must be BEFORE the early return to satisfy React's Rules of Hooks
+    // Memoize initial position
     const initialPosition = useMemo(() => ({
         x: Math.max(20, (window.innerWidth - 640) / 2),
         y: Math.max(60, (window.innerHeight - 520) / 2.5)
-    }), []);  // Empty deps - only calculate once on mount
+    }), []);
+
+    // Calculate specific pixel height for mobile to mimic resize behavior
+    const mobileHeight = useMemo(() => {
+        if (typeof window !== 'undefined' && isMobile && !isLandscape) {
+            return `${Math.floor(window.innerHeight * 0.85)}px`;
+        }
+        return undefined;
+    }, [isMobile, isLandscape]);
 
     if (!modeFretboardModalVisible) return null;
 
@@ -157,18 +164,19 @@ export const ModeFretboardModal: React.FC = () => {
             isOpen={modeFretboardModalVisible}
             onClose={handleClose}
             width={isMobile && isLandscape ? '70vw' : isMobile ? '92vw' : '640px'}
+            height={mobileHeight}
             minWidth="280px"
-            minHeight={isMobile && isLandscape ? '280px' : '450px'}
+            minHeight={isMobile && isLandscape ? '280px' : '550px'}
             position={initialPosition}
             zIndex={zIndex}
             onInteraction={() => bringToFront(MODAL_ID)}
             dataAttribute="mode-fretboard-modal"
-            resizable={true}
+            resizable={!isMobile || isLandscape}
             className=""
         >
             {/* Entire content area - stopPropagation to prevent accidental modal drags */}
             <div
-                className={`flex flex-col w-full overflow-visible p-3 bg-[#1e1e28] ${isMobile && isLandscape ? 'max-h-[85vh]' : isMobile ? 'h-full' : ''}`}
+                className={`flex flex-col w-full overflow-hidden p-3 bg-[#1e1e28] ${isMobile && isLandscape ? 'max-h-[85vh]' : isMobile ? 'h-full' : ''}`}
                 onMouseDown={(e) => e.stopPropagation()}
                 onTouchStart={(e) => e.stopPropagation()}
             >
@@ -267,11 +275,11 @@ export const ModeFretboardModal: React.FC = () => {
 
                 {/* Fretboard Area - Flex Grow */}
                 <div
-                    className="flex-1 flex items-center justify-center bg-black/40 rounded-xl border border-white/5 relative overflow-hidden min-h-[150px] mb-3"
+                    className={`flex-1 flex items-center justify-center bg-black/40 rounded-xl border border-white/5 relative mb-3 mt-4 overflow-hidden ${isMobile && !isLandscape ? 'min-h-[300px]' : 'min-h-[200px]'}`}
                     onMouseDown={(e) => e.stopPropagation()}
                     onTouchStart={(e) => e.stopPropagation()}
                 >
-                    <div className="w-full h-full p-2 flex items-center justify-center">
+                    <div className="w-full py-4 px-3 flex items-center justify-center">
                         <ModeFretboard
                             scaleNotes={currentModeData.scaleNotes}
                             rootNote={currentModeData.rootNote}

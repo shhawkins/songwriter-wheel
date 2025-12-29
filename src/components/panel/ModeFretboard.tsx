@@ -8,6 +8,7 @@ interface ModeFretboardProps {
     color?: string;
     interactive?: boolean;
     useLead?: boolean; // Use lead channel for playback
+    rotated?: boolean; // When true, counter-rotate text labels for portrait mode
 }
 
 export const ModeFretboard: React.FC<ModeFretboardProps> = ({
@@ -15,7 +16,8 @@ export const ModeFretboard: React.FC<ModeFretboardProps> = ({
     rootNote,
     color = '#6366f1',
     interactive = false,
-    useLead = false
+    useLead = false,
+    rotated = false
 }) => {
     // Standard tuning base notes with octaves
     // Index 0 is top visual string (High E) -> E4
@@ -148,10 +150,10 @@ export const ModeFretboard: React.FC<ModeFretboardProps> = ({
     // Dimensions for SVG Coordinate System (needed for touch hit detection)
     const numFrets = 12;
     const numStrings = 6;
-    const startX = 40;
-    const endX = 1000;
-    const startY = 30;
-    const endY = 230;
+    const startX = 70;  // Increased to give more room for open string badges to the left
+    const endX = 1030;
+    const startY = 55;  // Headroom for badges at top
+    const endY = 255;   // Maintain same string spacing
     const stringSpacing = (endY - startY) / (numStrings - 1);
     const fretWidth = (endX - startX) / (numFrets + 0.5);
 
@@ -262,7 +264,7 @@ export const ModeFretboard: React.FC<ModeFretboardProps> = ({
         >
             {/* Aspect ratio container - roughly 4:1 */}
             <svg
-                viewBox={`0 0 ${endX + 20} ${endY + 50}`}
+                viewBox={`-30 0 ${endX + 80} ${endY + 90}`}
                 className="w-full h-auto block"
                 preserveAspectRatio="xMidYMid meet"
             >
@@ -320,25 +322,31 @@ export const ModeFretboard: React.FC<ModeFretboardProps> = ({
                 ))}
 
                 {/* Fret Numbers */}
-                {[3, 5, 7, 9, 12].map(fret => (
-                    <text
-                        key={`fret-num-${fret}`}
-                        x={startX + (fret - 0.5) * fretWidth}
-                        y={endY + 45}
-                        fontSize="28"
-                        fill="#666"
-                        textAnchor="middle"
-                        fontWeight="bold"
-                    >
-                        {fret}
-                    </text>
-                ))}
+                {[3, 5, 7, 9, 12].map(fret => {
+                    const tx = startX + (fret - 0.5) * fretWidth;
+                    const ty = endY + 45;
+                    return (
+                        <text
+                            key={`fret-num-${fret}`}
+                            x={tx}
+                            y={ty}
+                            fontSize="28"
+                            fill="#666"
+                            textAnchor="middle"
+                            fontWeight="bold"
+                            transform={rotated ? `rotate(-90, ${tx}, ${ty})` : undefined}
+                        >
+                            {fret}
+                        </text>
+                    );
+                })}
 
                 {/* Notes */}
                 {fretboardData.map((d, i) => {
                     const noteKey = `${d.stringIdx}-${d.fret}`;
                     const isActive = activeNote === noteKey;
-                    const cx = startX + (d.fret === 0 ? -15 : (d.fret - 0.5) * fretWidth);
+                    // Open strings (fret 0) positioned to the left of the nut with adequate spacing
+                    const cx = startX + (d.fret === 0 ? -30 : (d.fret - 0.5) * fretWidth);
                     const cy = startY + d.stringIdx * stringSpacing;
 
                     return (
@@ -390,6 +398,7 @@ export const ModeFretboard: React.FC<ModeFretboardProps> = ({
                                 textAnchor="middle"
                                 fontWeight="800"
                                 style={{ pointerEvents: 'none' }}
+                                transform={rotated ? `rotate(-90, ${cx}, ${cy})` : undefined}
                             >
                                 {d.note.replace(/[0-9]/g, '')}
                             </text>

@@ -25,6 +25,8 @@ export interface DraggableModalProps {
     maxWidth?: string;
     /** Fixed width of the modal (overrides min/max) */
     width?: string;
+    /** Fixed height of the modal (overrides min/max) */
+    height?: string;
     /** z-index for stacking */
     zIndex?: number;
     /** Show the close (X) button */
@@ -70,6 +72,7 @@ export const DraggableModal: React.FC<DraggableModalProps> = ({
     minWidth = '320px',
     maxWidth,
     width,
+    height,
     zIndex = 120,
     showCloseButton = true,
     showDragHandle = true,
@@ -302,7 +305,7 @@ export const DraggableModal: React.FC<DraggableModalProps> = ({
     const dataProps = dataAttribute ? { [`data-${dataAttribute}`]: true } : {};
 
     const currentWidth = size?.width ? size.width : (width || 'auto');
-    const currentHeight = size?.height ? size.height : 'auto';
+    const currentHeight = size?.height ? size.height : (height || 'auto');
 
     return createPortal(
         <div
