@@ -86,7 +86,19 @@ export const ChordScales: React.FC<ChordScalesProps> = ({
                                     >
                                         <div className="flex flex-col gap-1">
                                             <div className="flex items-baseline gap-2">
-                                                <span className="text-xl font-bold text-white tracking-tight">
+                                                {/* Mode title - tap to open LeadScalesModal */}
+                                                <span
+                                                    className="text-xl font-bold text-white tracking-tight hover:opacity-80 active:scale-95 transition-all"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        useSongStore.getState().openLeadScales({
+                                                            scaleNotes: modeScaleNotes,
+                                                            rootNote,
+                                                            modeName: mode.name,
+                                                            color: modeColor
+                                                        });
+                                                    }}
+                                                >
                                                     {formatChordForDisplay(rootNote)}
                                                     <span className="text-base font-medium text-accent-primary ml-1.5 opacity-90">
                                                         {mode.name}
