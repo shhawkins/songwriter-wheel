@@ -4,7 +4,6 @@ import type { ChordSlot as IChordSlot } from '../../types';
 import clsx from 'clsx';
 import { useSongStore } from '../../store/useSongStore';
 import { getWheelColors, normalizeNote, formatChordForDisplay, getVoicingSuggestion, MAJOR_POSITIONS, CIRCLE_OF_FIFTHS } from '../../utils/musicTheory';
-import { playChord } from '../../utils/audioEngine';
 
 interface ChordSlotProps {
     slot: IChordSlot;
@@ -117,7 +116,7 @@ export const ChordSlot: React.FC<ChordSlotProps> = ({ slot, sectionId, measureId
         }
     };
 
-    // Play chord on click if no significant movement occurred (not a drag)
+    // Handle chord click - open voicing picker (tap-to-play disabled, use badge above)
     const handleChordClick = (e: React.MouseEvent) => {
         e.stopPropagation();
         if (!slot.chord) return;
@@ -128,15 +127,10 @@ export const ChordSlot: React.FC<ChordSlotProps> = ({ slot, sectionId, measureId
             const dy = e.clientY - mouseStartPos.current.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
 
-            // If moved more than 5 pixels, consider it a drag, don't play
+            // If moved more than 5 pixels, consider it a drag, don't open picker
             if (distance > 5) {
                 return;
             }
-        }
-
-        // Play the chord
-        if (slot.chord.notes && slot.chord.notes.length > 0) {
-            playChord(slot.chord.notes);
         }
 
         // Open voicing picker
