@@ -4,8 +4,9 @@ import { useSongStore } from '../../store/useSongStore';
 import { MobileTimeline } from '../timeline/MobileTimeline';
 import { ChordDetails } from '../panel/ChordDetails';
 import { ChordWheel } from '../wheel/ChordWheel';
-import { formatChordForDisplay, getQualitySymbol, getWheelColors } from '../../utils/musicTheory';
+import { formatChordForDisplay, getWheelColors, invertChord, getChordSymbolWithInversion, getChordNotes } from '../../utils/musicTheory';
 import { playChord } from '../../utils/audioEngine';
+import { wheelDragState } from '../../utils/wheelDragState';
 
 interface DesktopLayoutProps {
     /** Whether header/footer should be hidden (immersive mode) */
@@ -61,10 +62,12 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
     const {
         timelineVisible,
         toggleTimeline,
+        openTimeline,
         selectedChord,
         toggleInstrumentControlsModal,
         selectedKey,
         openModeFretboard,
+        chordInversion,
     } = useSongStore();
 
     // Timeline height - compact design matching mobile aesthetic
@@ -77,10 +80,19 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
         ? colors[selectedChord.root as keyof typeof colors] || '#6366f1'
         : '#6366f1';
 
-    // Get full chord name for badge (showing voicing)
-    const getBadgeName = () => {
-        if (!selectedChord) return '';
-        return formatChordForDisplay(`${selectedChord.root}${getQualitySymbol(selectedChord.quality)}`);
+    // Compute badge name with voicing and inversion
+    const getBadgeData = () => {
+        if (!selectedChord) return { name: '', notes: [] as string[], chord: null };
+        const rawNotes = getChordNotes(selectedChord.root, selectedChord.quality);
+        const invertedNotes = invertChord(rawNotes, chordInversion);
+        const fullSymbol = getChordSymbolWithInversion(selectedChord.root, selectedChord.quality, invertedNotes, chordInversion);
+        const chordWithVoicing = {
+            ...selectedChord,
+            notes: invertedNotes,
+            inversion: chordInversion,
+            symbol: fullSymbol
+        };
+        return { name: formatChordForDisplay(fullSymbol), notes: invertedNotes, chord: chordWithVoicing };
     };
 
     const handleOpenVoicingPicker = () => {
@@ -222,31 +234,82 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
                     </div>
                 </div>
 
-                {selectedChord && (
-                    <div
-                        className="absolute top-3 left-3 flex items-center gap-1 cursor-pointer touch-feedback active:scale-95 z-50"
-                        style={{
-                            color: chordColor,
-                            padding: '4px 10px',
-                            borderRadius: '8px',
-                            border: `2px solid ${chordColor}`,
-                            backdropFilter: 'blur(8px)',
-                            background: 'rgba(0, 0, 0, 0.4)',
-                        }}
-                        onClick={(e) => {
+                {selectedChord && (() => {
+                    const badgeData = getBadgeData();
+
+                    // Drag state
+                    let dragStartPos = { x: 0, y: 0 };
+                    let isDragging = false;
+
+                    const handlePointerDown = (e: React.PointerEvent) => {
+                        dragStartPos = { x: e.clientX, y: e.clientY };
+                        isDragging = false;
+                    };
+
+                    const handlePointerMove = (e: React.PointerEvent) => {
+                        if (dragStartPos.x === 0 && dragStartPos.y === 0) return;
+
+                        const dx = e.clientX - dragStartPos.x;
+                        const dy = e.clientY - dragStartPos.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+
+                        if (distance > 15 && !isDragging && badgeData.chord) {
+                            isDragging = true;
+                            wheelDragState.startDrag(badgeData.chord);
+
+                            if (!timelineVisible) {
+                                openTimeline();
+                            }
+                        }
+
+                        if (isDragging) {
+                            wheelDragState.updatePosition(e.clientX, e.clientY);
+                        }
+                    };
+
+                    const handlePointerUp = () => {
+                        if (isDragging) {
+                            setTimeout(() => wheelDragState.endDrag(), 50);
+                        }
+                        dragStartPos = { x: 0, y: 0 };
+                        isDragging = false;
+                    };
+
+                    const handleClick = (e: React.MouseEvent) => {
+                        if (!isDragging) {
                             e.stopPropagation();
                             e.preventDefault();
-                            playChord(selectedChord.notes);
-                        }}
-                    >
-                        <span className="text-sm font-bold leading-none">{getBadgeName()}</span>
-                        {selectedChord.numeral && (
-                            <span className="text-xs font-serif italic opacity-70">
-                                {formatChordForDisplay(selectedChord.numeral)}
-                            </span>
-                        )}
-                    </div>
-                )}
+                            playChord(badgeData.notes);
+                        }
+                    };
+
+                    return (
+                        <div
+                            className="absolute top-3 left-3 flex items-center gap-1 cursor-grab active:cursor-grabbing touch-feedback active:scale-95 z-50"
+                            style={{
+                                color: chordColor,
+                                padding: '4px 10px',
+                                borderRadius: '8px',
+                                border: `2px solid ${chordColor}`,
+                                backdropFilter: 'blur(8px)',
+                                background: 'rgba(0, 0, 0, 0.4)',
+                                touchAction: 'none',
+                            }}
+                            onPointerDown={handlePointerDown}
+                            onPointerMove={handlePointerMove}
+                            onPointerUp={handlePointerUp}
+                            onPointerLeave={handlePointerUp}
+                            onClick={handleClick}
+                        >
+                            <span className="text-sm font-bold leading-none">{badgeData.name}</span>
+                            {selectedChord.numeral && (
+                                <span className="text-xs font-serif italic opacity-70">
+                                    {formatChordForDisplay(selectedChord.numeral)}
+                                </span>
+                            )}
+                        </div>
+                    );
+                })()}
 
                 {/* Help Button - Upper Right */}
                 <button
@@ -258,9 +321,10 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
                     <HelpCircle size={18} />
                 </button>
 
+                {/* Notes Button - Lower Right */}
                 <button
                     onClick={(e) => { e.stopPropagation(); onToggleNotes(); }}
-                    className="absolute bottom-3 left-3 w-9 h-9 flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-amber-400 transition-colors shadow-lg border border-border-subtle z-50"
+                    className="absolute bottom-3 right-3 w-9 h-9 flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-amber-400 transition-colors shadow-lg border border-border-subtle z-50"
                     style={{ bottom: timelineVisible ? `${timelineHeight + 12}px` : `${collapsedHeight + 12}px`, transition: 'bottom 0.3s ease-out' }}
                     title="Song Notes & Lyrics"
                     aria-label="Song Notes and Lyrics"
@@ -268,7 +332,7 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
                     <ClipboardPen size={16} />
                 </button>
 
-                {/* Scales/Modes Button - next to Notes on the LEFT */}
+                {/* Scales/Modes Button - next to VoicingPicker on the LEFT */}
                 <button
                     data-scales-modes
                     onClick={(e) => {
@@ -288,7 +352,7 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
                     <KeyboardMusic size={16} />
                 </button>
 
-                {/* Instrument Controls Button - on the RIGHT */}
+                {/* Instrument Controls Button - next to Notes on the RIGHT */}
                 <button
                     data-instrument-controls
                     onClick={(e) => { e.stopPropagation(); toggleInstrumentControlsModal(); }}
@@ -300,10 +364,11 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
                     <Sliders size={16} />
                 </button>
 
+                {/* Voicing Picker Button - Lower Left */}
                 {selectedChord && (
                     <button
                         onClick={(e) => { e.stopPropagation(); handleOpenVoicingPicker(); }}
-                        className="absolute bottom-3 right-3 w-9 h-9 flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-accent-primary transition-colors shadow-lg border border-border-subtle z-50"
+                        className="absolute bottom-3 left-3 w-9 h-9 flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-accent-primary transition-colors shadow-lg border border-border-subtle z-50"
                         style={{ bottom: timelineVisible ? `${timelineHeight + 12}px` : `${collapsedHeight + 12}px`, transition: 'bottom 0.3s ease-out' }}
                         title="Open Voicing Picker"
                         aria-label="Open Voicing Picker"

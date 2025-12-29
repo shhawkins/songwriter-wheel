@@ -143,14 +143,14 @@ export const ModeFretboardModal: React.FC = () => {
         setDropdownOpen(!dropdownOpen);
     };
 
-    if (!modeFretboardModalVisible) return null;
-
     // Memoize initial position to prevent recalculation on re-renders causing jumps
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // This must be BEFORE the early return to satisfy React's Rules of Hooks
     const initialPosition = useMemo(() => ({
         x: Math.max(20, (window.innerWidth - 640) / 2),
         y: Math.max(60, (window.innerHeight - 520) / 2.5)
     }), []);  // Empty deps - only calculate once on mount
+
+    if (!modeFretboardModalVisible) return null;
 
     return (
         <DraggableModal

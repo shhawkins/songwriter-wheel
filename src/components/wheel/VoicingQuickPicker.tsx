@@ -6,6 +6,7 @@ import { Info, Plus, ChevronLeft, ChevronRight, MoveRight } from 'lucide-react';
 import { VoiceSelector } from '../playback/VoiceSelector';
 import { useSongStore } from '../../store/useSongStore';
 import DraggableModal from '../ui/DraggableModal';
+import { wheelDragState } from '../../utils/wheelDragState';
 import {
     getInversionName,
     invertChord,
@@ -60,7 +61,6 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
 }) => {
     const { isMobile, isLandscape } = useMobileLayout();
     const isLandscapeMobile = isMobile && isLandscape;
-    const [currentQuality, setCurrentQuality] = useState<string | undefined>(selectedQuality);
 
     // Position state for drag & drop persistence
     const [modalPosition, setModalPosition] = useState<{ x: number; y: number } | null>(null);
@@ -73,6 +73,7 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
         selectedKey,
         setChordPanelScrollTarget,
         timelineVisible,
+        openTimeline,
         autoAdvance,
         toggleAutoAdvance,
         modalStack,
@@ -93,6 +94,10 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
     const lastTapRef = useRef<{ quality: string; time: number } | null>(null);
     const touchStartRef = useRef<{ x: number; y: number } | null>(null);
     const fadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Drag-to-timeline state for in-key chord badges
+    const badgeDragStartRef = useRef<{ x: number; y: number; chord: Chord } | null>(null);
+    const badgeDraggingRef = useRef(false);
 
     const handleTouchStart = (e: React.TouchEvent) => {
         const currentTarget = e.currentTarget as HTMLElement;
@@ -129,11 +134,45 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
         touchStartRef.current = null;
     };
 
-    useEffect(() => {
-        if (selectedQuality) {
-            setCurrentQuality(selectedQuality);
+    // === DRAG-TO-TIMELINE HANDLERS FOR IN-KEY CHORD BADGES ===
+    const handleBadgePointerDown = useCallback((e: React.PointerEvent, chord: Chord) => {
+        // Always enable drag - no lock mode requirement
+        badgeDragStartRef.current = { x: e.clientX, y: e.clientY, chord };
+        badgeDraggingRef.current = false;
+    }, []);
+
+    const handleBadgePointerMove = useCallback((e: React.PointerEvent) => {
+        if (!badgeDragStartRef.current) return;
+
+        const dx = e.clientX - badgeDragStartRef.current.x;
+        const dy = e.clientY - badgeDragStartRef.current.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        // Start drag if moved more than 15px
+        if (distance > 15 && !badgeDraggingRef.current) {
+            badgeDraggingRef.current = true;
+            wheelDragState.startDrag(badgeDragStartRef.current.chord);
+
+            // Auto-open timeline if needed
+            if (!timelineVisible) {
+                openTimeline();
+            }
         }
-    }, [selectedQuality, isOpen, chordRoot]);
+
+        if (badgeDraggingRef.current) {
+            wheelDragState.updatePosition(e.clientX, e.clientY);
+        }
+    }, [timelineVisible, openTimeline]);
+
+    const handleBadgePointerUp = useCallback(() => {
+        if (badgeDraggingRef.current) {
+            setTimeout(() => {
+                wheelDragState.endDrag();
+            }, 50);
+        }
+        badgeDragStartRef.current = null;
+        badgeDraggingRef.current = false;
+    }, []);
 
     const resetFadeTimer = useCallback(() => {
         // Don't auto-close if manually opened by user
@@ -235,7 +274,7 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
         const notes = getChordNotes(chordRoot, quality);
         const invertedNotes = invertChord(notes, chordInversion);
         playChord(invertedNotes);
-        setCurrentQuality(quality);
+        // onSelect updates selectedChord in the store - no local state needed
         onSelect(quality);
         lastTapRef.current = { quality, time: now };
     };
@@ -252,7 +291,7 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
 
     const handleInversionChange = (direction: 'up' | 'down') => {
         resetFadeTimer();
-        const quality = currentQuality || selectedQuality || voicings[0]?.quality || 'major';
+        const quality = selectedChord?.quality || voicings[0]?.quality || 'major';
         const notes = getChordNotes(chordRoot, quality);
         const maxInv = getMaxInversion(notes);
 
@@ -289,7 +328,7 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
         if (lastTapRef.current && lastTapRef.current.quality === `inkey-${chord.root}` && now - lastTapRef.current.time < 400) {
             if (onDoubleTapInKeyChord) {
                 const effectiveQuality = chord.root === chordRoot
-                    ? (currentQuality || selectedQuality || chord.quality)
+                    ? (selectedChord?.quality || chord.quality)
                     : chord.quality;
                 onDoubleTapInKeyChord(chord, effectiveQuality);
             }
@@ -382,7 +421,7 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
                 {/* SECTION 1: VOICINGS & ACTIONS */}
                 <div className="flex flex-wrap items-center justify-center gap-2 w-full">
                     {voicings.map((voicing) => {
-                        const isSelected = voicing.quality === currentQuality;
+                        const isSelected = voicing.quality === selectedChord?.quality;
                         return (
                             <button
                                 key={voicing.quality}
@@ -450,14 +489,14 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
                         <button
                             onClick={(e) => {
                                 e.stopPropagation();
-                                const qualityToAdd = currentQuality || selectedQuality || voicings[0]?.quality;
+                                const qualityToAdd = selectedChord?.quality || voicings[0]?.quality;
                                 if (qualityToAdd) { onAddToTimeline(qualityToAdd); }
                             }}
                             onTouchStart={handleTouchStart}
                             onTouchEnd={(e) => {
                                 e.stopPropagation();
                                 handleTouchEnd(e, () => {
-                                    const qualityToAdd = currentQuality || selectedQuality || voicings[0]?.quality;
+                                    const qualityToAdd = selectedChord?.quality || voicings[0]?.quality;
                                     if (qualityToAdd) { onAddToTimeline(qualityToAdd); }
                                 });
                             }}
@@ -485,13 +524,18 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
                         return (
                             <button
                                 key={`${chord.root}-${chord.quality}-${idx}`}
-                                onClick={(e) => { e.stopPropagation(); handleInKeyChordClick(chord); }}
+                                onClick={(e) => { e.stopPropagation(); if (!badgeDraggingRef.current) handleInKeyChordClick(chord); }}
                                 onTouchStart={handleTouchStart}
-                                onTouchEnd={(e) => { e.stopPropagation(); handleTouchEnd(e, () => handleInKeyChordClick(chord)); }}
+                                onTouchEnd={(e) => { e.stopPropagation(); if (!badgeDraggingRef.current) handleTouchEnd(e, () => handleInKeyChordClick(chord)); }}
+                                onPointerDown={(e) => handleBadgePointerDown(e, chord)}
+                                onPointerMove={handleBadgePointerMove}
+                                onPointerUp={handleBadgePointerUp}
+                                onPointerLeave={handleBadgePointerUp}
                                 className={clsx(
                                     "flex flex-col items-center justify-center rounded-xl transition-all duration-300 shrink-0 active:scale-95 group relative outline-none ring-0 focus:ring-0",
                                     isTiny ? "h-11 min-w-[46px] px-1" : "h-[50px] min-w-[54px] px-1.5",
-                                    isSelected ? "opacity-100 scale-105 z-10" : "opacity-80 hover:opacity-100"
+                                    isSelected ? "opacity-100 scale-105 z-10" : "opacity-80 hover:opacity-100",
+                                    "cursor-grab active:cursor-grabbing"
                                 )}
                                 style={{
                                     background: isSelected
@@ -559,7 +603,7 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
                             onTouchStart={handleTouchStart}
                             onTouchEnd={(e) => { e.stopPropagation(); handleTouchEnd(e, () => handleInversionChange('up')); }}
                             disabled={(() => {
-                                const q = currentQuality || selectedQuality || voicings[0]?.quality || 'major';
+                                const q = selectedChord?.quality || voicings[0]?.quality || 'major';
                                 return chordInversion >= getMaxInversion(getChordNotes(chordRoot, q));
                             })()}
                             className="w-7 h-full flex items-center justify-center text-text-muted hover:text-accent-primary transition-colors disabled:opacity-20 active:bg-white/5 outline-none shrink-0"

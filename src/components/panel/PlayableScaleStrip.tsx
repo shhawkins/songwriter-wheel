@@ -1,6 +1,6 @@
 import React, { useRef, useState, useCallback } from 'react';
 import { playNote } from '../../utils/audioEngine';
-import { formatChordForDisplay, NOTES, normalizeNote } from '../../utils/musicTheory';
+import { formatChordForDisplay } from '../../utils/musicTheory';
 
 interface PlayableScaleStripProps {
     scaleNotes: string[]; // 7 notes
@@ -17,27 +17,15 @@ export const PlayableScaleStrip: React.FC<PlayableScaleStripProps> = ({
     // If scaleNotes has 7, repeat the first one at the end
     const fullScale = scaleNotes.length === 7 ? [...scaleNotes, scaleNotes[0]] : scaleNotes;
 
-    // ... (rest of logic)
-
-
     // Determine octaves for playback with C3 baseline
-    // Fix: Normalize notes to sharps before comparing indices to handle flats correctly
+    // The 8th note (octave) is one octave higher than the first
+    // All other notes stay in the same octave as the starting note
     const playbackNotes = React.useMemo(() => {
-        let currentOctave = 3;
+        const baseOctave = 3;
         return fullScale.map((note, index) => {
-            if (index > 0) {
-                const prev = fullScale[index - 1];
-                // Normalize both notes to sharps for consistent comparison
-                const normalizedPrev = normalizeNote(prev);
-                const normalizedCurr = normalizeNote(note);
-                const prevIndex = NOTES.indexOf(normalizedPrev);
-                const currIndex = NOTES.indexOf(normalizedCurr);
-                // Only increment octave if we wrap around (e.g., B -> C)
-                if (prevIndex !== -1 && currIndex !== -1 && currIndex < prevIndex) {
-                    currentOctave++;
-                }
-            }
-            return { note, octave: currentOctave };
+            // Only the 8th note (the octave) is one octave higher
+            const octave = index === 7 ? baseOctave + 1 : baseOctave;
+            return { note, octave };
         });
     }, [fullScale]);
 
@@ -72,7 +60,9 @@ export const PlayableScaleStrip: React.FC<PlayableScaleStripProps> = ({
         const index = parseInt(cell.dataset.noteIndex || '-1', 10);
         if (index === -1) return;
 
-        if (activeNoteRef.current !== index) {
+        // Play note if it's different from the last one, OR if this is a new interaction (pointerdown)
+        // This allows quick successive taps on the same note
+        if (activeNoteRef.current !== index || e.type === 'pointerdown') {
             activeNoteRef.current = index;
             setHighlightedIndex(index);
             const noteData = playbackNotes[index];

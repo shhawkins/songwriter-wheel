@@ -165,6 +165,7 @@ export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
     }, [octave, whiteKeys]);
 
     // Handle pointer/touch events for glissando - NO pointer capture for multi-touch support
+    // EXCEPTION: Apple Pencil (pen type) NEEDS pointer capture for glissando to work
     const handlePointerDown = useCallback((e: React.PointerEvent) => {
         // Track this pointer
         activePointers.current.add(e.pointerId);
@@ -174,8 +175,11 @@ export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
             playNoteForPointer(e.pointerId, noteInfo.note, noteInfo.octave);
         }
 
-        // DO NOT capture pointer - this blocks multi-touch on other elements
-        // The pointer will naturally stay associated with this element while in bounds
+        // Capture pointer ONLY for pen/stylus (Apple Pencil) - required for glissando to work
+        // Touch events don't use capture to preserve multi-touch on other elements
+        if (e.pointerType === 'pen') {
+            (e.target as HTMLElement).setPointerCapture(e.pointerId);
+        }
     }, [getNoteFromPoint, playNoteForPointer]);
 
     const handlePointerMove = useCallback((e: React.PointerEvent) => {

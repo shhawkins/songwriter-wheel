@@ -317,7 +317,7 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
     const displayNotes = invertChord(baseNotes, chordInversion);
     const maxInversion = getMaxInversion(baseNotes);
 
-    // Play chord variation and show notes until another is clicked
+    // Play chord variation and update the store for unified state
     const handleVariationClick = (variant: string) => {
         const now = Date.now();
         if (now - lastVariationClickTime.current < 300) {
@@ -330,10 +330,23 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
 
         const variantNotes = getChordNotes(chord.root, variant);
         const invertedNotes = invertChord(variantNotes, chordInversion);
+        const symbol = getChordSymbolWithInversion(chord.root, variant, variantNotes, chordInversion);
 
         playChord(invertedNotes);
+
+        // Update the store so all components (VoicingQuickPicker, badge, etc.) stay in sync
+        const newChord = {
+            ...chord,
+            quality: variant as any,
+            notes: variantNotes,
+            symbol,
+            inversion: chordInversion
+        };
+        setSelectedChord(newChord);
+
+        // Keep legacy local state in sync for any remaining usages
         setPreviewVariant(variant);
-        setPreviewNotes(variantNotes); // Store un-inverted; displayNotes handles inversion
+        setPreviewNotes(variantNotes);
 
         // Single click: preview only (no timeline add)
     };

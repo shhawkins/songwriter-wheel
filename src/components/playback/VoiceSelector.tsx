@@ -204,12 +204,21 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
         };
     }, [showMenu]);
 
-    const handleSelect = (val: InstrumentType) => {
+    const handleSelect = async (val: InstrumentType) => {
         const { selectedChord } = useSongStore.getState();
-        setAudioInstrument(val);
-        setInstrument(val);
-        playChord(selectedChord?.notes || ['C4', 'E4', 'G4']);
+
+        // Close menu immediately for snappy UI
         setShowMenu(false);
+
+        // Update store state
+        setInstrument(val);
+
+        // Load the instrument and wait for it to be ready (important for samplers)
+        await setAudioInstrument(val);
+
+        // Now play the chord with the newly loaded instrument
+        const notes = selectedChord?.notes || ['C4', 'E4', 'G4'];
+        await playChord(notes);
     };
 
     const currentLabel = instrumentOptions.find(opt => opt.value === instrument)?.label || 'Piano';

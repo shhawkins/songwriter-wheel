@@ -14,7 +14,8 @@ import { saveAs } from 'file-saver';
 import { deleteSong } from './utils/storage';
 
 import { type Song } from './types';
-import { formatChordForDisplay, getQualitySymbol, getWheelColors } from './utils/musicTheory';
+import { formatChordForDisplay, getQualitySymbol, getWheelColors, invertChord, getChordSymbolWithInversion, getChordNotes } from './utils/musicTheory';
+import { wheelDragState } from './utils/wheelDragState';
 
 import { ConfirmDialog } from './components/ui/ConfirmDialog';
 import { OnboardingTooltip } from './components/OnboardingTooltip';
@@ -48,7 +49,7 @@ import { WheelDragGhost } from './components/wheel/WheelDragGhost';
 
 
 function App() {
-  const { currentSong, selectedKey, timelineVisible, toggleTimeline, setTitle, setArtist, setTags, setSongTimeSignature, loadSong: loadSongToStore, newSong, instrument, volume, isMuted, chordPanelVisible, isPlaying, songInfoModalVisible, toggleSongInfoModal, instrumentManagerModalVisible, toggleInstrumentManagerModal, toggleInstrumentControlsModal, cloudSongs, loadCloudSongs, saveToCloud, deleteFromCloud, isLoadingCloud, selectedChord, notesModalVisible, toggleNotesModal, isDirty, openModeFretboard } = useSongStore();
+  const { currentSong, selectedKey, timelineVisible, toggleTimeline, openTimeline, setTitle, setArtist, setTags, setSongTimeSignature, loadSong: loadSongToStore, newSong, instrument, volume, isMuted, chordPanelVisible, isPlaying, songInfoModalVisible, toggleSongInfoModal, instrumentManagerModalVisible, toggleInstrumentManagerModal, toggleInstrumentControlsModal, cloudSongs, loadCloudSongs, saveToCloud, deleteFromCloud, isLoadingCloud, selectedChord, notesModalVisible, toggleNotesModal, isDirty, openModeFretboard, chordInversion, selectedSectionId, selectedSlotId, addChordToSlot, setSelectedSlot, setSelectedChord } = useSongStore();
 
   // Audio Sync Logic
   useEffect(() => {
@@ -1003,7 +1004,7 @@ function App() {
               <HelpCircle size={isMobile && isLandscape ? 14 : isMobile ? 20 : 16} />
             </button>
 
-            {/* Voicing Picker button - pinned to upper left of wheel panel area */}
+            {/* Voicing Picker button - pinned to lower LEFT of wheel panel area */}
             {selectedChord && (
               <button
                 onClick={() => {
@@ -1045,7 +1046,7 @@ function App() {
                     });
                   }
                 }}
-                className={`absolute ${isMobile && isLandscape ? 'bottom-2 right-2 w-8 h-8' : isMobile ? 'bottom-3 right-3 w-11 h-11' : 'bottom-3 right-3 w-9 h-9'} flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-accent-primary transition-colors shadow-lg border border-border-subtle z-50`}
+                className={`absolute ${isMobile && isLandscape ? 'bottom-2 left-2 w-8 h-8' : isMobile ? 'bottom-3 left-3 w-11 h-11' : 'bottom-3 left-3 w-9 h-9'} flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-accent-primary transition-colors shadow-lg border border-border-subtle z-50`}
                 style={{ touchAction: 'auto', pointerEvents: 'auto' }}
                 title="Open Voicing Picker"
               >
@@ -1053,7 +1054,7 @@ function App() {
               </button>
             )}
 
-            {/* Scales/Modes button - next to Notes on the LEFT */}
+            {/* Scales/Modes button - next to VoicingPicker on the LEFT */}
             <button
               onClick={() => {
                 openModeFretboard({
@@ -1080,7 +1081,7 @@ function App() {
               <Music2 size={isMobile && isLandscape ? 14 : isMobile ? 20 : 16} />
             </button>
 
-            {/* Instrument Controls button - on the RIGHT */}
+            {/* Instrument Controls button - next to Notes on the RIGHT */}
             <button
               onClick={() => toggleInstrumentControlsModal()}
               onTouchEnd={(e) => {
@@ -1095,9 +1096,7 @@ function App() {
               <Sliders size={isMobile && isLandscape ? 14 : isMobile ? 20 : 16} />
             </button>
 
-            {/* Notes button - pinned to lower left of wheel panel area */}
-            {/* Voicing Picker button - originally pinned to upper left, then bottom right, now bottom LEFT */}
-            {/* Notes button - originally pinned to lower left, now bottom RIGHT */}
+            {/* Notes button - pinned to lower RIGHT of wheel panel area */}
             <button
               data-notes-button
               onClick={() => toggleNotesModal(true)}
@@ -1106,23 +1105,82 @@ function App() {
                 e.stopPropagation();
                 toggleNotesModal(true);
               }}
-              className={`absolute ${isMobile && isLandscape ? 'bottom-2 left-2 w-8 h-8' : isMobile ? 'bottom-3 left-3 w-11 h-11' : 'bottom-3 left-3 w-9 h-9'} flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-amber-400 transition-colors shadow-lg border border-border-subtle z-50`}
+              className={`absolute ${isMobile && isLandscape ? 'bottom-2 right-2 w-8 h-8' : isMobile ? 'bottom-3 right-3 w-11 h-11' : 'bottom-3 right-3 w-9 h-9'} flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-amber-400 transition-colors shadow-lg border border-border-subtle z-50`}
               style={{ touchAction: 'auto', pointerEvents: 'auto' }}
               title="Song Notes & Lyrics"
             >
               <ClipboardPen size={isMobile && isLandscape ? 14 : isMobile ? 20 : 16} />
             </button>
 
-            {/* Chord badge - pinned to lower right of wheel panel area */}
+            {/* Chord badge - pinned to upper left of wheel panel area */}
             {selectedChord && (() => {
               const colors = getWheelColors();
               const chordColor = colors[selectedChord.root as keyof typeof colors] || '#6366f1';
 
-              const shortName = formatChordForDisplay(`${selectedChord.root}${getQualitySymbol(selectedChord.quality)}`);
+              // Compute inverted notes and proper symbol with voicing
+              const rawNotes = getChordNotes(selectedChord.root, selectedChord.quality);
+              const invertedNotes = invertChord(rawNotes, chordInversion);
+              const fullSymbol = getChordSymbolWithInversion(selectedChord.root, selectedChord.quality, invertedNotes, chordInversion);
+              const shortName = formatChordForDisplay(fullSymbol);
+
+              // Build chord object with proper voicing for drag/add
+              const chordWithVoicing = {
+                ...selectedChord,
+                notes: invertedNotes,
+                inversion: chordInversion,
+                symbol: fullSymbol
+              };
+
+              // Drag state refs (local to this closure)
+              let dragStartPos = { x: 0, y: 0 };
+              let isDragging = false;
+
+              const handlePointerDown = (e: React.PointerEvent) => {
+                dragStartPos = { x: e.clientX, y: e.clientY };
+                isDragging = false;
+              };
+
+              const handlePointerMove = (e: React.PointerEvent) => {
+                if (dragStartPos.x === 0 && dragStartPos.y === 0) return;
+
+                const dx = e.clientX - dragStartPos.x;
+                const dy = e.clientY - dragStartPos.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance > 15 && !isDragging) {
+                  isDragging = true;
+                  wheelDragState.startDrag(chordWithVoicing);
+
+                  if (!timelineVisible) {
+                    openTimeline();
+                  }
+                }
+
+                if (isDragging) {
+                  wheelDragState.updatePosition(e.clientX, e.clientY);
+                }
+              };
+
+              const handlePointerUp = () => {
+                if (isDragging) {
+                  setTimeout(() => wheelDragState.endDrag(), 50);
+                }
+                dragStartPos = { x: 0, y: 0 };
+                isDragging = false;
+              };
+
+              const handleClick = (e: React.MouseEvent | React.TouchEvent) => {
+                // Only play if not dragging
+                if (!isDragging) {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  import('./utils/audioEngine').then(mod => mod.playChord(invertedNotes));
+                }
+              };
 
               return (
                 <div
-                  className={`absolute ${isMobile && isLandscape ? 'top-2 left-2' : 'top-3 left-3'} flex items-center gap-1 cursor-pointer touch-feedback active:scale-95 z-50`}
+                  className={`absolute ${isMobile && isLandscape ? 'top-2 left-2' : 'top-3 left-3'} flex items-center gap-1 cursor-grab active:cursor-grabbing touch-feedback active:scale-95 z-50`}
                   style={{
                     color: chordColor,
                     padding: '4px 10px',
@@ -1130,22 +1188,14 @@ function App() {
                     border: `2px solid ${chordColor}`,
                     backdropFilter: 'blur(8px)',
                     background: 'rgba(0, 0, 0, 0.4)',
-                    touchAction: 'auto',
+                    touchAction: 'none',
                     pointerEvents: 'auto'
                   }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    import('./utils/audioEngine').then(mod => mod.playChord(selectedChord.notes));
-                  }}
-                  onTouchStart={(e) => {
-                    e.stopPropagation();
-                  }}
-                  onTouchEnd={(e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    import('./utils/audioEngine').then(mod => mod.playChord(selectedChord.notes));
-                  }}
+                  onPointerDown={handlePointerDown}
+                  onPointerMove={handlePointerMove}
+                  onPointerUp={handlePointerUp}
+                  onPointerLeave={handlePointerUp}
+                  onClick={handleClick}
                 >
                   <span className="text-sm font-bold leading-none">{shortName}</span>
                   {selectedChord.numeral && (
