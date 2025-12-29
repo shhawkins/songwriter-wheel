@@ -185,11 +185,11 @@ export const InstrumentControls: React.FC = () => {
             position={instrumentControlsPosition}
             onPositionChange={setInstrumentControlsPosition}
             compact={isCompact}
-            minWidth={isMobile ? '280px' : '320px'}
+            minWidth={isMobile ? '280px' : '300px'}
             minHeight="200px"
             maxWidth="800px"
             maxArea={280000}
-            width={isMobile ? '320px' : '650px'}
+            width={isMobile ? '300px' : '320px'}
             resizable={true}
             dragExcludeSelectors={['button', '.touch-none', 'input', 'select', '.voice-selector-dropdown']}
             zIndex={zIndex}

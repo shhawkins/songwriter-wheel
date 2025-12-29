@@ -100,10 +100,10 @@ export const LeadInstrumentControls: React.FC<LeadInstrumentControlsProps> = ({ 
     const { isMobile, isLandscape } = useMobileLayout();
     const isCompact = isMobile && isLandscape;
 
-    // Initial position: bottom-left corner with some padding
+    // Initial position: upper-left area with some padding (high enough to not get cut off)
     const initialPosition = useMemo(() => ({
         x: 40,
-        y: Math.max(60, window.innerHeight - 450)
+        y: Math.max(60, Math.min(120, window.innerHeight - 550))
     }), []);
 
     // Play sustained preview note
@@ -172,12 +172,11 @@ export const LeadInstrumentControls: React.FC<LeadInstrumentControlsProps> = ({ 
             isOpen={isOpen}
             onClose={onClose}
             compact={isCompact}
-            minWidth={isMobile ? '220px' : '240px'}
-            minHeight="280px"
+            minWidth={isMobile ? '280px' : '300px'}
+            minHeight="200px"
             maxWidth="800px"
             maxArea={280000}
-            width={isMobile ? '240px' : '250px'}
-            height="420px"
+            width={isMobile ? '300px' : '320px'}
             position={initialPosition}
             resizable={true}
             dragExcludeSelectors={['button', '.touch-none', 'input', 'select', '.lead-voice-selector-dropdown']}

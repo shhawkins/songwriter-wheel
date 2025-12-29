@@ -7,7 +7,7 @@ import { ChordDetails } from './components/panel/ChordDetails';
 import { PlaybackControls } from './components/playback/PlaybackControls';
 
 import { useSongStore } from './store/useSongStore';
-import { Download, Save, ChevronDown, ChevronUp, Plus, Minus, Clock, FolderOpen, FilePlus, Trash2, HelpCircle, FileAudio, FileText, ListMusic, ClipboardPen, Sliders, Music2 } from 'lucide-react';
+import { Download, Save, ChevronDown, ChevronUp, Plus, Minus, Clock, FolderOpen, FilePlus, Trash2, HelpCircle, FileAudio, FileText, ListMusic, ClipboardPen, Sliders, KeyboardMusic } from 'lucide-react';
 import { Logo } from './components/Logo';
 // Tone import removed for code splitting
 import { saveAs } from 'file-saver';
@@ -1004,7 +1004,7 @@ function App() {
               <HelpCircle size={isMobile && isLandscape ? 14 : isMobile ? 20 : 16} />
             </button>
 
-            {/* Voicing Picker button - pinned to lower LEFT of wheel panel area */}
+            {/* Voicing Picker button - pinned to lower RIGHT of wheel panel area */}
             {selectedChord && (
               <button
                 onClick={() => {
@@ -1046,7 +1046,7 @@ function App() {
                     });
                   }
                 }}
-                className={`absolute ${isMobile && isLandscape ? 'bottom-2 left-2 w-8 h-8' : isMobile ? 'bottom-3 left-3 w-11 h-11' : 'bottom-3 left-3 w-9 h-9'} flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-accent-primary transition-colors shadow-lg border border-border-subtle z-50`}
+                className={`absolute ${isMobile && isLandscape ? 'bottom-2 right-2 w-8 h-8' : isMobile ? 'bottom-3 right-3 w-11 h-11' : 'bottom-3 right-3 w-9 h-9'} flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-accent-primary transition-colors shadow-lg border border-border-subtle z-50`}
                 style={{ touchAction: 'auto', pointerEvents: 'auto' }}
                 title="Open Voicing Picker"
               >
@@ -1054,7 +1054,7 @@ function App() {
               </button>
             )}
 
-            {/* Scales/Modes button - next to VoicingPicker on the LEFT */}
+            {/* Scales/Modes button - next to VoicingPicker on the RIGHT */}
             <button
               onClick={() => {
                 openLeadScales({
@@ -1074,14 +1074,14 @@ function App() {
                   color: '#EAB308'
                 });
               }}
-              className={`absolute ${isMobile && isLandscape ? 'bottom-2 left-12 w-8 h-8' : isMobile ? 'bottom-3 left-16 w-11 h-11' : 'bottom-3 left-14 w-9 h-9'} flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-purple-400 transition-colors shadow-lg border border-border-subtle z-50`}
+              className={`absolute ${isMobile && isLandscape ? 'bottom-2 right-12 w-8 h-8' : isMobile ? 'bottom-3 right-16 w-11 h-11' : 'bottom-3 right-14 w-9 h-9'} flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-purple-400 transition-colors shadow-lg border border-border-subtle z-50`}
               style={{ touchAction: 'auto', pointerEvents: 'auto' }}
               title="Open Scales & Modes"
             >
-              <Music2 size={isMobile && isLandscape ? 14 : isMobile ? 20 : 16} />
+              <KeyboardMusic size={isMobile && isLandscape ? 14 : isMobile ? 20 : 16} />
             </button>
 
-            {/* Instrument Controls button - next to Notes on the RIGHT */}
+            {/* Instrument Controls button - next to Notes on the LEFT */}
             <button
               onClick={() => toggleInstrumentControlsModal()}
               onTouchEnd={(e) => {
@@ -1089,14 +1089,14 @@ function App() {
                 e.stopPropagation();
                 toggleInstrumentControlsModal();
               }}
-              className={`absolute ${isMobile && isLandscape ? 'bottom-2 right-12 w-8 h-8' : isMobile ? 'bottom-3 right-16 w-11 h-11' : 'bottom-3 right-14 w-9 h-9'} flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-accent-primary transition-colors shadow-lg border border-border-subtle z-50`}
+              className={`absolute ${isMobile && isLandscape ? 'bottom-2 left-12 w-8 h-8' : isMobile ? 'bottom-3 left-16 w-11 h-11' : 'bottom-3 left-14 w-9 h-9'} flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-accent-primary transition-colors shadow-lg border border-border-subtle z-50`}
               style={{ touchAction: 'auto', pointerEvents: 'auto' }}
               title="Open Sound Controls"
             >
               <Sliders size={isMobile && isLandscape ? 14 : isMobile ? 20 : 16} />
             </button>
 
-            {/* Notes button - pinned to lower RIGHT of wheel panel area */}
+            {/* Notes button - pinned to lower LEFT of wheel panel area */}
             <button
               data-notes-button
               onClick={() => toggleNotesModal(true)}
@@ -1105,7 +1105,7 @@ function App() {
                 e.stopPropagation();
                 toggleNotesModal(true);
               }}
-              className={`absolute ${isMobile && isLandscape ? 'bottom-2 right-2 w-8 h-8' : isMobile ? 'bottom-3 right-3 w-11 h-11' : 'bottom-3 right-3 w-9 h-9'} flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-amber-400 transition-colors shadow-lg border border-border-subtle z-50`}
+              className={`absolute ${isMobile && isLandscape ? 'bottom-2 left-2 w-8 h-8' : isMobile ? 'bottom-3 left-3 w-11 h-11' : 'bottom-3 left-3 w-9 h-9'} flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-amber-400 transition-colors shadow-lg border border-border-subtle z-50`}
               style={{ touchAction: 'auto', pointerEvents: 'auto' }}
               title="Song Notes & Lyrics"
             >
