@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { ChevronDown, ChevronUp, HelpCircle, ListMusic, ClipboardPen } from 'lucide-react';
+import { ChevronDown, ChevronUp, HelpCircle, ListMusic, ClipboardPen, Sliders } from 'lucide-react';
 import { useSongStore } from '../../store/useSongStore';
 import { MobileTimeline } from '../timeline/MobileTimeline';
 import { ChordDetails } from '../panel/ChordDetails';
@@ -62,6 +62,7 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
         timelineVisible,
         toggleTimeline,
         selectedChord,
+        toggleInstrumentControlsModal,
     } = useSongStore();
 
     // Timeline height - compact design matching mobile aesthetic
@@ -261,6 +262,16 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
                     title="Song Notes & Lyrics"
                 >
                     <ClipboardPen size={16} />
+                </button>
+
+                {/* Instrument Controls Button - next to VoicingPicker */}
+                <button
+                    onClick={(e) => { e.stopPropagation(); toggleInstrumentControlsModal(); }}
+                    className="absolute bottom-3 right-14 w-9 h-9 flex items-center justify-center bg-bg-secondary/90 hover:bg-bg-tertiary backdrop-blur-sm rounded-full text-text-muted hover:text-accent-primary transition-colors shadow-lg border border-border-subtle z-50"
+                    style={{ bottom: timelineVisible ? `${timelineHeight + 12}px` : `${collapsedHeight + 12}px`, transition: 'bottom 0.3s ease-out' }}
+                    title="Open Sound Controls"
+                >
+                    <Sliders size={16} />
                 </button>
 
                 {selectedChord && (
