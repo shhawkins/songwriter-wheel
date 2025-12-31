@@ -123,7 +123,7 @@ export const createInstrumentSlice: StateCreator<
     instrumentControlsPosition: null,
 
     // Lead channel defaults
-    leadInstrument: 'jazzmaster',
+    leadInstrument: 'guitar-jazzmaster',
     leadGain: 0.75,
     leadReverbMix: 0.2,
     leadDelayMix: 0.1,

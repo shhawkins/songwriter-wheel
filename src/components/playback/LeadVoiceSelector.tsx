@@ -81,14 +81,31 @@ export const LeadVoiceSelector: React.FC<LeadVoiceSelectorProps> = ({
         if (!showMenu && buttonRef.current) {
             const rect = buttonRef.current.getBoundingClientRect();
             const windowHeight = window.innerHeight;
+            const windowWidth = window.innerWidth;
+
             const spaceAbove = rect.top;
             const spaceBelow = windowHeight - rect.bottom;
-            const shouldOpenDown = spaceAbove < 320 && spaceBelow > spaceAbove;
+            const shouldOpenDown = spaceAbove < 320 && spaceBelow > spaceAbove; // Default to down unless cramped
+
+            // Calculate horizontal position
+            // Center the menu relative to the button, but clamp to screen edges
+            const menuWidth = 192; // 12rem
+            const buttonCenter = rect.left + (rect.width / 2);
+
+            // Try to center
+            let leftPos = buttonCenter - (menuWidth / 2);
+
+            // Clamp to left edge
+            if (leftPos < 10) leftPos = 10;
+
+            // Clamp to right edge
+            if (leftPos + menuWidth > windowWidth - 10) {
+                leftPos = windowWidth - menuWidth - 10;
+            }
 
             setMenuStyle({
                 position: 'fixed',
-                left: shouldOpenDown ? rect.left : 'auto',
-                right: shouldOpenDown ? 'auto' : (window.innerWidth - rect.right),
+                left: `${leftPos}px`,
                 top: shouldOpenDown ? (rect.bottom + 8) : 'auto',
                 bottom: shouldOpenDown ? 'auto' : (windowHeight - rect.top + 8),
                 zIndex: 100000,
