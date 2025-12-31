@@ -479,7 +479,7 @@ function App() {
   const handleLoad = (song: Song) => {
     // Check if there are unsaved changes
     console.log('[handleLoad] isDirty:', isDirty, 'currentSong.notes:', currentSong.notes);
-    if (isDirty) {
+    if (useSongStore.getState().isDirty) {
       console.log('[handleLoad] Showing unsaved changes dialog');
       setPendingAction({ type: 'load', song });
       setUnsavedChangesOpen(true);
@@ -555,7 +555,7 @@ function App() {
 
   const handleNew = () => {
     // Check if there are unsaved changes
-    if (isDirty) {
+    if (useSongStore.getState().isDirty) {
       setPendingAction({ type: 'new' });
       setUnsavedChangesOpen(true);
     } else {

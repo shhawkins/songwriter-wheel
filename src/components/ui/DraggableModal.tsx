@@ -206,11 +206,22 @@ export const DraggableModal: React.FC<DraggableModalProps> = ({
                 }
             }
 
+            // MaxWidth enforcement
+            if (maxWidth && typeof maxWidth === 'string' && maxWidth.endsWith('px')) {
+                const maxW = parseFloat(maxWidth);
+                if (!isNaN(maxW) && newWidth > maxW) {
+                    if (direction.includes('w')) {
+                        newX = (startPos.x + startWidth) - maxW;
+                    }
+                    newWidth = maxW;
+                }
+            }
+
             // Perform real-time resize (if needed for responsive layout updates during drag)
             onResize?.({ width: newWidth, height: newHeight });
 
             // Update state so re-renders (triggered by onResize affecting parent) don't revert size
-            setSize({ width: newWidth, height: newHeight });
+            // setSize({ width: newWidth, height: newHeight });
 
             // Update DOM directly
             modalRef.current.style.width = `${newWidth}px`;

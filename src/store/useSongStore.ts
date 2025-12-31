@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Song, Section, InstrumentType, Measure } from '../types';
+import type { Song, Section, InstrumentType, Measure, SketchPage } from '../types';
 import { CIRCLE_OF_FIFTHS, type Chord } from '../utils/musicTheory';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -164,6 +164,7 @@ interface SongState extends PlaybackSlice, InstrumentSlice, SelectionSlice, Clou
     setTags: (tags: string[]) => void;
     setSongTimeSignature: (signature: [number, number]) => void;
     setNotes: (notes: string) => void;
+    setSketches: (sketches: SketchPage[]) => void;
     setSectionLyrics: (sectionId: string, lyrics: string) => void;
     loadSong: (song: Song) => void;
     newSong: () => void;
@@ -230,6 +231,7 @@ const DEFAULT_SONG: Song = {
         },
     ],
     notes: '',
+    sketches: [],
     createdAt: new Date(),
     updatedAt: new Date(),
 };
@@ -342,6 +344,14 @@ export const useSongStore = create<SongState>()(
                 return {
                     ...history,
                     currentSong: { ...state.currentSong, notes }
+                };
+            }),
+
+            setSketches: (sketches) => set((state) => {
+                const history = buildHistoryState(state.currentSong, state.historyPast);
+                return {
+                    ...history,
+                    currentSong: { ...state.currentSong, sketches }
                 };
             }),
 

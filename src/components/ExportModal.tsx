@@ -6,18 +6,20 @@
 
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import JSZip from 'jszip';
+
 import {
     X,
     Download,
     Music,
     FileAudio,
-    FileText,
     Check,
     Loader2,
-    Volume2,
     VolumeX,
     Sparkles,
     StickyNote,
+    PenTool,
+    Moon,
+    Sun
 } from 'lucide-react';
 import { useSongStore } from '../store/useSongStore';
 import type { InstrumentType } from '../types';
@@ -46,8 +48,6 @@ const AVAILABLE_INSTRUMENTS: InstrumentType[] = [
     'pad',
 ];
 
-type ExportFormat = 'audio' | 'midi';
-
 interface ExportProgress {
     current: number;
     total: number;
@@ -68,7 +68,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, getPd
     const [includePdf, setIncludePdf] = useState(true);
     const [includeDry, setIncludeDry] = useState(true);
     const [includeWet, setIncludeWet] = useState(true);
-    const [includeNotes, setIncludeNotes] = useState(true);
+    const [includeNotes, setIncludeNotes] = useState(false);
+    const [includeSketches, setIncludeSketches] = useState(false);
+    const [sketchDarkMode, setSketchDarkMode] = useState(false);
 
     // Export state
     const [isExporting, setIsExporting] = useState(false);
@@ -91,9 +93,11 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, getPd
         }
         if (exportMidi) count += 1; // MIDI is always one file
         if (includePdf && getPdfBlob) count += 1; // PDF is one file
+
         if (includeNotes && currentSong.notes) count += 1; // Notes is one file
+        if (includeSketches && currentSong.sketches?.length) count += currentSong.sketches.length; // One PNG per sketch page
         return count;
-    }, [exportAudio, exportMidi, includePdf, getPdfBlob, includeDry, includeWet, selectedInstruments, includeNotes, currentSong.notes]);
+    }, [exportAudio, exportMidi, includePdf, getPdfBlob, includeDry, includeWet, selectedInstruments, includeNotes, includeSketches, currentSong.notes, currentSong.sketches]);
 
     // Toggle instrument selection
     const toggleInstrument = useCallback((instrument: InstrumentType) => {
@@ -164,6 +168,73 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, getPd
                 const notesBlob = new Blob([notesContent], { type: 'text/plain' });
                 zip.file(`${baseFilename}-notes.txt`, notesBlob);
                 currentProgress++;
+
+            }
+
+            // Export Sketches as PNGs
+            if (includeSketches && currentSong.sketches && currentSong.sketches.length > 0) {
+                for (let i = 0; i < currentSong.sketches.length; i++) {
+                    const page = currentSong.sketches[i];
+                    if (!page.strokes.length) continue;
+
+                    setProgress({
+                        current: currentProgress,
+                        total: totalExportItems,
+                        currentItem: `Rendering Sketch Page ${i + 1}...`,
+                    });
+
+                    // Create offscreen canvas
+                    const canvas = document.createElement('canvas');
+                    // Standard A4-ish ratio, high enough res
+                    canvas.width = 1240;
+                    canvas.height = 1754;
+                    const ctx = canvas.getContext('2d');
+
+                    if (ctx) {
+                        // Background
+                        const bgColor = sketchDarkMode ? '#000000' : '#ffffff';
+                        const inkColor = sketchDarkMode ? '#ffffff' : '#000000';
+
+                        // Fill background
+                        ctx.fillStyle = bgColor;
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                        // Setup drawing style
+                        ctx.lineCap = 'round';
+                        ctx.lineJoin = 'round';
+
+                        // Draw strokes
+                        page.strokes.forEach(stroke => {
+                            if (stroke.points.length < 2) return;
+
+                            ctx.beginPath();
+                            // Force ink color for visibility, unless eraser
+                            ctx.strokeStyle = stroke.isEraser ? bgColor : inkColor;
+                            ctx.lineWidth = stroke.width * 2; // Scale up slightly for high-res
+
+                            ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+
+                            for (let j = 1; j < stroke.points.length - 1; j++) {
+                                const p1 = stroke.points[j];
+                                const p2 = stroke.points[j + 1];
+                                const midX = (p1.x + p2.x) / 2;
+                                const midY = (p1.y + p2.y) / 2;
+                                ctx.quadraticCurveTo(p1.x, p1.y, midX, midY);
+                            }
+
+                            const lastPoint = stroke.points[stroke.points.length - 1];
+                            ctx.lineTo(lastPoint.x, lastPoint.y);
+                            ctx.stroke();
+                        });
+
+                        // Convert to blob
+                        const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/png'));
+                        if (blob) {
+                            zip.file(`${baseFilename}-sketch-page-${i + 1}.png`, blob);
+                        }
+                    }
+                    currentProgress++;
+                }
             }
 
             // Export MIDI (single file)
@@ -287,7 +358,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, getPd
                             <FileAudio className="w-4 h-4" />
                             Export Formats
                         </h3>
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                             {/* Audio toggle */}
                             <button
                                 onClick={() => setExportAudio(!exportAudio)}
@@ -356,8 +427,60 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, getPd
                                     <span className="font-medium text-sm">Notes</span>
                                 </button>
                             )}
+
+                            {/* Sketches toggle */}
+                            {currentSong.sketches && currentSong.sketches.length > 0 && (
+                                <button
+                                    onClick={() => setIncludeSketches(!includeSketches)}
+                                    disabled={isExporting}
+                                    className={`flex items-center gap-2 px-3 py-3 rounded-xl border transition-all ${includeSketches
+                                        ? 'bg-pink-600/20 border-pink-500/50 text-pink-400'
+                                        : 'bg-gray-800/50 border-gray-700/50 text-gray-400 hover:border-gray-600'
+                                        }`}
+                                >
+                                    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${includeSketches ? 'bg-pink-500 border-pink-500' : 'border-gray-500'
+                                        }`}>
+                                        {includeSketches && <Check className="w-3 h-3 text-white" />}
+                                    </div>
+                                    <PenTool className="w-3 h-3" />
+                                    <span className="font-medium text-sm">Sketches</span>
+                                </button>
+                            )}
                         </div>
                     </div>
+
+                    {/* Sketch Options (shown when sketches are selected) */}
+                    {includeSketches && currentSong.sketches && currentSong.sketches.length > 0 && (
+                        <div className="space-y-3 p-4 bg-gray-800/30 rounded-xl border border-gray-700/30">
+                            <h4 className="text-sm font-medium text-gray-300">Sketch Appearance</h4>
+                            <div className="flex gap-4">
+                                <button
+                                    onClick={() => setSketchDarkMode(false)}
+                                    disabled={isExporting}
+                                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${!sketchDarkMode
+                                        ? 'bg-gray-700/50 text-white'
+                                        : 'text-gray-500 hover:text-gray-300'
+                                        }`}
+                                >
+                                    <Sun className="w-4 h-4" />
+                                    <span>Light (Black on White)</span>
+                                    {!sketchDarkMode && <Check className="w-3 h-3 text-emerald-400" />}
+                                </button>
+                                <button
+                                    onClick={() => setSketchDarkMode(true)}
+                                    disabled={isExporting}
+                                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${sketchDarkMode
+                                        ? 'bg-gray-700/50 text-white'
+                                        : 'text-gray-500 hover:text-gray-300'
+                                        }`}
+                                >
+                                    <Moon className="w-4 h-4" />
+                                    <span>Dark (White on Black)</span>
+                                    {sketchDarkMode && <Check className="w-3 h-3 text-emerald-400" />}
+                                </button>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Audio Options (shown when audio is selected) */}
                     {exportAudio && (

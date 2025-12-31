@@ -12,13 +12,15 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { StickyNote, FileText, ChevronDown, RotateCcw, RotateCw } from 'lucide-react';
+import { StickyNote, FileText, ChevronDown, RotateCcw, RotateCw, PenTool, Type, Plus, ChevronLeft, ChevronRight, Eraser, Moon, Sun } from 'lucide-react';
 import clsx from 'clsx';
 import { DraggableModal } from './ui/DraggableModal';
 import { useSongStore } from '../store/useSongStore';
 import { SongTimeline } from './timeline/SongTimeline';
 import { SectionOptionsPopup } from './timeline/SectionOptionsPopup';
-import { getSectionDisplayName } from '../types';
+import { getSectionDisplayName, type SketchPage } from '../types';
+import { SketchCanvas } from './SketchCanvas';
+import { v4 as uuidv4 } from 'uuid';
 
 interface NotesModalProps {
     isOpen: boolean;
@@ -86,6 +88,7 @@ const MarkdownRenderer: React.FC<{ text: string }> = ({ text }) => {
 export const NotesModal: React.FC<NotesModalProps> = ({ isOpen, onClose }) => {
     const currentSong = useSongStore((state) => state.currentSong);
     const setNotes = useSongStore((state) => state.setNotes);
+    const setSketches = useSongStore((state) => state.setSketches);
     const setSectionLyrics = useSongStore((state) => state.setSectionLyrics);
     const reorderSections = useSongStore((state) => state.reorderSections);
     const addSuggestedSection = useSongStore((state) => state.addSuggestedSection);
@@ -121,6 +124,20 @@ export const NotesModal: React.FC<NotesModalProps> = ({ isOpen, onClose }) => {
 
     // Local state for editing
     const [songNotes, setSongNotes] = useState(currentSong.notes || '');
+    const [sketchPages, setSketchPages] = useState<SketchPage[]>(currentSong.sketches || []);
+    const [currentPageIndex, setCurrentPageIndex] = useState(0);
+    const [activeTab, setActiveTab] = useState<'text' | 'sketch'>('text');
+    const [isEraser, setIsEraser] = useState(false);
+
+    // Separate widths for pen and eraser
+    const [penWidth, setPenWidth] = useState(3);
+    const [eraserWidth, setEraserWidth] = useState(20);
+
+    const currentWidth = isEraser ? eraserWidth : penWidth;
+
+    // Dark mode default
+    const [isDarkMode, setIsDarkMode] = useState(true);
+
     const [sectionLyrics, setLocalSectionLyrics] = useState('');
     const [showSongNotes, setShowSongNotes] = useState(true);
     const [previewMode, setPreviewMode] = useState(false);
@@ -131,7 +148,8 @@ export const NotesModal: React.FC<NotesModalProps> = ({ isOpen, onClose }) => {
     // Sync with store when song changes
     useEffect(() => {
         setSongNotes(currentSong.notes || '');
-    }, [currentSong.notes]);
+        setSketchPages(currentSong.sketches || []);
+    }, [currentSong.notes, currentSong.sketches]);
 
     // Sync section lyrics when local selection changes
     useEffect(() => {
@@ -155,6 +173,12 @@ export const NotesModal: React.FC<NotesModalProps> = ({ isOpen, onClose }) => {
         if (songNotes !== currentSong.notes) {
             console.log('[NotesModal] Saving notes on close:', songNotes);
             setNotes(songNotes);
+        }
+
+        // Save sketches if changed
+        // Simple equality check is hard for arrays, so we assume if we edited it needs saving
+        if (sketchPages !== currentSong.sketches) {
+            setSketches(sketchPages);
         }
 
         // Save section lyrics if changed
@@ -222,8 +246,9 @@ export const NotesModal: React.FC<NotesModalProps> = ({ isOpen, onClose }) => {
                 onClose={handleClose}
                 showDragHandle={true}
                 showCloseButton={true}
+                width="420px"
                 minWidth="340px"
-                maxWidth="520px"
+                maxWidth="800px"
                 zIndex={zIndex}
                 onInteraction={() => bringToFront(MODAL_ID)}
                 dragExcludeSelectors={['textarea', 'button', 'input', '[data-no-drag]']}
@@ -249,116 +274,298 @@ export const NotesModal: React.FC<NotesModalProps> = ({ isOpen, onClose }) => {
                         </button>
                     </div>
 
-                    {/* Song Notes (Collapsible) */}
-                    <div className="flex flex-col gap-1">
-                        <button
-                            onClick={() => setShowSongNotes(!showSongNotes)}
-                            className="flex items-center justify-between w-full text-left"
-                        >
-                            <label className="text-[10px] uppercase tracking-wider text-text-muted font-medium cursor-pointer">
-                                Song Notes
-                            </label>
-                            <ChevronDown
-                                size={12}
-                                className={`text-text-muted transition-transform ${showSongNotes ? 'rotate-180' : ''}`}
-                            />
-                        </button>
-                        {showSongNotes && (
-                            previewMode ? (
-                                <div className="flex-1 min-h-[60px] overflow-y-auto bg-bg-tertiary/50 rounded-lg p-3 text-sm text-text-primary leading-relaxed whitespace-pre-wrap">
-                                    {songNotes ? <MarkdownRenderer text={songNotes} /> : (
-                                        <span className="text-text-muted italic">No notes yet...</span>
-                                    )}
-                                </div>
-                            ) : (
-                                <textarea
-                                    value={songNotes}
-                                    onChange={(e) => setSongNotes(e.target.value)}
-                                    onBlur={handleSongNotesBlur}
-                                    placeholder="Write your ideas and notes..."
-                                    className="flex-1 min-h-[60px] bg-bg-tertiary/50 border border-border-subtle rounded-lg p-3 text-sm text-text-primary placeholder:text-text-muted/50 resize-none focus:outline-none focus:border-accent-primary/50 transition-colors"
-                                />
-                            )
-                        )}
+                    {/* Tabs */}
+                    <div className="flex items-center justify-center p-1 mb-2">
+                        <div className="flex items-center bg-bg-tertiary/50 rounded-full p-0.5 border border-border-subtle">
+                            <button
+                                onClick={() => setActiveTab('text')}
+                                className={clsx(
+                                    "flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-medium transition-all",
+                                    activeTab === 'text'
+                                        ? "bg-bg-primary text-accent-primary shadow-sm ring-1 ring-black/5"
+                                        : "text-text-muted hover:text-text-primary hover:bg-white/5"
+                                )}
+                            >
+                                <Type size={12} />
+                                Text
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('sketch')}
+                                className={clsx(
+                                    "flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-medium transition-all",
+                                    activeTab === 'sketch'
+                                        ? "bg-bg-primary text-accent-primary shadow-sm ring-1 ring-black/5"
+                                        : "text-text-muted hover:text-text-primary hover:bg-white/5"
+                                )}
+                            >
+                                <PenTool size={12} />
+                                Sketch
+                            </button>
+                        </div>
                     </div>
 
-                    {/* Section Lyrics with Timeline */}
-                    <div className="flex-1 flex flex-col gap-2 border-t border-border-subtle pt-3 min-h-0">
-                        <div className="flex items-center gap-2">
-                            <FileText size={14} className="text-purple-400" />
-                            <span className="text-[10px] uppercase tracking-wider text-text-muted font-medium">
-                                Section Lyrics
-                            </span>
-
-                            {/* Undo/Redo Buttons (Unobtrusive) */}
-                            <div className="flex items-center gap-1 rounded-full p-0.5 ml-2">
+                    {/* Content */}
+                    {activeTab === 'text' ? (
+                        <>
+                            {/* Song Notes (Collapsible) */}
+                            <div className="flex flex-col gap-1">
                                 <button
-                                    onClick={(e) => { e.stopPropagation(); undo(); }}
-                                    disabled={!canUndo}
-                                    className={clsx(
-                                        "w-5 h-5 flex items-center justify-center rounded-full transition-colors",
-                                        canUndo ? "text-text-secondary hover:text-text-primary hover:bg-white/10" : "text-white/10 cursor-not-allowed"
-                                    )}
-                                    title="Undo"
+                                    onClick={() => setShowSongNotes(!showSongNotes)}
+                                    className="flex items-center justify-between w-full text-left"
                                 >
-                                    <RotateCcw size={10} />
+                                    <label className="text-[10px] uppercase tracking-wider text-text-muted font-medium cursor-pointer">
+                                        Song Notes
+                                    </label>
+                                    <ChevronDown
+                                        size={12}
+                                        className={`text-text-muted transition-transform ${showSongNotes ? 'rotate-180' : ''}`}
+                                    />
                                 </button>
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); redo(); }}
-                                    disabled={!canRedo}
-                                    className={clsx(
-                                        "w-5 h-5 flex items-center justify-center rounded-full transition-colors",
-                                        canRedo ? "text-text-secondary hover:text-text-primary hover:bg-white/10" : "text-white/10 cursor-not-allowed"
-                                    )}
-                                    title="Redo"
-                                >
-                                    <RotateCw size={10} />
-                                </button>
+                                {showSongNotes && (
+                                    previewMode ? (
+                                        <div className="flex-1 min-h-[60px] overflow-y-auto bg-bg-tertiary/50 rounded-lg p-3 text-sm text-text-primary leading-relaxed whitespace-pre-wrap">
+                                            {songNotes ? <MarkdownRenderer text={songNotes} /> : (
+                                                <span className="text-text-muted italic">No notes yet...</span>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <textarea
+                                            value={songNotes}
+                                            onChange={(e) => setSongNotes(e.target.value)}
+                                            onBlur={handleSongNotesBlur}
+                                            placeholder="Write your ideas and notes..."
+                                            className="flex-1 min-h-[60px] bg-bg-tertiary/50 border border-border-subtle rounded-lg p-3 text-sm text-text-primary placeholder:text-text-muted/50 resize-none focus:outline-none focus:border-accent-primary/50 transition-colors"
+                                        />
+                                    )
+                                )}
                             </div>
-                        </div>
 
-                        {/* Embedded Timeline for section selection */}
-                        <div data-no-drag className="py-1">
-                            <SongTimeline
-                                sections={currentSong.sections}
-                                activeSectionId={localSelectedSectionId || undefined}
-                                onSectionClick={handleSectionClick}
-                                onReorder={handleReorder}
-                                onAddSection={handleAddSection}
-                                showMarkers={false}
-                            />
-                        </div>
+                            {/* Section Lyrics with Timeline */}
+                            <div className="flex-1 flex flex-col gap-2 border-t border-border-subtle pt-3 min-h-0">
+                                <div className="flex items-center gap-2">
+                                    <FileText size={14} className="text-purple-400" />
+                                    <span className="text-[10px] uppercase tracking-wider text-text-muted font-medium">
+                                        Section Lyrics
+                                    </span>
 
-                        {/* Section lyrics textarea */}
-                        {selectedSection ? (
-                            <div className="flex-1 flex flex-col gap-1 min-h-0">
-                                <span className="text-xs text-text-secondary">
-                                    {getSectionDisplayName(selectedSection, currentSong.sections)}
-                                </span>
-                                {previewMode ? (
-                                    <div className="flex-1 overflow-y-auto bg-bg-tertiary/50 rounded-lg p-3 text-sm text-text-primary leading-relaxed whitespace-pre-wrap">
-                                        {sectionLyrics ? <MarkdownRenderer text={sectionLyrics} /> : (
-                                            <span className="text-text-muted italic">No lyrics for this section...</span>
+                                    {/* Undo/Redo Buttons (Unobtrusive) */}
+                                    <div className="flex items-center gap-1 rounded-full p-0.5 ml-2">
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); undo(); }}
+                                            disabled={!canUndo}
+                                            className={clsx(
+                                                "w-5 h-5 flex items-center justify-center rounded-full transition-colors",
+                                                canUndo ? "text-text-secondary hover:text-text-primary hover:bg-white/10" : "text-white/10 cursor-not-allowed"
+                                            )}
+                                            title="Undo"
+                                        >
+                                            <RotateCcw size={10} />
+                                        </button>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); redo(); }}
+                                            disabled={!canRedo}
+                                            className={clsx(
+                                                "w-5 h-5 flex items-center justify-center rounded-full transition-colors",
+                                                canRedo ? "text-text-secondary hover:text-text-primary hover:bg-white/10" : "text-white/10 cursor-not-allowed"
+                                            )}
+                                            title="Redo"
+                                        >
+                                            <RotateCw size={10} />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Embedded Timeline for section selection */}
+                                <div data-no-drag className="py-1">
+                                    <SongTimeline
+                                        sections={currentSong.sections}
+                                        activeSectionId={localSelectedSectionId || undefined}
+                                        onSectionClick={handleSectionClick}
+                                        onReorder={handleReorder}
+                                        onAddSection={handleAddSection}
+                                        showMarkers={false}
+                                    />
+                                </div>
+
+                                {/* Section lyrics textarea */}
+                                {selectedSection ? (
+                                    <div className="flex-1 flex flex-col gap-1 min-h-0">
+                                        <span className="text-xs text-text-secondary">
+                                            {getSectionDisplayName(selectedSection, currentSong.sections)}
+                                        </span>
+                                        {previewMode ? (
+                                            <div className="flex-1 overflow-y-auto bg-bg-tertiary/50 rounded-lg p-3 text-sm text-text-primary leading-relaxed whitespace-pre-wrap">
+                                                {sectionLyrics ? <MarkdownRenderer text={sectionLyrics} /> : (
+                                                    <span className="text-text-muted italic">No lyrics for this section...</span>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <textarea
+                                                value={sectionLyrics}
+                                                onChange={(e) => setLocalSectionLyrics(e.target.value)}
+                                                onBlur={handleSectionLyricsBlur}
+                                                placeholder={`Lyrics for ${getSectionDisplayName(selectedSection, currentSong.sections)}...`}
+                                                className="flex-1 min-h-[100px] bg-bg-tertiary/50 border border-border-subtle rounded-lg p-3 text-sm text-text-primary placeholder:text-text-muted/50 resize-none focus:outline-none focus:border-accent-primary/50 transition-colors"
+                                            />
                                         )}
                                     </div>
                                 ) : (
-                                    <textarea
-                                        value={sectionLyrics}
-                                        onChange={(e) => setLocalSectionLyrics(e.target.value)}
-                                        onBlur={handleSectionLyricsBlur}
-                                        placeholder={`Lyrics for ${getSectionDisplayName(selectedSection, currentSong.sections)}...`}
-                                        className="flex-1 min-h-[100px] bg-bg-tertiary/50 border border-border-subtle rounded-lg p-3 text-sm text-text-primary placeholder:text-text-muted/50 resize-none focus:outline-none focus:border-accent-primary/50 transition-colors"
-                                    />
+                                    <div className="bg-bg-tertiary/50 rounded-lg p-4 text-center">
+                                        <p className="text-sm text-text-muted">
+                                            Click a section above to add lyrics
+                                        </p>
+                                    </div>
                                 )}
                             </div>
-                        ) : (
-                            <div className="bg-bg-tertiary/50 rounded-lg p-4 text-center">
-                                <p className="text-sm text-text-muted">
-                                    Click a section above to add lyrics
-                                </p>
+                        </>
+                    ) : (
+                        <div className="flex-1 flex flex-col min-h-0 relative">
+                            {/* Toolbar */}
+                            <div className="flex items-center justify-between mb-2">
+                                {/* Eraser - Only in Edit Mode */}
+                                {!previewMode && (
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => setIsEraser(!isEraser)}
+                                            className={clsx(
+                                                "p-1.5 rounded transition-colors",
+                                                isEraser ? "bg-accent-primary text-white" : "bg-bg-tertiary text-text-muted hover:text-text-primary"
+                                            )}
+                                            title="Eraser"
+                                        >
+                                            <Eraser size={14} />
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* Dark Mode Toggle */}
+                                <button
+                                    onClick={() => setIsDarkMode(!isDarkMode)}
+                                    className={clsx(
+                                        "p-1.5 rounded transition-colors ml-auto mr-2",
+                                        "bg-bg-tertiary text-text-muted hover:text-text-primary"
+                                    )}
+                                    title={isDarkMode ? "Light Mode" : "Dark Mode"}
+                                >
+                                    {isDarkMode ? <Sun size={14} /> : <Moon size={14} />}
+                                </button>
+
+                                {/* Stroke Width Slider - Only in Edit Mode */}
+                                {!previewMode && (
+                                    <div className="flex items-center gap-2 mr-2 w-20 group">
+                                        <div className="h-1 w-1 bg-text-muted rounded-full" />
+                                        <input
+                                            type="range"
+                                            min="1"
+                                            max={isEraser ? "50" : "20"}
+                                            step="0.5"
+                                            value={currentWidth}
+                                            onChange={(e) => {
+                                                const val = parseFloat(e.target.value);
+                                                if (isEraser) setEraserWidth(val);
+                                                else setPenWidth(val);
+                                            }}
+                                            className="w-full h-1 bg-bg-tertiary rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-text-secondary transition-opacity opacity-50 hover:opacity-100"
+                                            title={isEraser ? `Eraser size: ${currentWidth}` : `Pen size: ${currentWidth}`}
+                                        />
+                                        <div className="h-1.5 w-1.5 bg-text-muted rounded-full" />
+                                    </div>
+                                )}
+
+                                {/* Pagination */}
+                                <div className="flex items-center gap-2 bg-bg-tertiary/30 rounded-full px-2 py-1">
+                                    <button
+                                        onClick={() => setCurrentPageIndex(Math.max(0, currentPageIndex - 1))}
+                                        disabled={currentPageIndex === 0}
+                                        className="text-text-muted hover:text-text-primary disabled:opacity-30 disabled:cursor-not-allowed"
+                                    >
+                                        <ChevronLeft size={14} />
+                                    </button>
+                                    <span className="text-xs font-medium text-text-secondary min-w-[3ch] text-center">
+                                        {currentPageIndex + 1}
+                                        <span className="text-text-muted/50 text-[10px] ml-0.5">/{Math.max(sketchPages.length, 1)}</span>
+                                    </span>
+                                    <button
+                                        onClick={() => {
+                                            if (currentPageIndex === sketchPages.length - 1) {
+                                                // Create new page only if limit not reached
+                                                if (sketchPages.length < 10) {
+                                                    const newPage: SketchPage = {
+                                                        id: uuidv4(),
+                                                        strokes: [],
+                                                        createdAt: Date.now()
+                                                    };
+                                                    setSketchPages([...sketchPages, newPage]);
+                                                    setCurrentPageIndex(sketchPages.length);
+                                                }
+                                            } else {
+                                                setCurrentPageIndex(currentPageIndex + 1);
+                                            }
+                                        }}
+                                        disabled={currentPageIndex === sketchPages.length - 1 && sketchPages.length >= 10}
+                                        className="text-text-muted hover:text-text-primary disabled:opacity-30 disabled:cursor-not-allowed"
+                                        title={
+                                            currentPageIndex === sketchPages.length - 1
+                                                ? (sketchPages.length >= 10 ? "Page limit reached (10)" : "New Page")
+                                                : "Next Page"
+                                        }
+                                    >
+                                        {currentPageIndex === sketchPages.length - 1 ? <Plus size={14} /> : <ChevronRight size={14} />}
+                                    </button>
+                                </div>
                             </div>
-                        )}
-                    </div>
+
+                            {/* Canvas Container */}
+                            <div
+                                data-no-drag
+                                className={clsx(
+                                    "flex-1 bg-white rounded-lg overflow-hidden border border-border-subtle shadow-inner touch-none relative transition-[filter] duration-300",
+                                    isDarkMode && "invert brightness-90 contrast-110",
+                                    previewMode ? "pointer-events-none cursor-default" : "cursor-crosshair"
+                                )}
+                            >
+                                <SketchCanvas
+                                    strokes={sketchPages[currentPageIndex]?.strokes || []}
+                                    onStrokeAdd={(stroke) => {
+                                        // Update state securely
+                                        const newPages = [...sketchPages];
+                                        if (!newPages[currentPageIndex]) {
+                                            newPages[currentPageIndex] = {
+                                                id: uuidv4(),
+                                                strokes: [],
+                                                createdAt: Date.now()
+                                            };
+                                        }
+                                        newPages[currentPageIndex].strokes.push(stroke);
+                                        setSketchPages(newPages);
+                                        // Auto-save to store for safety
+                                        setSketches(newPages);
+                                    }}
+                                    isEraser={isEraser}
+                                    color="#000000"
+                                    width={currentWidth}
+                                    onSwipeLeft={() => {
+                                        if (currentPageIndex < sketchPages.length - 1) {
+                                            setCurrentPageIndex(currentPageIndex + 1);
+                                        } else {
+                                            // Create new page on swipe at end? Maybe too aggressive, stick to button for creation
+                                            // preventing accidental creation
+                                        }
+                                    }}
+                                    onSwipeRight={() => {
+                                        if (currentPageIndex > 0) {
+                                            setCurrentPageIndex(currentPageIndex - 1);
+                                        }
+                                    }}
+                                />
+                                {!sketchPages[currentPageIndex] && (
+                                    <div className="absolute inset-0 flex items-center justify-center text-black/10 pointer-events-none">
+                                        <span className="text-4xl font-handwriting">Sketch here...</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Help Text */}
                     <p className="text-[10px] text-text-muted text-center">

@@ -1,4 +1,24 @@
+// Force update
 import type { Chord } from '../utils/musicTheory';
+
+export interface Point {
+    x: number;
+    y: number;
+    pressure?: number;
+}
+
+export interface Stroke {
+    points: Point[];
+    color: string;
+    width: number;
+    isEraser?: boolean;
+}
+
+export interface SketchPage {
+    id: string;
+    strokes: Stroke[];
+    createdAt: number;
+}
 
 export interface ChordSlot {
     // Slot ID
@@ -77,6 +97,7 @@ export interface Song {
     timeSignature: [number, number];
     sections: Section[];
     notes: string;
+    sketches?: SketchPage[];
     tags?: string[]; // Optional custom tags for organization
     createdAt: Date;
     updatedAt: Date;
