@@ -139,6 +139,7 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
         // Always enable drag - no lock mode requirement
         badgeDragStartRef.current = { x: e.clientX, y: e.clientY, chord };
         badgeDraggingRef.current = false;
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     }, []);
 
     const handleBadgePointerMove = useCallback((e: React.PointerEvent) => {
@@ -164,14 +165,25 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
         }
     }, [timelineVisible, openTimeline]);
 
-    const handleBadgePointerUp = useCallback(() => {
+    const handleBadgePointerUp = useCallback((e: React.PointerEvent) => {
+        try {
+            (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+        } catch (err) {
+            // ignore
+        }
+
         if (badgeDraggingRef.current) {
             setTimeout(() => {
                 wheelDragState.endDrag();
             }, 50);
+            // Delay reset to block subsequent click
+            setTimeout(() => {
+                badgeDraggingRef.current = false;
+            }, 50);
+        } else {
+            badgeDraggingRef.current = false;
         }
         badgeDragStartRef.current = null;
-        badgeDraggingRef.current = false;
     }, []);
 
     const resetFadeTimer = useCallback(() => {
@@ -262,6 +274,21 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
 
         return [...diatonic, II_chord, III_chord];
     }, [selectedKey]);
+
+    const constructChordFromQuality = useCallback((quality: string): Chord => {
+        const notes = getChordNotes(chordRoot, quality);
+        const invertedNotes = invertChord(notes, chordInversion);
+        const symbol = getChordSymbolWithInversion(chordRoot, quality, invertedNotes, chordInversion);
+
+        return {
+            root: chordRoot,
+            quality: quality as any,
+            notes: invertedNotes,
+            inversion: chordInversion,
+            symbol,
+            numeral: selectedChord?.root === chordRoot ? selectedChord.numeral : undefined
+        };
+    }, [chordRoot, chordInversion, selectedChord]);
 
     const handleVoicingClick = (quality: string) => {
         const now = Date.now();
@@ -425,9 +452,12 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
                         return (
                             <button
                                 key={voicing.quality}
-                                onClick={(e) => { e.stopPropagation(); handleVoicingClick(voicing.quality); }}
+                                onClick={(e) => { e.stopPropagation(); if (!badgeDraggingRef.current) handleVoicingClick(voicing.quality); }}
                                 onTouchStart={handleTouchStart}
-                                onTouchEnd={(e) => { e.stopPropagation(); handleTouchEnd(e, () => handleVoicingClick(voicing.quality)); }}
+                                onTouchEnd={(e) => { e.stopPropagation(); if (!badgeDraggingRef.current) handleTouchEnd(e, () => handleVoicingClick(voicing.quality)); }}
+                                onPointerDown={(e) => handleBadgePointerDown(e, constructChordFromQuality(voicing.quality))}
+                                onPointerMove={handleBadgePointerMove}
+                                onPointerUp={handleBadgePointerUp}
                                 className={clsx(
                                     "flex items-center justify-center rounded-lg transition-all shrink-0 active:scale-95 outline-none no-touch-enlarge",
                                     isLandscapeMobile
