@@ -208,7 +208,11 @@ export const GuitarChord: React.FC<GuitarChordProps> = ({
             lastClickTime.current = now;
             clickTimeout.current = setTimeout(() => {
                 // Ensure we still check strict played state just in case
-                if (onClick && !hasStrummedRef.current) onClick();
+                // DISABLE TAP TO PLAY ON DIAGRAM BODY:
+                // We no longer call onClick() here. Strumming is the only way to play notes on the diagram.
+                // The badge remains tap-to-play.
+
+                // if (onClick && !hasStrummedRef.current) onClick();
                 clickTimeout.current = null;
             }, 300);
         }
@@ -218,7 +222,8 @@ export const GuitarChord: React.FC<GuitarChordProps> = ({
         e.preventDefault(); // Prevent ghost clicks output from touch interaction
         setIsDragging(false);
         stopAllNotes(); // Stop sound on touch end
-        handleClick();
+        // Don't call handleClick() here - strumming is the only audio interaction
+        // The badge above still handles taps for playing the full chord
     };
 
     if (!chord) {
