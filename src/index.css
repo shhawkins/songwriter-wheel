@@ -394,13 +394,7 @@ button:active {
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
-@media (min-width: 768px) {
-  .glass-panel {
-    background: rgba(40, 40, 51, 0.70);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-  }
-}
+
 
 .glass-panel-compact {
   background: rgba(40, 40, 51, 0.95);

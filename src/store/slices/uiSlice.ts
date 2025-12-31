@@ -62,7 +62,7 @@ export interface UIActions {
     toggleInstrumentControlsModal: (force?: boolean) => void;
     setInstrumentControlsPosition: (position: { x: number; y: number } | null) => void;
     togglePatchManagerModal: (force?: boolean, view?: 'list' | 'save') => void;
-    resetInstrumentControls: () => void;
+    resetInstrumentControlsPosition: () => void;
     toggleSectionCollapsed: (sectionId: string) => void;
     setChordPanelGuitarExpanded: (expanded: boolean) => void;
     setChordPanelVoicingsExpanded: (expanded: boolean) => void;
@@ -249,7 +249,7 @@ export const createUISlice: StateCreator<
         patchManagerModalVisible: force !== undefined ? force : !state.patchManagerModalVisible,
         patchManagerInitialView: view || 'list'
     })),
-    resetInstrumentControls: () => set({ instrumentControlsPosition: null }),
+    resetInstrumentControlsPosition: () => set({ instrumentControlsPosition: null }),
 
     toggleSectionCollapsed: (sectionId) => set((state: UIState) => {
         const next = { ...state.collapsedSections, [sectionId]: !state.collapsedSections?.[sectionId] };
