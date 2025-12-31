@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { ChevronDown, ChevronUp, HelpCircle, ListMusic, ClipboardPen, Sliders, KeyboardMusic } from 'lucide-react';
+import { ChevronDown, ChevronUp, HelpCircle, ListMusic, ClipboardPen, Sliders, Guitar } from 'lucide-react';
 import { useSongStore } from '../../store/useSongStore';
 import { MobileTimeline } from '../timeline/MobileTimeline';
 import { ChordDetails } from '../panel/ChordDetails';
@@ -354,7 +354,7 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
                     title="Open Scales & Modes"
                     aria-label="Open Scales and Modes"
                 >
-                    <KeyboardMusic size={16} />
+                    <Guitar size={16} />
                 </button>
 
                 {/* Instrument Controls Button - next to Notes on the LEFT */}

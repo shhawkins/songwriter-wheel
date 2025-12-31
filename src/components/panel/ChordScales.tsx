@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDown, Guitar, Search } from 'lucide-react';
+import { Guitar, ChevronDown } from 'lucide-react';
 import { getMajorScale, formatChordForDisplay, getDiatonicChords } from '../../utils/musicTheory';
 import { ModeFretboard } from './ModeFretboard';
 import { PlayableScaleStrip } from './PlayableScaleStrip';
@@ -157,7 +157,7 @@ export const ChordScales: React.FC<ChordScalesProps> = ({
                                                         });
                                                     }}
                                                 >
-                                                    <Search size={14} className="text-text-secondary opacity-70 hover:opacity-100" />
+                                                    <Guitar size={14} className="text-text-secondary opacity-70 hover:opacity-100" />
                                                 </div>
                                             </div>
 
