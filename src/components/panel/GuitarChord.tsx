@@ -26,6 +26,11 @@ export const GuitarChord: React.FC<GuitarChordProps> = ({
     const lastClickTime = useRef(0);
     const clickTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+    // Track active notes for manual release
+    const activeNotesRef = useRef<Record<number, () => void>>({});
+    // Track strings that are currently loading a note, to handle race conditions
+    const pendingStringsRef = useRef<Set<number>>(new Set());
+
     // Strumming state
     const [isDragging, setIsDragging] = useState(false);
     const lastPlayedRef = useRef<string | null>(null);
@@ -67,7 +72,27 @@ export const GuitarChord: React.FC<GuitarChordProps> = ({
         return { note: noteName, octave };
     };
 
-    const playStringNote = (stringIdx: number) => {
+    const stopStringNote = (stringIdx: number) => {
+        // Mark as no longer pending
+        pendingStringsRef.current.delete(stringIdx);
+
+        const releaseFn = activeNotesRef.current[stringIdx];
+        if (releaseFn) {
+            releaseFn();
+            delete activeNotesRef.current[stringIdx];
+        }
+    };
+
+    const stopAllNotes = () => {
+        // Clear all pending flags
+        pendingStringsRef.current.clear();
+
+        Object.keys(activeNotesRef.current).forEach(key => {
+            stopStringNote(parseInt(key));
+        });
+    };
+
+    const playStringNote = async (stringIdx: number) => {
         if (!chord || !interactive) return;
 
         // Find the fret for this string
@@ -80,13 +105,34 @@ export const GuitarChord: React.FC<GuitarChordProps> = ({
         if (noteInfo) {
             // Create unique key for this note play to prevent spamming same string
             const key = `${stringIdx}-${fret}`;
+
             // Allow retriggering if we moved to a new string
             if (lastPlayedRef.current !== key) {
-                audioEngine.playNote(noteInfo.note, noteInfo.octave, "8n");
+                // Stop previous note on this string if any (though usually retrigger handles it)
+                stopStringNote(stringIdx);
+
+                // Mark this string as pending load
+                pendingStringsRef.current.add(stringIdx);
+
+                // Play with manual release
+                // We use the standard instrument (not lead) for the guitar diagram usually
+                const releaseFn = await audioEngine.playNoteWithManualRelease(noteInfo.note, noteInfo.octave);
+
+                // Check if this request was cancelled (e.g. key released while loading)
+                if (!pendingStringsRef.current.has(stringIdx)) {
+                    if (releaseFn) releaseFn();
+                    return;
+                }
+
+                // No longer pending
+                pendingStringsRef.current.delete(stringIdx);
+
+                if (releaseFn) {
+                    activeNotesRef.current[stringIdx] = releaseFn;
+                }
+
                 lastPlayedRef.current = key;
                 hasStrummedRef.current = true;
-
-
             }
         }
     };
@@ -113,6 +159,8 @@ export const GuitarChord: React.FC<GuitarChordProps> = ({
     const handleMouseUp = useCallback(() => {
         setIsDragging(false);
         lastPlayedRef.current = null;
+        // Release ALL notes when interaction ends (sustain til release)
+        stopAllNotes();
     }, []);
 
     // Touch handling for strumming
@@ -169,6 +217,7 @@ export const GuitarChord: React.FC<GuitarChordProps> = ({
     const handleTouchEnd = (e: React.TouchEvent) => {
         e.preventDefault(); // Prevent ghost clicks output from touch interaction
         setIsDragging(false);
+        stopAllNotes(); // Stop sound on touch end
         handleClick();
     };
 

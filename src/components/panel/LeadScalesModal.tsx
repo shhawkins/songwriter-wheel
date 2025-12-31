@@ -31,7 +31,8 @@ export const LeadScalesModal: React.FC = () => {
         bringToFront,
         modalStack,
         leadChannelVolume,
-        setLeadChannelVolume: setStoreLeadChannelVolume
+        setLeadChannelVolume: setStoreLeadChannelVolume,
+        leadSlideEnabled
     } = useSongStore();
 
     const MODAL_ID = 'lead-scales-modal';
@@ -555,6 +556,7 @@ export const LeadScalesModal: React.FC = () => {
                                 interactive={true}
                                 useLead={true}
                                 rotated={isMobilePortrait}
+                                slideEnabled={leadSlideEnabled}
                             />
                         </div>
                     </div>

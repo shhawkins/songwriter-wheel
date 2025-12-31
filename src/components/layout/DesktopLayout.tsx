@@ -114,6 +114,9 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
     const [dragOffset, setDragOffset] = useState(0);
     const isDragging = useRef(false);
 
+    // Drag state for badge
+    const badgeDragRef = useRef({ startPos: { x: 0, y: 0 }, isDragging: false });
+
     // Touch handlers
     const handleTouchStart = (e: React.TouchEvent) => {
         e.stopPropagation();
@@ -237,24 +240,22 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
                 {selectedChord && (() => {
                     const badgeData = getBadgeData();
 
-                    // Drag state
-                    let dragStartPos = { x: 0, y: 0 };
-                    let isDragging = false;
-
                     const handlePointerDown = (e: React.PointerEvent) => {
-                        dragStartPos = { x: e.clientX, y: e.clientY };
-                        isDragging = false;
+                        badgeDragRef.current.startPos = { x: e.clientX, y: e.clientY };
+                        badgeDragRef.current.isDragging = false;
+                        (e.target as HTMLElement).setPointerCapture(e.pointerId);
                     };
 
                     const handlePointerMove = (e: React.PointerEvent) => {
-                        if (dragStartPos.x === 0 && dragStartPos.y === 0) return;
+                        const { startPos, isDragging } = badgeDragRef.current;
+                        if (startPos.x === 0 && startPos.y === 0) return;
 
-                        const dx = e.clientX - dragStartPos.x;
-                        const dy = e.clientY - dragStartPos.y;
+                        const dx = e.clientX - startPos.x;
+                        const dy = e.clientY - startPos.y;
                         const distance = Math.sqrt(dx * dx + dy * dy);
 
                         if (distance > 15 && !isDragging && badgeData.chord) {
-                            isDragging = true;
+                            badgeDragRef.current.isDragging = true;
                             wheelDragState.startDrag(badgeData.chord);
 
                             if (!timelineVisible) {
@@ -262,21 +263,26 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
                             }
                         }
 
-                        if (isDragging) {
+                        if (badgeDragRef.current.isDragging) {
                             wheelDragState.updatePosition(e.clientX, e.clientY);
                         }
                     };
 
-                    const handlePointerUp = () => {
-                        if (isDragging) {
+                    const handlePointerUp = (e: React.PointerEvent) => {
+                        if (badgeDragRef.current.isDragging) {
                             setTimeout(() => wheelDragState.endDrag(), 50);
                         }
-                        dragStartPos = { x: 0, y: 0 };
-                        isDragging = false;
+                        badgeDragRef.current.startPos = { x: 0, y: 0 };
+                        badgeDragRef.current.isDragging = false;
+                        try {
+                            (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+                        } catch (err) {
+                            // ignore
+                        }
                     };
 
                     const handleClick = (e: React.MouseEvent) => {
-                        if (!isDragging) {
+                        if (!badgeDragRef.current.isDragging) {
                             e.stopPropagation();
                             e.preventDefault();
                             playChord(badgeData.notes);
@@ -298,7 +304,6 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
                             onPointerDown={handlePointerDown}
                             onPointerMove={handlePointerMove}
                             onPointerUp={handlePointerUp}
-                            onPointerLeave={handlePointerUp}
                             onClick={handleClick}
                         >
                             <span className="text-sm font-bold leading-none">{badgeData.name}</span>

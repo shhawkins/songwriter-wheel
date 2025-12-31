@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useSongStore } from '../../store/useSongStore';
 import DraggableModal from '../ui/DraggableModal';
@@ -26,7 +26,8 @@ export const ModeFretboardModal: React.FC = () => {
         modeFretboardData,
         selectedKey,
         bringToFront,
-        modalStack
+        modalStack,
+        leadSlideEnabled
     } = useSongStore();
 
     const MODAL_ID = 'mode-fretboard-modal';
@@ -43,6 +44,9 @@ export const ModeFretboardModal: React.FC = () => {
     const dropdownButtonRef = useRef<HTMLButtonElement>(null);
     const [dropdownPos, setDropdownPos] = useState<{ x: number, y: number }>({ x: 0, y: 0 });
 
+    // Track modal dimensions for responsive vertical fretboard
+    const [isPortraitLayout, setIsPortraitLayout] = useState(false);
+
     // Sync internal state when data changes (modal opens)
     useEffect(() => {
         if (modeFretboardData) {
@@ -52,6 +56,14 @@ export const ModeFretboardModal: React.FC = () => {
             }
         }
     }, [modeFretboardData]);
+
+    // Handle modal resize to detect portrait layout
+    const handleResize = useCallback((dimensions: { width: number; height: number }) => {
+        // Switch to portrait layout when height is significantly greater than width
+        // Use a threshold of 1.1 to be more responsive
+        const isPortrait = dimensions.height > dimensions.width * 1.1;
+        setIsPortraitLayout(isPortrait);
+    }, []);
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -172,11 +184,12 @@ export const ModeFretboardModal: React.FC = () => {
             onInteraction={() => bringToFront(MODAL_ID)}
             dataAttribute="mode-fretboard-modal"
             resizable={!isMobile || isLandscape}
+            onResize={handleResize}
             className=""
         >
             {/* Entire content area - stopPropagation to prevent accidental modal drags */}
             <div
-                className={`flex flex-col w-full overflow-hidden p-3 bg-[#1e1e28] ${isMobile && isLandscape ? 'max-h-[85vh]' : isMobile ? 'h-full' : ''}`}
+                className={`flex flex-col w-full h-full overflow-hidden p-3 bg-[#1e1e28] ${isMobile && isLandscape ? 'max-h-[85vh]' : isMobile ? 'h-full' : ''}`}
                 onMouseDown={(e) => e.stopPropagation()}
                 onTouchStart={(e) => e.stopPropagation()}
             >
@@ -275,16 +288,32 @@ export const ModeFretboardModal: React.FC = () => {
 
                 {/* Fretboard Area - Flex Grow */}
                 <div
-                    className={`flex-1 flex items-center justify-center bg-black/40 rounded-xl border border-white/5 relative mb-3 mt-4 overflow-hidden ${isMobile && !isLandscape ? 'min-h-[300px]' : 'min-h-[200px]'}`}
+                    className={`flex-1 flex items-center justify-center bg-black/40 rounded-xl border border-white/5 relative mb-3 mt-4 overflow-hidden ${isPortraitLayout ? 'min-h-[50vh]' : isMobile && !isLandscape ? 'min-h-[300px]' : 'min-h-[200px]'}`}
                     onMouseDown={(e) => e.stopPropagation()}
                     onTouchStart={(e) => e.stopPropagation()}
                 >
-                    <div className="w-full py-4 px-3 flex items-center justify-center">
+                    <div
+                        className={`flex items-center justify-center ${isPortraitLayout ? 'absolute top-1/2 left-1/2' : 'w-full h-full p-2'}`}
+                        style={isPortraitLayout ? {
+                            // Use absolute positioning + centering to prevent layout expansion
+                            position: 'absolute',
+                            left: '50%',
+                            top: '50%',
+                            // Translate to center, THEN rotate
+                            transform: 'translate(-50%, -50%) rotate(90deg)',
+                            transformOrigin: 'center center',
+                            width: '115vw',    // ZOOMED OUT MAX: Guaranteed to fit 0-12 frets (matches LeadScalesModal)
+                            // Height is auto (driven by SVG aspect ratio)
+                        } : {}}
+                    >
                         <ModeFretboard
                             scaleNotes={currentModeData.scaleNotes}
                             rootNote={currentModeData.rootNote}
                             color={currentModeData.color}
                             interactive={true}
+                            useLead={true}
+                            slideEnabled={leadSlideEnabled}
+                            rotated={isPortraitLayout}
                         />
                     </div>
                 </div>

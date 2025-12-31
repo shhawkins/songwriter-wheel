@@ -1460,6 +1460,197 @@ export const getLeadEffectValues = () => ({
 });
 
 /**
+ * Play a note on the lead channel with attack-only trigger, returning a release function.
+ * Allows for sustained notes while holding down a key/fret.
+ */
+export const playLeadNoteWithManualRelease = async (note: string, octave: number = 4, velocity: number = 0.8): Promise<(() => void) | null> => {
+    if (Tone.context.state !== 'running') {
+        await Tone.start();
+    }
+
+    if (Tone.context.state === 'suspended') {
+        await Tone.context.resume();
+    }
+
+    // Initialize lead effects chain if needed
+    if (!leadEffectsChainInput) {
+        await initLeadEffectsChain();
+    }
+
+    // Ensure instrument is loaded
+    if (!leadInstruments[currentLeadInstrument]) {
+        await loadLeadInstrument(currentLeadInstrument);
+    }
+
+    let inst = leadInstruments[currentLeadInstrument];
+    if (!inst) {
+        if (!leadInstruments.piano) {
+            await loadLeadInstrument('piano');
+        }
+        inst = leadInstruments.piano;
+    }
+    if (!inst) {
+        return null;
+    }
+
+    const noteWithOctave = `${note}${octave}`;
+
+    try {
+        inst.triggerAttack(noteWithOctave, Tone.now(), velocity);
+        return () => {
+            try {
+                // Use a quick release time to prevent any faint re-attack artifacts
+                // Some samplers re-trigger slightly when release is called abruptly
+                inst!.triggerRelease(noteWithOctave, Tone.now() + 0.02);
+            } catch (e) {
+                // Ignore - note may have already been released
+            }
+        };
+    } catch (err) {
+        console.error(`Failed to trigger lead attack for ${noteWithOctave}`, err);
+        return null;
+    }
+};
+
+// Track slide state for lead channel
+let currentLeadSlideOffset = 0;
+let slideAnimationId: number | null = null;
+let originalNotePitch = 0; // The pitch of the FIRST note in the slide sequence
+
+/**
+ * Slide from the currently playing note to a new target note.
+ * This ramps the pitch shift smoothly instead of re-triggering.
+ * 
+ * @param fromNote - The note currently playing (e.g., "C")
+ * @param fromOctave - The octave of the current note
+ * @param toNote - The target note to slide to
+ * @param toOctave - The octave of the target note  
+ * @param slideTime - Duration of the slide in seconds (default 0.1 for quick slide)
+ * @returns A function to release the note when done
+ */
+export const slideLeadNote = async (
+    fromNote: string,
+    fromOctave: number,
+    toNote: string,
+    toOctave: number,
+    slideTime: number = 0.1
+): Promise<(() => void) | null> => {
+    if (!leadPitchShift) {
+        await initLeadEffectsChain();
+    }
+    if (!leadPitchShift) return null;
+
+    // Calculate semitone values
+    const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    const fromNoteIndex = notes.indexOf(fromNote.replace(/[0-9]/g, ''));
+    const toNoteIndex = notes.indexOf(toNote.replace(/[0-9]/g, ''));
+
+    if (fromNoteIndex === -1 || toNoteIndex === -1) return null;
+
+    const fromPitchAbsolute = fromNoteIndex + (fromOctave * 12);
+    const toPitchAbsolute = toNoteIndex + (toOctave * 12);
+
+    // If this is the first slide, set the original note pitch
+    if (originalNotePitch === 0) {
+        originalNotePitch = fromPitchAbsolute;
+    }
+
+    // Calculate the TARGET offset from the ORIGINAL note (not from current position)
+    // This prevents accumulation errors
+    const targetOffset = toPitchAbsolute - originalNotePitch;
+    const startOffset = currentLeadSlideOffset;
+    const offsetDelta = targetOffset - startOffset;
+
+    // Cancel any existing animation
+    if (slideAnimationId !== null) {
+        clearInterval(slideAnimationId);
+        slideAnimationId = null;
+    }
+
+    try {
+        // Smooth easing function (ease-out for more natural feel)
+        const easeOut = (t: number) => 1 - Math.pow(1 - t, 2);
+
+        // Use setInterval for consistent timing (more reliable than rAF for audio)
+        const startTime = performance.now();
+        const duration = slideTime * 1000; // Convert to ms
+        const updateInterval = 8; // ~120fps update rate
+
+        slideAnimationId = window.setInterval(() => {
+            const elapsed = performance.now() - startTime;
+            const progress = Math.min(1, elapsed / duration);
+            const easedProgress = easeOut(progress);
+
+            const currentOffset = startOffset + (offsetDelta * easedProgress);
+
+            if (leadPitchShift) {
+                leadPitchShift.pitch = leadPitchShiftAmount + currentOffset;
+            }
+
+            if (progress >= 1) {
+                if (slideAnimationId !== null) {
+                    clearInterval(slideAnimationId);
+                    slideAnimationId = null;
+                }
+                currentLeadSlideOffset = targetOffset;
+            }
+        }, updateInterval);
+
+        // Update tracking immediately (animation will catch up)
+        currentLeadSlideOffset = targetOffset;
+
+        return () => {
+            // Cancel animation if running
+            if (slideAnimationId !== null) {
+                clearInterval(slideAnimationId);
+                slideAnimationId = null;
+            }
+            // Reset pitch shift offset when released
+            currentLeadSlideOffset = 0;
+            originalNotePitch = 0;
+            if (leadPitchShift) {
+                leadPitchShift.pitch = leadPitchShiftAmount;
+            }
+        };
+    } catch (err) {
+        console.error('Failed to slide lead note', err);
+        return null;
+    }
+};
+
+/**
+ * Reset the lead slide offset (call when starting a new phrase)
+ */
+export const resetLeadSlide = () => {
+    // Cancel any ongoing animation
+    if (slideAnimationId !== null) {
+        clearInterval(slideAnimationId);
+        slideAnimationId = null;
+    }
+    currentLeadSlideOffset = 0;
+    originalNotePitch = 0;
+    if (leadPitchShift) {
+        leadPitchShift.pitch = leadPitchShiftAmount;
+    }
+};
+
+/**
+ * Release all currently playing notes on the lead channel.
+ * This is a clean way to stop all lead sounds without needing to track
+ * individual note names, which is especially useful after pitch slides.
+ */
+export const releaseAllLeadNotes = () => {
+    const inst = leadInstruments[currentLeadInstrument];
+    if (inst && typeof inst.releaseAll === 'function') {
+        try {
+            inst.releaseAll();
+        } catch (e) {
+            // Ignore
+        }
+    }
+};
+
+/**
  * Play a note on a specific instrument, ensuring it is loaded.
  */
 export const playInstrumentNote = async (note: string, octave: number = 4, duration: string = "8n", instrumentName: string = 'piano') => {

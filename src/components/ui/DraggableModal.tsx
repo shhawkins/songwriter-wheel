@@ -47,6 +47,8 @@ export interface DraggableModalProps {
     minHeight?: string;
     /** Maximum area (width * height) in square pixels. Prevents modal from being both very wide AND very tall. */
     maxArea?: number;
+    /** Callback when modal is resized */
+    onResize?: (dimensions: { width: number; height: number }) => void;
 }
 
 
@@ -82,7 +84,8 @@ export const DraggableModal: React.FC<DraggableModalProps> = ({
     onInteraction,
     resizable = true,
     minHeight = '200px',
-    maxArea
+    maxArea,
+    onResize
 }) => {
 
     const modalRef = useRef<HTMLDivElement>(null);
@@ -203,6 +206,12 @@ export const DraggableModal: React.FC<DraggableModalProps> = ({
                 }
             }
 
+            // Perform real-time resize (if needed for responsive layout updates during drag)
+            onResize?.({ width: newWidth, height: newHeight });
+
+            // Update state so re-renders (triggered by onResize affecting parent) don't revert size
+            setSize({ width: newWidth, height: newHeight });
+
             // Update DOM directly
             modalRef.current.style.width = `${newWidth}px`;
             modalRef.current.style.height = `${newHeight}px`;
@@ -274,6 +283,9 @@ export const DraggableModal: React.FC<DraggableModalProps> = ({
 
                 // Commit to state
                 setSize({ width: finalWidth, height: finalHeight });
+
+                // Notify parent of resize
+                onResize?.({ width: finalWidth, height: finalHeight });
 
                 // Commit position if changed
                 if (finalX !== startPos.x || finalY !== startPos.y) {

@@ -1,5 +1,5 @@
 import React, { useRef, useState, useCallback } from 'react';
-import { playNote, playLeadNote } from '../../utils/audioEngine';
+import { playLeadNoteWithManualRelease, playNoteWithManualRelease } from '../../utils/audioEngine';
 import { formatChordForDisplay } from '../../utils/musicTheory';
 
 interface PlayableScaleStripProps {
@@ -32,9 +32,17 @@ export const PlayableScaleStrip: React.FC<PlayableScaleStripProps> = ({
     }, [fullScale]);
 
     const activeNoteRef = useRef<number | null>(null);
+    const releaseFnRef = useRef<(() => void) | null>(null);
     const [highlightedIndex, setHighlightedIndex] = useState<number | null>(null);
 
-    const handleInteraction = useCallback((e: React.PointerEvent) => {
+    const stopCurrentNote = () => {
+        if (releaseFnRef.current) {
+            releaseFnRef.current();
+            releaseFnRef.current = null;
+        }
+    };
+
+    const handleInteraction = useCallback(async (e: React.PointerEvent) => {
         // Prevent default touch actions (scrolling)
         if (e.type !== 'pointerup') {
             e.preventDefault();
@@ -56,6 +64,7 @@ export const PlayableScaleStrip: React.FC<PlayableScaleStripProps> = ({
         if (!cell) {
             setHighlightedIndex(null);
             activeNoteRef.current = null;
+            stopCurrentNote();
             return;
         }
 
@@ -65,22 +74,36 @@ export const PlayableScaleStrip: React.FC<PlayableScaleStripProps> = ({
         // Play note if it's different from the last one, OR if this is a new interaction (pointerdown)
         // This allows quick successive taps on the same note
         if (activeNoteRef.current !== index || e.type === 'pointerdown') {
+            stopCurrentNote(); // Stop previous note before playing new one
+
             activeNoteRef.current = index;
             setHighlightedIndex(index);
             const noteData = playbackNotes[index];
             if (noteData) {
+                let release: (() => void) | null = null;
                 if (useLead) {
-                    playLeadNote(noteData.note, noteData.octave);
+                    release = await playLeadNoteWithManualRelease(noteData.note, noteData.octave);
                 } else {
-                    playNote(noteData.note, noteData.octave);
+                    release = await playNoteWithManualRelease(noteData.note, noteData.octave);
+                }
+
+                // Check if we moved to another note or released while loading
+                if (activeNoteRef.current !== index) {
+                    if (release) release();
+                    return;
+                }
+
+                if (release) {
+                    releaseFnRef.current = release;
                 }
             }
         }
-    }, [playbackNotes]);
+    }, [playbackNotes, useLead]);
 
     const handlePointerUp = () => {
         activeNoteRef.current = null;
         setHighlightedIndex(null);
+        stopCurrentNote();
     };
 
     return (

@@ -39,6 +39,7 @@ export interface InstrumentState {
     leadFilterMix: number;
     leadPitchShift: number;
     leadChannelVolume: number;
+    leadSlideEnabled: boolean; // Toggle for slide vs glissando behavior
 }
 
 export interface InstrumentActions {
@@ -89,6 +90,7 @@ export interface InstrumentActions {
     setLeadFilterMix: (mix: number) => void;
     setLeadPitchShift: (shift: number) => void;
     setLeadChannelVolume: (volume: number) => void;
+    setLeadSlideEnabled: (enabled: boolean) => void;
     resetLeadControls: () => void;
 }
 
@@ -135,6 +137,7 @@ export const createInstrumentSlice: StateCreator<
     leadFilterMix: 0,
     leadPitchShift: 0,
     leadChannelVolume: 0.75,
+    leadSlideEnabled: true, // Slide enabled by default for guitar-like feel
 
     toggleInstrumentManagerModal: (force, view) => set((state: InstrumentState) => ({
         instrumentManagerModalVisible: force ?? !state.instrumentManagerModalVisible,
@@ -288,6 +291,7 @@ export const createInstrumentSlice: StateCreator<
         set({ leadChannelVolume: volume });
         audioEngine.setLeadChannelVolume(volume);
     },
+    setLeadSlideEnabled: (enabled) => set({ leadSlideEnabled: enabled }),
     resetLeadControls: () => {
         set({
             leadGain: 0.75,

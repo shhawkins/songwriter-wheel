@@ -96,7 +96,7 @@ export const NotesModal: React.FC<NotesModalProps> = ({ isOpen, onClose }) => {
 
     // Calculate z-index based on stack position
     const stackIndex = modalStack.indexOf(MODAL_ID);
-    const zIndex = stackIndex >= 0 ? 130 + stackIndex * 10 : 130;
+    const zIndex = stackIndex >= 0 ? 120 + stackIndex * 10 : 120;
 
     // Bring to front on open
     useEffect(() => {
