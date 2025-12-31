@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { clsx } from 'clsx';
 import { playChord } from '../../utils/audioEngine';
 import { useMobileLayout } from '../../hooks/useIsMobile';
-import { Info, Plus, ChevronLeft, ChevronRight, MoveRight } from 'lucide-react';
+import { Info, Plus, ChevronLeft, ChevronRight, MoveRight, GripVertical } from 'lucide-react';
 import { VoiceSelector } from '../playback/VoiceSelector';
 import { useSongStore } from '../../store/useSongStore';
 import DraggableModal from '../ui/DraggableModal';
@@ -136,6 +136,7 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
 
     // === DRAG-TO-TIMELINE HANDLERS FOR IN-KEY CHORD BADGES ===
     const handleBadgePointerDown = useCallback((e: React.PointerEvent, chord: Chord) => {
+        e.stopPropagation();
         // Always enable drag - no lock mode requirement
         badgeDragStartRef.current = { x: e.clientX, y: e.clientY, chord };
         badgeDraggingRef.current = false;
@@ -607,6 +608,38 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
                         </button>
                     )}
 
+                    {/* Draggable chord pill - between info and inversion */}
+                    {(() => {
+                        const q = selectedChord?.quality || voicings[0]?.quality || 'major';
+                        const notes = getChordNotes(chordRoot, q);
+                        const symbol = getChordSymbolWithInversion(chordRoot, q, notes, chordInversion);
+                        const chordColor = colors[chordRoot as keyof typeof colors] || '#6366f1';
+
+                        return (
+                            <div
+                                className="flex items-center justify-center gap-0.5 shrink-0 h-6 px-1.5 cursor-grab active:cursor-grabbing touch-none select-none transition-all active:scale-95 hover:brightness-110"
+                                style={{
+                                    color: chordColor,
+                                    borderRadius: '6px',
+                                    border: `1.5px solid ${chordColor}`,
+                                    background: 'rgba(0, 0, 0, 0.5)',
+                                }}
+                                onPointerDown={(e) => {
+                                    const q = selectedChord?.quality || voicings[0]?.quality || 'major';
+                                    handleBadgePointerDown(e, constructChordFromQuality(q));
+                                }}
+                                onPointerMove={handleBadgePointerMove}
+                                onPointerUp={handleBadgePointerUp}
+                                title="Drag to timeline"
+                            >
+                                <GripVertical size={10} className="opacity-50" />
+                                <span className="font-bold leading-none text-[10px] whitespace-nowrap">
+                                    {formatChordForDisplay(symbol)}
+                                </span>
+                            </div>
+                        );
+                    })()}
+
                     {/* Inversion Control - can shrink and grow */}
                     <div className="flex items-center bg-bg-tertiary/60 border border-white/10 rounded-xl px-0.5 shadow-inner h-8 min-w-[100px] flex-1">
                         <button
@@ -619,6 +652,7 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
                             <ChevronLeft size={16} />
                         </button>
 
+                        {/* Inversion text */}
                         <div className="flex flex-col items-center justify-center flex-1 px-1 pointer-events-none min-w-0">
                             <span className="text-[9px] font-black text-accent-primary uppercase tracking-tighter leading-none truncate">
                                 {getInversionName(chordInversion)}
