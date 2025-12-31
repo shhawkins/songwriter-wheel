@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Music, Circle, Hash, Layers, Volume2, Hand, RotateCw, ListMusic, Download, HelpCircle, Share, MoreVertical, Sliders, KeyboardMusic, ClipboardPen } from 'lucide-react';
+import { X, Music, Circle, Hash, Layers, Volume2, Hand, RotateCw, ListMusic, Download, HelpCircle, Share, MoreVertical, Sliders, Guitar, ClipboardPen } from 'lucide-react';
 import { PlayableProgression } from './interactive/PlayableProgression';
 import { PlayableCadence } from './interactive/PlayableCadence';
 import { PROGRESSION_PRESETS, CADENCE_PRESETS, numeralToChord } from '../utils/progressionPlayback';
@@ -203,7 +203,7 @@ const HelpContent: React.FC<HelpContentProps> = ({ onClose }) => {
                         <div className="pt-0.5">
                             <h4 className="text-sm font-semibold text-white mb-1">Use the corner tools</h4>
                             <p className="text-xs text-gray-400 leading-relaxed">
-                                Look for <span className="inline-flex items-center justify-center w-5 h-5 bg-bg-secondary/80 rounded-full text-text-muted border border-border-subtle/60 mx-0.5"><Sliders size={10} /></span> <strong className="text-gray-300">Sound Controls</strong>, <span className="inline-flex items-center justify-center w-5 h-5 bg-bg-secondary/80 rounded-full text-text-muted border border-border-subtle/60 mx-0.5"><KeyboardMusic size={10} /></span> <strong className="text-gray-300">Scales</strong>, and <span className="inline-flex items-center justify-center w-5 h-5 bg-bg-secondary/80 rounded-full text-text-muted border border-border-subtle/60 mx-0.5"><ListMusic size={10} /></span> <strong className="text-gray-300">Voicings</strong> near the wheel.
+                                Look for <span className="inline-flex items-center justify-center w-5 h-5 bg-bg-secondary/80 rounded-full text-text-muted border border-border-subtle/60 mx-0.5"><Sliders size={10} /></span> <strong className="text-gray-300">Sound Controls</strong>, <span className="inline-flex items-center justify-center w-5 h-5 bg-bg-secondary/80 rounded-full text-text-muted border border-border-subtle/60 mx-0.5"><Guitar size={10} /></span> <strong className="text-gray-300">Scales</strong>, and <span className="inline-flex items-center justify-center w-5 h-5 bg-bg-secondary/80 rounded-full text-text-muted border border-border-subtle/60 mx-0.5"><ListMusic size={10} /></span> <strong className="text-gray-300">Voicings</strong> near the wheel.
                             </p>
                         </div>
                     </div>
@@ -334,7 +334,7 @@ const HelpContent: React.FC<HelpContentProps> = ({ onClose }) => {
             <section>
                 <h3 className="text-accent-primary font-bold text-sm uppercase tracking-wider mb-3 flex items-center gap-2">
                     <Sliders size={12} />
-                    Your Toolkit
+                    Toolkit
                 </h3>
                 <div className="bg-bg-elevated/50 rounded-lg p-4 space-y-4">
                     <p className="text-sm text-gray-300">Find these powerful tools near the wheel corners — they unlock the full potential of your songwriting experience.</p>
@@ -342,8 +342,8 @@ const HelpContent: React.FC<HelpContentProps> = ({ onClose }) => {
                     {/* Sound Controls */}
                     <div className="p-3 rounded-xl bg-white/5 border border-white/10">
                         <div className="flex items-start gap-3">
-                            <div className="shrink-0 w-10 h-10 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center">
-                                <Sliders size={18} className="text-violet-400" />
+                            <div className="shrink-0 w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+                                <Sliders size={18} className="text-gray-400" />
                             </div>
                             <div className="flex-1 min-w-0">
                                 <strong className="text-sm text-white block mb-1">Sound Controls</strong>
@@ -357,8 +357,8 @@ const HelpContent: React.FC<HelpContentProps> = ({ onClose }) => {
                     {/* Scales & Modes */}
                     <div className="p-3 rounded-xl bg-white/5 border border-white/10">
                         <div className="flex items-start gap-3">
-                            <div className="shrink-0 w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center">
-                                <KeyboardMusic size={18} className="text-purple-400" />
+                            <div className="shrink-0 w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+                                <Guitar size={18} className="text-gray-400" />
                             </div>
                             <div className="flex-1 min-w-0">
                                 <strong className="text-sm text-white block mb-1">Scales & Modes Explorer</strong>
@@ -372,8 +372,8 @@ const HelpContent: React.FC<HelpContentProps> = ({ onClose }) => {
                     {/* Voicing Picker */}
                     <div className="p-3 rounded-xl bg-white/5 border border-white/10">
                         <div className="flex items-start gap-3">
-                            <div className="shrink-0 w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
-                                <ListMusic size={18} className="text-amber-400" />
+                            <div className="shrink-0 w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+                                <ListMusic size={18} className="text-gray-400" />
                             </div>
                             <div className="flex-1 min-w-0">
                                 <strong className="text-sm text-white block mb-1">Voicing Picker</strong>
@@ -387,8 +387,8 @@ const HelpContent: React.FC<HelpContentProps> = ({ onClose }) => {
                     {/* Song Notes */}
                     <div className="p-3 rounded-xl bg-white/5 border border-white/10">
                         <div className="flex items-start gap-3">
-                            <div className="shrink-0 w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
-                                <ClipboardPen size={18} className="text-amber-400" />
+                            <div className="shrink-0 w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+                                <ClipboardPen size={18} className="text-gray-400" />
                             </div>
                             <div className="flex-1 min-w-0">
                                 <strong className="text-sm text-white block mb-1">Song Notes & Lyrics</strong>
