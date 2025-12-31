@@ -32,7 +32,6 @@ export const ModeFretboard: React.FC<ModeFretboardProps> = ({
         { note: 'E', octave: 2 }
     ];
 
-    const [isDragging, setIsDragging] = useState(false);
     const [activeNote, setActiveNote] = useState<string | null>(null); // For visual feedback: "stringIdx-fret"
     const lastPlayedRef = useRef<string | null>(null);
     const activeNoteTimeoutRef = useRef<number | null>(null);
@@ -45,6 +44,10 @@ export const ModeFretboard: React.FC<ModeFretboardProps> = ({
     const currentNoteKeyRef = useRef<string | null>(null);
     // Track whether we've slid during this touch - affects release behavior
     const hasSlid = useRef<boolean>(false);
+
+    // Pointer tracking for proper Apple Pencil support
+    const activePointers = useRef<Set<number>>(new Set());
+    const containerRef = useRef<HTMLDivElement>(null);
 
     // Initial note mappings for semitone calculation
     const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -191,51 +194,66 @@ export const ModeFretboard: React.FC<ModeFretboardProps> = ({
         }
     }, [interactive, getPitch, useLead, stopNote, slideEnabled]);
 
+    // Helper: check if any pointer is active (replaces isDragging state)
+    const isAnyPointerActive = useCallback(() => activePointers.current.size > 0, []);
 
-
-    const handleMouseDown = (stringIdx: number, fret: number) => {
+    const handlePointerDown = useCallback((stringIdx: number, fret: number, e?: React.PointerEvent) => {
         if (!interactive) return;
-        setIsDragging(true);
+
+        // Track this pointer
+        if (e) {
+            activePointers.current.add(e.pointerId);
+
+            // CRITICAL: Capture pointer for pen/stylus (Apple Pencil) to prevent ghost notes
+            // This ensures the pointerup event fires on the same element that received pointerdown
+            if (e.pointerType === 'pen') {
+                (e.target as HTMLElement).setPointerCapture(e.pointerId);
+            }
+        }
+
         lastStringRef.current = stringIdx;
         playNoteWithFeedback(stringIdx, fret, true);
-    };
+    }, [interactive, playNoteWithFeedback]);
 
-    const handleMouseEnter = (stringIdx: number, fret: number) => {
-        if (isDragging && interactive) {
-            // If dragging, we enter a new note. 
-            // Should we stop the previous note? 
-            // Ideally yes, to prevent muddy overlapping if it's a melody line.
-            // But tracking *which* previous note is hard without a reference.
-            // For now, let's just play the new one. Audio engine sustain/release might overlap.
+    const handlePointerEnter = useCallback((stringIdx: number, fret: number) => {
+        if (isAnyPointerActive() && interactive) {
+            // If dragging, we enter a new note
             playNoteWithFeedback(stringIdx, fret, false);
         }
-    };
+    }, [isAnyPointerActive, interactive, playNoteWithFeedback]);
 
-    const handleMouseUp = useCallback(() => {
-        setIsDragging(false);
-        lastPlayedRef.current = null;
-        lastStringRef.current = null;
-        currentNoteKeyRef.current = null;
-        prevNoteInfoRef.current = null;
-
-        // If we slid during this touch, use releaseAll to avoid note-name mismatch issues
-        // Otherwise use the stored release functions
-        if (hasSlid.current && useLead) {
-            // Clear refs without calling individual release functions
-            playingNotesRef.current = {};
-            // Release all notes cleanly and reset slide pitch offset
-            audioEngine.releaseAllLeadNotes();
-            audioEngine.resetLeadSlide();
-        } else {
-            // Normal release - stop all notes via their release functions
-            stopAllNotes();
+    const handlePointerUp = useCallback((e?: React.PointerEvent) => {
+        // Clean up this specific pointer
+        if (e) {
+            activePointers.current.delete(e.pointerId);
         }
 
-        hasSlid.current = false;
+        // Only fully release if no more pointers are active
+        if (activePointers.current.size === 0) {
+            lastPlayedRef.current = null;
+            lastStringRef.current = null;
+            currentNoteKeyRef.current = null;
+            prevNoteInfoRef.current = null;
 
-        setActiveNote(null);
-        if (activeNoteTimeoutRef.current) {
-            clearTimeout(activeNoteTimeoutRef.current);
+            // If we slid during this touch, use releaseAll to avoid note-name mismatch issues
+            // Otherwise use the stored release functions
+            if (hasSlid.current && useLead) {
+                // Clear refs without calling individual release functions
+                playingNotesRef.current = {};
+                // Release all notes cleanly and reset slide pitch offset
+                audioEngine.releaseAllLeadNotes();
+                audioEngine.resetLeadSlide();
+            } else {
+                // Normal release - stop all notes via their release functions
+                stopAllNotes();
+            }
+
+            hasSlid.current = false;
+
+            setActiveNote(null);
+            if (activeNoteTimeoutRef.current) {
+                clearTimeout(activeNoteTimeoutRef.current);
+            }
         }
     }, [stopAllNotes, useLead]);
 
@@ -288,16 +306,13 @@ export const ModeFretboard: React.FC<ModeFretboardProps> = ({
         return data;
     }, [scaleNotes, rootNote]);
 
-    // For touch glissando: find which note is under the touch point
-    // Improved to be more precise about string detection
-    const handleTouchMove = useCallback((e: React.TouchEvent) => {
-        if (!interactive || !isDragging) return;
+    // For pointer glissando: find which note is under the pointer
+    // Works with mouse, touch, and Apple Pencil
+    const handlePointerMove = useCallback((e: React.PointerEvent) => {
+        if (!interactive || !activePointers.current.has(e.pointerId)) return;
 
-        // Prevent scrolling while dragging
-        // e.preventDefault(); // Note: cant do this in passive listener, but React handles it usually
-
-        const touch = e.touches[0];
-        const target = e.currentTarget as HTMLElement;
+        const target = containerRef.current;
+        if (!target) return;
         const svg = target.querySelector('svg');
         if (!svg) return;
 
@@ -306,7 +321,7 @@ export const ModeFretboard: React.FC<ModeFretboardProps> = ({
         const svgWidth = rect.width;
         const svgHeight = rect.height;
 
-        // Convert touch coordinates to SVG viewBox coordinates
+        // Convert pointer coordinates to SVG viewBox coordinates
         // ViewBox is: `-30 0 ${endX + 80} ${endY + 90}` = "-30 0 1110 345"
         const viewBoxX = -30;
         const viewBoxWidth = endX + 80;  // 1110
@@ -316,35 +331,24 @@ export const ModeFretboard: React.FC<ModeFretboardProps> = ({
         let svgY: number;
 
         if (rotated) {
-            // When rotated 90° CW, we need to swap and invert coordinates:
-            // Screen X (horizontal swipe) -> SVG Y (but inverted because rotation flips it)
-            // Screen Y (vertical swipe) -> SVG X
-            // The rotation is: transform: rotate(90deg)
-            // So screen coords need to be transformed:
-            //   svgX = (screenY / height) * viewBoxWidth
-            //   svgY = ((width - screenX) / width) * viewBoxHeight
-            const screenX = touch.clientX - rect.left;
-            const screenY = touch.clientY - rect.top;
-            // Map screen Y to SVG X (along the frets)
+            // When rotated 90° CW, we need to swap and invert coordinates
+            const screenX = e.clientX - rect.left;
+            const screenY = e.clientY - rect.top;
             svgX = (screenY / svgHeight) * viewBoxWidth + viewBoxX;
-            // Map screen X to SVG Y (across strings), inverted
             svgY = ((svgWidth - screenX) / svgWidth) * viewBoxHeight;
         } else {
             const scaleX = viewBoxWidth / svgWidth;
             const scaleY = viewBoxHeight / svgHeight;
-            // Account for the viewBox X offset
-            svgX = (touch.clientX - rect.left) * scaleX + viewBoxX;
-            svgY = (touch.clientY - rect.top) * scaleY;
+            svgX = (e.clientX - rect.left) * scaleX + viewBoxX;
+            svgY = (e.clientY - rect.top) * scaleY;
         }
 
         // Determine which string we're on based on Y position
-        // Add tolerance - must be within half the string spacing to count
         const relativeY = svgY - startY;
         const stringFloat = relativeY / stringSpacing;
         const nearestString = Math.round(stringFloat);
 
         // Only accept if within reasonable distance of the string
-        // Relaxed tolerance for smoother cross-string glissando
         const distanceFromString = Math.abs(stringFloat - nearestString);
         if (nearestString < 0 || nearestString >= numStrings || distanceFromString > 0.5) {
             return; // Not close enough to any string
@@ -377,27 +381,26 @@ export const ModeFretboard: React.FC<ModeFretboardProps> = ({
 
             // If we moved to a NEW note
             if (lastPlayedRef.current !== pitch) {
-                // Determine if we should stop the *previously* playing note?
-                // lastPlayedRef tracks pitch, not key.
-                // For simplicity, we can rely on `playNoteWithFeedback` handling the logic
                 playNoteWithFeedback(nearestString, fret, false);
             }
-        } else {
-            // Moved off a note to empty space?
-            // Optional: could stop playing note here if we want strict "touch must be on note"
         }
-    }, [interactive, isDragging, getPitch, stringSpacing, fretWidth, startX, startY, endX, endY, numStrings, numFrets, playNoteWithFeedback, fretboardData, rotated]);
+    }, [interactive, getPitch, stringSpacing, fretWidth, startX, startY, endX, endY, numStrings, numFrets, playNoteWithFeedback, fretboardData, rotated]);
 
-    // Handle touch start on the CONTAINER to catch swipes starting on background
-    const handleContainerTouchStart = (e: React.TouchEvent) => {
+    // Handle pointer start on the CONTAINER to catch drags starting on background
+    const handleContainerPointerDown = useCallback((e: React.PointerEvent) => {
         if (!interactive) return;
-        setIsDragging(true);
 
-        // Process the initial touch immediately to find and play any note under the finger.
-        // We can't rely on handleTouchMove because isDragging won't be true yet (React state is async).
-        // So we inline the coordinate logic here.
-        const touch = e.touches[0];
-        const target = e.currentTarget as HTMLElement;
+        // Track this pointer
+        activePointers.current.add(e.pointerId);
+
+        // CRITICAL: Capture pointer for pen/stylus (Apple Pencil)
+        if (e.pointerType === 'pen') {
+            (e.target as HTMLElement).setPointerCapture(e.pointerId);
+        }
+
+        // Process the initial pointer position immediately to find and play any note under the finger.
+        const target = containerRef.current;
+        if (!target) return;
         const svg = target.querySelector('svg');
         if (!svg) return;
 
@@ -413,16 +416,15 @@ export const ModeFretboard: React.FC<ModeFretboardProps> = ({
         let svgY: number;
 
         if (rotated) {
-            // When rotated 90° CW, swap and invert coordinates (same as handleTouchMove)
-            const screenX = touch.clientX - rect.left;
-            const screenY = touch.clientY - rect.top;
+            const screenX = e.clientX - rect.left;
+            const screenY = e.clientY - rect.top;
             svgX = (screenY / svgHeight) * viewBoxWidth + viewBoxX;
             svgY = ((svgWidth - screenX) / svgWidth) * viewBoxHeight;
         } else {
             const scaleX = viewBoxWidth / svgWidth;
             const scaleY = viewBoxHeight / svgHeight;
-            svgX = (touch.clientX - rect.left) * scaleX + viewBoxX;
-            svgY = (touch.clientY - rect.top) * scaleY;
+            svgX = (e.clientX - rect.left) * scaleX + viewBoxX;
+            svgY = (e.clientY - rect.top) * scaleY;
         }
 
         const relativeY = svgY - startY;
@@ -456,19 +458,19 @@ export const ModeFretboard: React.FC<ModeFretboardProps> = ({
             lastStringRef.current = nearestString;
             playNoteWithFeedback(nearestString, fret, true);
         }
-    };
+    }, [interactive, endX, endY, rotated, startX, startY, stringSpacing, fretWidth, numStrings, numFrets, fretboardData, playNoteWithFeedback]);
 
 
 
     return (
         <div
+            ref={containerRef}
             className="w-full relative select-none touch-none"
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
-            onTouchEnd={handleMouseUp}
-            onTouchCancel={handleMouseUp}
-            onTouchStart={handleContainerTouchStart} // Capture drag start even on empty space
-            onTouchMove={handleTouchMove}
+            onPointerUp={handlePointerUp}
+            onPointerLeave={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+            onPointerDown={handleContainerPointerDown}
+            onPointerMove={handlePointerMove}
         >
             {/* Aspect ratio container - roughly 4:1 */}
             <svg
@@ -563,15 +565,11 @@ export const ModeFretboard: React.FC<ModeFretboardProps> = ({
                             className={interactive ? "cursor-pointer" : ""}
                             data-string-idx={d.stringIdx}
                             data-fret={d.fret}
-                            onMouseDown={(e) => {
+                            onPointerDown={(e) => {
                                 e.stopPropagation();
-                                handleMouseDown(d.stringIdx, d.fret);
+                                handlePointerDown(d.stringIdx, d.fret, e);
                             }}
-                            onTouchStart={(e) => {
-                                e.stopPropagation();
-                                handleMouseDown(d.stringIdx, d.fret);
-                            }}
-                            onMouseEnter={() => handleMouseEnter(d.stringIdx, d.fret)}
+                            onPointerEnter={() => handlePointerEnter(d.stringIdx, d.fret)}
                         >
                             {/* Invisible hit area - reduced vertical size to prevent cross-string triggers */}
                             <rect
