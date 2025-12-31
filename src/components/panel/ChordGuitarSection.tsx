@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { type Chord } from '../../utils/musicTheory';
 import { GuitarChord } from './GuitarChord';
@@ -42,6 +42,10 @@ export const ChordGuitarSection: React.FC<ChordGuitarSectionProps> = ({
     onDiagramDoubleClick,
     onNotePlay
 }) => {
+    // Track which button had touch start to prevent ghost clicks from touches
+    // that originated on the chord diagram and released over a voicing button
+    const touchStartedOnRef = useRef<string | null>(null);
+
     return (
         <div
             className={`${isCompactLandscape ? 'px-2 py-1' : isMobile ? 'px-5 py-1' : 'px-5 py-1'} rounded-none`}
@@ -97,6 +101,18 @@ export const ChordGuitarSection: React.FC<ChordGuitarSectionProps> = ({
                                                 }}
                                                 onClick={() => onVariationClick(ext)}
                                                 onDoubleClick={() => onVariationDoubleClick(ext)}
+                                                onTouchStart={() => {
+                                                    touchStartedOnRef.current = ext;
+                                                }}
+                                                onTouchEnd={(e) => {
+                                                    // Only trigger the click if touch started on this button
+                                                    // This prevents ghost clicks when releasing a strum over a voicing button
+                                                    if (touchStartedOnRef.current !== ext) {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                    }
+                                                    touchStartedOnRef.current = null;
+                                                }}
                                             >
                                                 {formatChordForDisplay(`${chord.root}${ext}`)}
                                                 {!isMobile && VOICING_TOOLTIPS[ext] && (
