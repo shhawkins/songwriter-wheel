@@ -298,7 +298,7 @@ export const NotesModal: React.FC<NotesModalProps> = ({ isOpen, onClose }) => {
                 onClose={handleClose}
                 showDragHandle={true}
                 showCloseButton={true}
-                width="500px"
+                width="580px"
                 minWidth="340px"
                 maxWidth="800px"
                 zIndex={zIndex}
