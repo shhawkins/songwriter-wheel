@@ -36,6 +36,9 @@ export const ModeFretboardModal: React.FC = () => {
 
     const { isMobile, isLandscape } = useMobileLayout();
 
+    // Mobile portrait = mobile but NOT landscape (phone held upright)
+    const isMobilePortrait = isMobile && !isLandscape;
+
     // Internal state for the currently displayed mode
     // We initialize this from the prop data when the modal opens
     const [currentDegree, setCurrentDegree] = useState(0);
@@ -44,8 +47,11 @@ export const ModeFretboardModal: React.FC = () => {
     const dropdownButtonRef = useRef<HTMLButtonElement>(null);
     const [dropdownPos, setDropdownPos] = useState<{ x: number, y: number }>({ x: 0, y: 0 });
 
-    // Track modal dimensions for responsive vertical fretboard
+    // Track modal dimensions for responsive vertical fretboard (desktop resize detection)
     const [isPortraitLayout, setIsPortraitLayout] = useState(false);
+
+    // Use vertical fretboard when: mobile portrait OR desktop modal resized to portrait shape
+    const useVerticalFretboard = isMobilePortrait || isPortraitLayout;
 
     // Sync internal state when data changes (modal opens)
     useEffect(() => {
@@ -161,13 +167,19 @@ export const ModeFretboardModal: React.FC = () => {
         y: Math.max(60, (window.innerHeight - 520) / 2.5)
     }), []);
 
-    // Calculate specific pixel height for mobile to mimic resize behavior
-    const mobileHeight = useMemo(() => {
-        if (typeof window !== 'undefined' && isMobile && !isLandscape) {
-            return `${Math.floor(window.innerHeight * 0.85)}px`;
-        }
-        return undefined;
-    }, [isMobile, isLandscape]);
+    // For mobile portrait: Narrow and tall modal (like a vertical guitar neck)
+    // Matches LeadScalesModal approach
+    const getModalWidth = () => {
+        if (isMobilePortrait) return '65vw';     // Narrower - like a guitar neck width
+        if (isLandscape) return '70vw';           // Constrained in landscape
+        return '640px';                            // Desktop
+    };
+
+    const getMinHeight = () => {
+        if (isMobilePortrait) return '68vh';     // Taller for better fretboard aspect ratio
+        if (isLandscape) return '280px';          // Compact in landscape
+        return '550px';
+    };
 
     if (!modeFretboardModalVisible) return null;
 
@@ -175,21 +187,20 @@ export const ModeFretboardModal: React.FC = () => {
         <DraggableModal
             isOpen={modeFretboardModalVisible}
             onClose={handleClose}
-            width={isMobile && isLandscape ? '70vw' : isMobile ? '92vw' : '640px'}
-            height={mobileHeight}
+            width={getModalWidth()}
             minWidth="280px"
-            minHeight={isMobile && isLandscape ? '280px' : '550px'}
+            minHeight={getMinHeight()}
             position={initialPosition}
             zIndex={zIndex}
             onInteraction={() => bringToFront(MODAL_ID)}
             dataAttribute="mode-fretboard-modal"
-            resizable={!isMobile || isLandscape}
+            resizable={!isMobilePortrait}
             onResize={handleResize}
-            className=""
+            className={isMobilePortrait ? 'mode-fretboard-portrait' : ''}
         >
             {/* Entire content area - stopPropagation to prevent accidental modal drags */}
             <div
-                className={`flex flex-col w-full h-full overflow-hidden p-3 bg-[#1e1e28] ${isMobile && isLandscape ? 'max-h-[85vh]' : isMobile ? 'h-full' : ''}`}
+                className={`flex flex-col w-full h-full overflow-hidden bg-[#1e1e28] ${isMobilePortrait ? 'p-2' : isLandscape ? 'p-2 max-h-[85vh]' : 'p-3'}`}
                 onMouseDown={(e) => e.stopPropagation()}
                 onTouchStart={(e) => e.stopPropagation()}
             >
@@ -288,13 +299,13 @@ export const ModeFretboardModal: React.FC = () => {
 
                 {/* Fretboard Area - Flex Grow */}
                 <div
-                    className={`flex-1 flex items-center justify-center bg-black/40 rounded-xl border border-white/5 relative mb-3 mt-4 overflow-hidden ${isPortraitLayout ? 'min-h-[50vh]' : isMobile && !isLandscape ? 'min-h-[300px]' : 'min-h-[200px]'}`}
+                    className={`flex-1 flex items-center justify-center bg-black/40 rounded-xl border border-white/5 relative mb-3 mt-4 overflow-hidden ${useVerticalFretboard ? 'min-h-[50vh]' : 'min-h-[200px]'}`}
                     onMouseDown={(e) => e.stopPropagation()}
                     onTouchStart={(e) => e.stopPropagation()}
                 >
                     <div
-                        className={`flex items-center justify-center ${isPortraitLayout ? 'absolute top-1/2 left-1/2' : 'w-full h-full p-2'}`}
-                        style={isPortraitLayout ? {
+                        className={`flex items-center justify-center ${useVerticalFretboard ? 'absolute top-1/2 left-1/2' : 'w-full h-full p-2'}`}
+                        style={useVerticalFretboard ? {
                             // Use absolute positioning + centering to prevent layout expansion
                             position: 'absolute',
                             left: '50%',
@@ -313,7 +324,7 @@ export const ModeFretboardModal: React.FC = () => {
                             interactive={true}
                             useLead={true}
                             slideEnabled={leadSlideEnabled}
-                            rotated={isPortraitLayout}
+                            rotated={useVerticalFretboard}
                         />
                     </div>
                 </div>

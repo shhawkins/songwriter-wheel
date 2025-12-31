@@ -123,7 +123,7 @@ export const createInstrumentSlice: StateCreator<
     instrumentControlsPosition: null,
 
     // Lead channel defaults
-    leadInstrument: 'piano',
+    leadInstrument: 'jazzmaster',
     leadGain: 0.75,
     leadReverbMix: 0.2,
     leadDelayMix: 0.1,
@@ -137,7 +137,7 @@ export const createInstrumentSlice: StateCreator<
     leadFilterMix: 0,
     leadPitchShift: 0,
     leadChannelVolume: 0.75,
-    leadSlideEnabled: true, // Slide enabled by default for guitar-like feel
+    leadSlideEnabled: false, // Slide disabled by default; enable for pitch bend behavior
 
     toggleInstrumentManagerModal: (force, view) => set((state: InstrumentState) => ({
         instrumentManagerModalVisible: force ?? !state.instrumentManagerModalVisible,

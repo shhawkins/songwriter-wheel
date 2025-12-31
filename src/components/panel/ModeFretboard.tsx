@@ -223,8 +223,9 @@ export const ModeFretboard: React.FC<ModeFretboardProps> = ({
         if (hasSlid.current && useLead) {
             // Clear refs without calling individual release functions
             playingNotesRef.current = {};
-            // Release all notes cleanly
+            // Release all notes cleanly and reset slide pitch offset
             audioEngine.releaseAllLeadNotes();
+            audioEngine.resetLeadSlide();
         } else {
             // Normal release - stop all notes via their release functions
             stopAllNotes();

@@ -284,7 +284,7 @@ let effectsChainInitialized = false;
 // ============================================================================
 
 let leadInstruments: Record<string, Tone.Sampler | Tone.PolySynth | null> = {};
-let currentLeadInstrument: InstrumentName = 'piano';
+let currentLeadInstrument: InstrumentName = 'jazzmaster';
 let leadInstrumentLoadingPromises: Record<string, Promise<void> | undefined> = {};
 let leadEffectsChainInput: Tone.ToneAudioNode | null = null;
 
