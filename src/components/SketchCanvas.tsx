@@ -11,6 +11,7 @@ interface SketchCanvasProps {
     isEraser?: boolean;
     onSwipeLeft?: () => void;
     onSwipeRight?: () => void;
+    onDrawStart?: () => void;
 }
 
 export const SketchCanvas: React.FC<SketchCanvasProps> = ({
@@ -21,7 +22,8 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
     width = 2,
     isEraser = false,
     onSwipeLeft,
-    onSwipeRight
+    onSwipeRight,
+    onDrawStart
 }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -61,6 +63,22 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
         ctx.lineJoin = 'round';
 
         strokesToDraw.forEach(stroke => {
+            // Handle single-point strokes as dots
+            if (stroke.points.length === 1) {
+                const point = stroke.points[0];
+                ctx.beginPath();
+                if (stroke.isEraser) {
+                    ctx.globalCompositeOperation = 'destination-out';
+                } else {
+                    ctx.globalCompositeOperation = 'source-over';
+                }
+                ctx.fillStyle = stroke.isEraser ? '#ffffff' : stroke.color;
+                ctx.arc(point.x, point.y, stroke.width / 2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalCompositeOperation = 'source-over';
+                return;
+            }
+
             if (stroke.points.length < 2) return;
 
             ctx.beginPath();
@@ -125,6 +143,7 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
         if (readOnly) return;
         e.currentTarget.setPointerCapture(e.pointerId);
         setIsDrawing(true);
+        onDrawStart?.();
         const point = getPoint(e);
         setCurrentStroke([point]);
 
@@ -190,16 +209,17 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
 
         // Determine if it was a swipe (if enabled and stroke is simple)
         // Simple heuristic: quick horizontal movement, mostly straight
+        // Made more strict to avoid false positives with Apple Pencil
         let handledAsSwipe = false;
-        if (currentStroke.length > 5) {
+        if (currentStroke.length > 10) { // Require more points for a swipe
             const start = currentStroke[0];
             const end = currentStroke[currentStroke.length - 1];
             const dx = end.x - start.x;
             const dy = end.y - start.y;
-            // const timeElapsed = 200; // Mock time, could track timestamps
 
             // Check for horizontal swipe: abs(dx) > threshold && abs(dy) < small
-            if (Math.abs(dx) > 100 && Math.abs(dy) < 50) {
+            // More strict: require dx > 150 and dy < 30
+            if (Math.abs(dx) > 150 && Math.abs(dy) < 30) {
                 if (dx > 0 && onSwipeRight) {
                     onSwipeRight();
                     handledAsSwipe = true;
@@ -241,6 +261,7 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
                 onPointerMove={handlePointerMove}
                 onPointerUp={handlePointerUp}
                 onPointerLeave={handlePointerUp}
+                onPointerCancel={handlePointerUp}
                 style={{
                     touchAction: 'none'
                 }}

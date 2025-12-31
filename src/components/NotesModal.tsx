@@ -12,13 +12,13 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { StickyNote, FileText, ChevronDown, RotateCcw, RotateCw, PenTool, Type, Plus, ChevronLeft, ChevronRight, Eraser, Moon, Sun } from 'lucide-react';
+import { StickyNote, FileText, ChevronDown, RotateCcw, RotateCw, PenTool, Type, Plus, ChevronLeft, ChevronRight, Eraser, Moon, Sun, Brush } from 'lucide-react';
 import clsx from 'clsx';
 import { DraggableModal } from './ui/DraggableModal';
 import { useSongStore } from '../store/useSongStore';
 import { SongTimeline } from './timeline/SongTimeline';
 import { SectionOptionsPopup } from './timeline/SectionOptionsPopup';
-import { getSectionDisplayName, type SketchPage } from '../types';
+import { getSectionDisplayName, type SketchPage, type Stroke } from '../types';
 import { SketchCanvas } from './SketchCanvas';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -138,6 +138,12 @@ export const NotesModal: React.FC<NotesModalProps> = ({ isOpen, onClose }) => {
     // Dark mode default
     const [isDarkMode, setIsDarkMode] = useState(true);
 
+    // Track if drawing has started on current page (to hide placeholder immediately on touch)
+    const [hasStartedDrawing, setHasStartedDrawing] = useState(false);
+
+    // Sketch undo/redo history (per-page, cleared on navigation)
+    const [sketchUndoStack, setSketchUndoStack] = useState<Stroke[]>([]);
+
     const [sectionLyrics, setLocalSectionLyrics] = useState('');
     const [showSongNotes, setShowSongNotes] = useState(true);
     const [previewMode, setPreviewMode] = useState(false);
@@ -238,6 +244,52 @@ export const NotesModal: React.FC<NotesModalProps> = ({ isOpen, onClose }) => {
         }, 50);
     }, [addSuggestedSection]);
 
+    // Sketch undo handler
+    const handleSketchUndo = useCallback(() => {
+        const currentPage = sketchPages[currentPageIndex];
+        if (!currentPage || currentPage.strokes.length === 0) return;
+
+        const lastStroke = currentPage.strokes[currentPage.strokes.length - 1];
+        const newStrokes = currentPage.strokes.slice(0, -1);
+
+        const newPages = [...sketchPages];
+        newPages[currentPageIndex] = { ...currentPage, strokes: newStrokes };
+        setSketchPages(newPages);
+        setSketches(newPages);
+
+        // Add to undo stack for redo
+        setSketchUndoStack(prev => [...prev, lastStroke]);
+    }, [sketchPages, currentPageIndex, setSketches]);
+
+    // Sketch redo handler
+    const handleSketchRedo = useCallback(() => {
+        if (sketchUndoStack.length === 0) return;
+
+        const strokeToRestore = sketchUndoStack[sketchUndoStack.length - 1];
+        const newUndoStack = sketchUndoStack.slice(0, -1);
+
+        const newPages = [...sketchPages];
+        if (!newPages[currentPageIndex]) {
+            newPages[currentPageIndex] = {
+                id: uuidv4(),
+                strokes: [],
+                createdAt: Date.now()
+            };
+        }
+        newPages[currentPageIndex] = {
+            ...newPages[currentPageIndex],
+            strokes: [...newPages[currentPageIndex].strokes, strokeToRestore]
+        };
+        setSketchPages(newPages);
+        setSketches(newPages);
+
+        setSketchUndoStack(newUndoStack);
+    }, [sketchUndoStack, sketchPages, currentPageIndex, setSketches]);
+
+    // Check if sketch undo/redo are available
+    const canSketchUndo = sketchPages[currentPageIndex]?.strokes?.length > 0;
+    const canSketchRedo = sketchUndoStack.length > 0;
+
     return (
         <>
             {/* Main Notes Modal */}
@@ -246,7 +298,7 @@ export const NotesModal: React.FC<NotesModalProps> = ({ isOpen, onClose }) => {
                 onClose={handleClose}
                 showDragHandle={true}
                 showCloseButton={true}
-                width="420px"
+                width="500px"
                 minWidth="340px"
                 maxWidth="800px"
                 zIndex={zIndex}
@@ -421,97 +473,137 @@ export const NotesModal: React.FC<NotesModalProps> = ({ isOpen, onClose }) => {
                     ) : (
                         <div className="flex-1 flex flex-col min-h-0 relative">
                             {/* Toolbar */}
-                            <div className="flex items-center justify-between mb-2">
-                                {/* Eraser - Only in Edit Mode */}
+                            <div className="flex flex-wrap items-center justify-center gap-y-2 gap-x-4 mb-2 px-1">
+                                {/* Left Group: Tools */}
+                                <div className="flex items-center gap-1.5 min-w-fit">
+                                    {!previewMode && (
+                                        <>
+                                            <button
+                                                onClick={() => setIsEraser(!isEraser)}
+                                                className={clsx(
+                                                    "p-1.5 rounded-md transition-all",
+                                                    isEraser
+                                                        ? "bg-accent-primary text-white shadow-sm"
+                                                        : "bg-bg-tertiary text-text-muted hover:text-text-primary hover:bg-bg-tertiary/80"
+                                                )}
+                                                title="Eraser"
+                                            >
+                                                <Eraser size={16} />
+                                            </button>
+
+                                            <div className="w-px h-4 bg-border-subtle mx-1" />
+
+                                            <button
+                                                onClick={handleSketchUndo}
+                                                disabled={!canSketchUndo}
+                                                className={clsx(
+                                                    "p-1.5 rounded-md transition-colors",
+                                                    canSketchUndo
+                                                        ? "text-text-muted hover:text-text-primary hover:bg-bg-tertiary"
+                                                        : "text-white/5 cursor-not-allowed"
+                                                )}
+                                                title="Undo"
+                                            >
+                                                <RotateCcw size={16} />
+                                            </button>
+                                            <button
+                                                onClick={handleSketchRedo}
+                                                disabled={!canSketchRedo}
+                                                className={clsx(
+                                                    "p-1.5 rounded-md transition-colors",
+                                                    canSketchRedo
+                                                        ? "text-text-muted hover:text-text-primary hover:bg-bg-tertiary"
+                                                        : "text-white/5 cursor-not-allowed"
+                                                )}
+                                                title="Redo"
+                                            >
+                                                <RotateCw size={16} />
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+
+                                {/* Center Group: Brush Size */}
                                 {!previewMode && (
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-3 justify-center">
+                                        <div className="flex items-center gap-2 bg-bg-tertiary/30 px-3 py-1.5 rounded-full border border-white/5">
+                                            <Brush size={12} className={clsx("transition-colors", isEraser ? "text-text-muted" : "text-accent-primary")} />
+                                            <input
+                                                type="range"
+                                                min="1"
+                                                max={isEraser ? "50" : "20"}
+                                                step="0.5"
+                                                value={currentWidth}
+                                                onChange={(e) => {
+                                                    const val = parseFloat(e.target.value);
+                                                    if (isEraser) setEraserWidth(val);
+                                                    else setPenWidth(val);
+                                                }}
+                                                className="w-24 h-1.5 bg-bg-tertiary rounded-lg appearance-none cursor-pointer accent-accent-primary [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-accent-primary [&::-webkit-slider-thumb]:shadow-sm transition-opacity"
+                                                title={isEraser ? `Eraser size: ${currentWidth}` : `Pen size: ${currentWidth}`}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Right Group: Settings & Nav */}
+                                <div className="flex items-center gap-2 min-w-fit justify-end">
+                                    {/* Preview Mode specific spacer if center is hidden */}
+                                    {previewMode && <div className="flex-1" />}
+
+                                    <button
+                                        onClick={() => setIsDarkMode(!isDarkMode)}
+                                        className="p-1.5 rounded-md transition-colors text-text-muted hover:text-text-primary hover:bg-bg-tertiary"
+                                        title={isDarkMode ? "Light Mode" : "Dark Mode"}
+                                    >
+                                        {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
+                                    </button>
+
+                                    <div className="h-4 w-px bg-border-subtle mx-0.5" />
+
+                                    <div className="flex items-center gap-1 bg-bg-tertiary/50 rounded-lg p-0.5 border border-white/5">
                                         <button
-                                            onClick={() => setIsEraser(!isEraser)}
-                                            className={clsx(
-                                                "p-1.5 rounded transition-colors",
-                                                isEraser ? "bg-accent-primary text-white" : "bg-bg-tertiary text-text-muted hover:text-text-primary"
-                                            )}
-                                            title="Eraser"
+                                            onClick={() => {
+                                                setCurrentPageIndex(Math.max(0, currentPageIndex - 1));
+                                                setHasStartedDrawing(false);
+                                                setSketchUndoStack([]);
+                                            }}
+                                            disabled={currentPageIndex === 0}
+                                            className="p-1 rounded-md text-text-muted hover:text-text-primary hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                                         >
-                                            <Eraser size={14} />
+                                            <ChevronLeft size={14} />
+                                        </button>
+                                        <span className="text-[11px] font-medium text-text-secondary min-w-[3ch] text-center select-none">
+                                            {currentPageIndex + 1}
+                                            <span className="text-text-muted/40 ml-0.5">/{Math.max(sketchPages.length, 1)}</span>
+                                        </span>
+                                        <button
+                                            onClick={() => {
+                                                if (currentPageIndex === sketchPages.length - 1) {
+                                                    if (sketchPages.length < 10) {
+                                                        const newPage: SketchPage = {
+                                                            id: uuidv4(),
+                                                            strokes: [],
+                                                            createdAt: Date.now()
+                                                        };
+                                                        setSketchPages([...sketchPages, newPage]);
+                                                        setCurrentPageIndex(sketchPages.length);
+                                                        setHasStartedDrawing(false);
+                                                        setSketchUndoStack([]);
+                                                    }
+                                                } else {
+                                                    setCurrentPageIndex(currentPageIndex + 1);
+                                                    setHasStartedDrawing(false);
+                                                    setSketchUndoStack([]);
+                                                }
+                                            }}
+                                            disabled={currentPageIndex === sketchPages.length - 1 && sketchPages.length >= 10}
+                                            className="p-1 rounded-md text-text-muted hover:text-text-primary hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                            title={currentPageIndex === sketchPages.length - 1 ? "New Page" : "Next Page"}
+                                        >
+                                            {currentPageIndex === sketchPages.length - 1 ? <Plus size={14} /> : <ChevronRight size={14} />}
                                         </button>
                                     </div>
-                                )}
-
-                                {/* Dark Mode Toggle */}
-                                <button
-                                    onClick={() => setIsDarkMode(!isDarkMode)}
-                                    className={clsx(
-                                        "p-1.5 rounded transition-colors ml-auto mr-2",
-                                        "bg-bg-tertiary text-text-muted hover:text-text-primary"
-                                    )}
-                                    title={isDarkMode ? "Light Mode" : "Dark Mode"}
-                                >
-                                    {isDarkMode ? <Sun size={14} /> : <Moon size={14} />}
-                                </button>
-
-                                {/* Stroke Width Slider - Only in Edit Mode */}
-                                {!previewMode && (
-                                    <div className="flex items-center gap-2 mr-2 w-20 group">
-                                        <div className="h-1 w-1 bg-text-muted rounded-full" />
-                                        <input
-                                            type="range"
-                                            min="1"
-                                            max={isEraser ? "50" : "20"}
-                                            step="0.5"
-                                            value={currentWidth}
-                                            onChange={(e) => {
-                                                const val = parseFloat(e.target.value);
-                                                if (isEraser) setEraserWidth(val);
-                                                else setPenWidth(val);
-                                            }}
-                                            className="w-full h-1 bg-bg-tertiary rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-text-secondary transition-opacity opacity-50 hover:opacity-100"
-                                            title={isEraser ? `Eraser size: ${currentWidth}` : `Pen size: ${currentWidth}`}
-                                        />
-                                        <div className="h-1.5 w-1.5 bg-text-muted rounded-full" />
-                                    </div>
-                                )}
-
-                                {/* Pagination */}
-                                <div className="flex items-center gap-2 bg-bg-tertiary/30 rounded-full px-2 py-1">
-                                    <button
-                                        onClick={() => setCurrentPageIndex(Math.max(0, currentPageIndex - 1))}
-                                        disabled={currentPageIndex === 0}
-                                        className="text-text-muted hover:text-text-primary disabled:opacity-30 disabled:cursor-not-allowed"
-                                    >
-                                        <ChevronLeft size={14} />
-                                    </button>
-                                    <span className="text-xs font-medium text-text-secondary min-w-[3ch] text-center">
-                                        {currentPageIndex + 1}
-                                        <span className="text-text-muted/50 text-[10px] ml-0.5">/{Math.max(sketchPages.length, 1)}</span>
-                                    </span>
-                                    <button
-                                        onClick={() => {
-                                            if (currentPageIndex === sketchPages.length - 1) {
-                                                // Create new page only if limit not reached
-                                                if (sketchPages.length < 10) {
-                                                    const newPage: SketchPage = {
-                                                        id: uuidv4(),
-                                                        strokes: [],
-                                                        createdAt: Date.now()
-                                                    };
-                                                    setSketchPages([...sketchPages, newPage]);
-                                                    setCurrentPageIndex(sketchPages.length);
-                                                }
-                                            } else {
-                                                setCurrentPageIndex(currentPageIndex + 1);
-                                            }
-                                        }}
-                                        disabled={currentPageIndex === sketchPages.length - 1 && sketchPages.length >= 10}
-                                        className="text-text-muted hover:text-text-primary disabled:opacity-30 disabled:cursor-not-allowed"
-                                        title={
-                                            currentPageIndex === sketchPages.length - 1
-                                                ? (sketchPages.length >= 10 ? "Page limit reached (10)" : "New Page")
-                                                : "Next Page"
-                                        }
-                                    >
-                                        {currentPageIndex === sketchPages.length - 1 ? <Plus size={14} /> : <ChevronRight size={14} />}
-                                    </button>
                                 </div>
                             </div>
 
@@ -540,6 +632,8 @@ export const NotesModal: React.FC<NotesModalProps> = ({ isOpen, onClose }) => {
                                         setSketchPages(newPages);
                                         // Auto-save to store for safety
                                         setSketches(newPages);
+                                        // Clear undo stack when new stroke is added
+                                        setSketchUndoStack([]);
                                     }}
                                     isEraser={isEraser}
                                     color="#000000"
@@ -547,6 +641,8 @@ export const NotesModal: React.FC<NotesModalProps> = ({ isOpen, onClose }) => {
                                     onSwipeLeft={() => {
                                         if (currentPageIndex < sketchPages.length - 1) {
                                             setCurrentPageIndex(currentPageIndex + 1);
+                                            setHasStartedDrawing(false);
+                                            setSketchUndoStack([]);
                                         } else {
                                             // Create new page on swipe at end? Maybe too aggressive, stick to button for creation
                                             // preventing accidental creation
@@ -555,12 +651,15 @@ export const NotesModal: React.FC<NotesModalProps> = ({ isOpen, onClose }) => {
                                     onSwipeRight={() => {
                                         if (currentPageIndex > 0) {
                                             setCurrentPageIndex(currentPageIndex - 1);
+                                            setHasStartedDrawing(false);
+                                            setSketchUndoStack([]);
                                         }
                                     }}
+                                    onDrawStart={() => setHasStartedDrawing(true)}
                                 />
-                                {!sketchPages[currentPageIndex] && (
-                                    <div className="absolute inset-0 flex items-center justify-center text-black/10 pointer-events-none">
-                                        <span className="text-4xl font-handwriting">Sketch here...</span>
+                                {!sketchPages[currentPageIndex] && !hasStartedDrawing && (
+                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                        <span className="text-sm text-black/30 italic">Sketch here...</span>
                                     </div>
                                 )}
                             </div>
