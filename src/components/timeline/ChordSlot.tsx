@@ -4,6 +4,7 @@ import type { ChordSlot as IChordSlot } from '../../types';
 import clsx from 'clsx';
 import { useSongStore } from '../../store/useSongStore';
 import { getWheelColors, normalizeNote, formatChordForDisplay, getVoicingSuggestion, MAJOR_POSITIONS, CIRCLE_OF_FIFTHS } from '../../utils/musicTheory';
+import { playChord } from '../../utils/audioEngine';
 
 interface ChordSlotProps {
     slot: IChordSlot;
@@ -26,14 +27,14 @@ export const ChordSlot: React.FC<ChordSlotProps> = ({ slot, sectionId, measureId
         playingSlotId,
         isPlaying: isGloballyPlaying,
         clearSlot,
-        openVoicingPicker,
+        // openVoicingPicker,
         resizeSlot
     } = useSongStore();
     const colors = getWheelColors();
     const resolvedWidth = width ?? size;
 
     // Track mouse movement to distinguish clicks from drags
-    const mouseStartPos = useRef<{ x: number; y: number } | null>(null);
+    const mouseStartPos = useRef<{ x: number; y: number; time: number } | null>(null);
 
     const { isOver, setNodeRef: setDroppableRef } = useDroppable({
         id: `slot-${slot.id}`,
@@ -91,7 +92,7 @@ export const ChordSlot: React.FC<ChordSlotProps> = ({ slot, sectionId, measureId
 
     // Track mouse position when starting to interact with a chord
     const handleChordMouseDown = (e: React.MouseEvent) => {
-        mouseStartPos.current = { x: e.clientX, y: e.clientY };
+        mouseStartPos.current = { x: e.clientX, y: e.clientY, time: Date.now() };
     };
 
     // Unified click handler for the slot
@@ -102,16 +103,13 @@ export const ChordSlot: React.FC<ChordSlotProps> = ({ slot, sectionId, measureId
             // Empty slot behavior: select it and open picker for wheel chord
             selectSlotOnly(sectionId, slot.id);
 
-            const currentState = useSongStore.getState();
-            const currentWheelChord = currentState.selectedChord;
-
+            // const currentState = useSongStore.getState();
             // Atomic open: syncs chord + inversion immediately
-            openVoicingPicker({
-                chord: currentWheelChord,
-                inversion: currentState.chordInversion,
-                voicingSuggestion: '',
-                baseQuality: currentWheelChord?.quality || 'major'
-            });
+            // VOICING PICKER AUTO-OPEN DISABLED
+            /*
+            // const currentWheelChord = currentState.selectedChord;
+            // openVoicingPicker({ ... });
+            */
             return;
         }
     };
@@ -131,12 +129,20 @@ export const ChordSlot: React.FC<ChordSlotProps> = ({ slot, sectionId, measureId
             if (distance > 5) {
                 return;
             }
+
+            // Check if held for too long (> 200ms) - prevent "hold" from triggering preview
+            if (Date.now() - mouseStartPos.current.time > 200) {
+                return;
+            }
         }
+
+        // Play chord preview
+        playChord(slot.chord.notes);
 
         // Open voicing picker
         // User requested: "allow the VoicingQuickPicker to be opened on mobile with the chord details pane open if the user taps a chord on the timeline"
         // Atomic open: avoids state dsync by setting everything in one go
-        const inv = slot.chord.inversion ?? 0;
+        // const inv = slot.chord.inversion ?? 0;
         const currentState = useSongStore.getState();
         const selectedKey = currentState.selectedKey;
         const keyIndex = CIRCLE_OF_FIFTHS.indexOf(selectedKey);
@@ -188,11 +194,22 @@ export const ChordSlot: React.FC<ChordSlotProps> = ({ slot, sectionId, measureId
             }
         }
 
+        // VOICING PICKER AUTO-OPEN DISABLED
+        /*
         openVoicingPicker({
             chord: slot.chord,
             inversion: inv,
             voicingSuggestion,
             baseQuality: slot.chord.quality
+        });
+        */
+
+        // We still want to update the picker state in case the user opens it manually
+        useSongStore.getState().setVoicingPickerState({
+            chord: slot.chord,
+            voicingSuggestion,
+            baseQuality: slot.chord.quality,
+            manuallyOpened: false
         });
     };
 

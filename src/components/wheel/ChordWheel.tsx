@@ -179,9 +179,18 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
         setSelectedSlot(currentSectionId, currentSlotId);
         setSelectedChord(newChord);
 
-        // Open voicing picker for the new chord
+        // OPEN VOICING PICKER: DISABLED by request
+        // state.setVoicingPickerState({
+        //     isOpen: true,
+        //     chord: newChord,
+        //     voicingSuggestion: getVoicingSuggestion(0, quality.includes('minor') ? 'ii' : 'major'),
+        //     baseQuality: quality,
+        //     manuallyOpened: false
+        // });
+
+        // STILL UPDATE STATE so if they open it manually, it has the right chord
         state.setVoicingPickerState({
-            isOpen: true,
+            // isOpen: true, // Auto-open disabled
             chord: newChord,
             voicingSuggestion: getVoicingSuggestion(0, quality.includes('minor') ? 'ii' : 'major'),
             baseQuality: quality,
@@ -633,7 +642,7 @@ export const ChordWheel: React.FC<ChordWheelProps> = ({
         }
 
         useSongStore.getState().setVoicingPickerState({
-            isOpen: true,
+            // isOpen: true, // Auto-open disabled
             chord: wheelChord,
             voicingSuggestion,
             baseQuality: wheelChord.quality,
