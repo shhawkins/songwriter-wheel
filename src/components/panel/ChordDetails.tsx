@@ -162,7 +162,7 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
         } else if (quality === 'minor' || quality === 'm') {
             return formatChordForDisplay(`${chord.root}m`); // 'Cm' instead of 'C minor'
         } else if (quality === 'diminished' || quality === 'dim') {
-            return formatChordForDisplay(`${chord.root}dim`);
+            return formatChordForDisplay(`${chord.root}°`);
         }
         return formatChordForDisplay(`${chord.root}${getQualitySymbol(quality)}`);
     };

@@ -337,7 +337,7 @@ const HelpContent: React.FC<HelpContentProps> = ({ onClose }) => {
                     Toolkit
                 </h3>
                 <div className="bg-bg-elevated/50 rounded-lg p-4 space-y-4">
-                    <p className="text-sm text-gray-300">Find these powerful tools near the wheel corners — they unlock the full potential of your songwriting experience.</p>
+                    <p className="text-sm text-gray-300">Find these tools near the wheel corners.</p>
 
                     {/* Sound Controls */}
                     <div className="p-3 rounded-xl bg-white/5 border border-white/10">
