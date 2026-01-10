@@ -1,5 +1,5 @@
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useEffect } from 'react';
 import type { Stroke, Point } from '../types';
 
 interface SketchCanvasProps {
@@ -27,8 +27,19 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
 }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
-    const [isDrawing, setIsDrawing] = useState(false);
-    const [currentStroke, setCurrentStroke] = useState<Point[]>([]);
+
+    // Use refs instead of state to avoid timing issues with rapid stylus input
+    const isDrawingRef = useRef(false);
+    const currentStrokeRef = useRef<Point[]>([]);
+    const activePointerIdRef = useRef<number | null>(null);
+
+    // Store props in refs for use in non-React event handlers to avoid closure staleness
+    const propsRef = useRef({ color, width, isEraser, onStrokeAdd, onSwipeLeft, onSwipeRight, onDrawStart, readOnly, strokes });
+
+    // Update props ref whenever props change
+    useEffect(() => {
+        propsRef.current = { color, width, isEraser, onStrokeAdd, onSwipeLeft, onSwipeRight, onDrawStart, readOnly, strokes };
+    }, [color, width, isEraser, onStrokeAdd, onSwipeLeft, onSwipeRight, onDrawStart, readOnly, strokes]);
 
     // Handle high-DPI displays
     useEffect(() => {
@@ -36,6 +47,7 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
         const container = containerRef.current;
         if (!canvas || !container) return;
 
+        // Debounce resize slightly? No, immediate is better for layout updates
         const resizeObserver = new ResizeObserver(() => {
             const { width, height } = container.getBoundingClientRect();
             const dpr = window.devicePixelRatio || 1;
@@ -47,13 +59,13 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
             if (ctx) {
                 ctx.scale(dpr, dpr);
                 // Redraw immediately after resize
-                drawStrokes(ctx, strokes);
+                drawStrokes(ctx, propsRef.current.strokes);
             }
         });
 
         resizeObserver.observe(container);
         return () => resizeObserver.disconnect();
-    }, [strokes]);
+    }, []); // Only setup once, strokes dependency handled by redraw effect
 
     // Draw function
     const drawStrokes = (ctx: CanvasRenderingContext2D, strokesToDraw: Stroke[]) => {
@@ -82,10 +94,7 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
             if (stroke.points.length < 2) return;
 
             ctx.beginPath();
-            ctx.strokeStyle = stroke.isEraser ? '#ffffff' : stroke.color; // Assuming white background for eraser
-            // Use destination-out for real eraser if background is transparent/complex, 
-            // but for now simple white paint is safer unless we want layered composition.
-            // Let's stick to standard composition but maybe use globalCompositeOperation for eraser
+            ctx.strokeStyle = stroke.isEraser ? '#ffffff' : stroke.color;
 
             if (stroke.isEraser) {
                 ctx.globalCompositeOperation = 'destination-out';
@@ -123,7 +132,6 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
-
         drawStrokes(ctx, strokes);
     }, [strokes]);
 
@@ -140,19 +148,29 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
     };
 
     const handlePointerDown = (e: React.PointerEvent) => {
-        if (readOnly) return;
+        if (propsRef.current.readOnly) return;
+
+        // If we already have an active pointer, ignore this one
+        if (activePointerIdRef.current !== null) return;
+
+        // Set pointer capture to ensure we get all events
         e.currentTarget.setPointerCapture(e.pointerId);
-        setIsDrawing(true);
-        onDrawStart?.();
+        activePointerIdRef.current = e.pointerId;
+
+        isDrawingRef.current = true;
+        propsRef.current.onDrawStart?.();
+
         const point = getPoint(e);
-        setCurrentStroke([point]);
+        currentStrokeRef.current = [point];
 
         // Draw the initial dot
         const canvas = canvasRef.current;
         const ctx = canvas?.getContext('2d');
         if (ctx) {
+            const { isEraser, color, width } = propsRef.current;
+
             ctx.beginPath();
-            ctx.fillStyle = isEraser ? '#ffffff' : color; // Visual feedback only
+            ctx.fillStyle = isEraser ? '#ffffff' : color;
             if (isEraser) {
                 ctx.globalCompositeOperation = 'destination-out';
             } else {
@@ -165,61 +183,77 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
     };
 
     const handlePointerMove = (e: React.PointerEvent) => {
-        if (!isDrawing || readOnly) return;
-        const point = getPoint(e);
+        if (!isDrawingRef.current || propsRef.current.readOnly) return;
+        if (e.pointerId !== activePointerIdRef.current) return;
 
-        const newStroke = [...currentStroke, point];
-        setCurrentStroke(newStroke);
-
-        // Incremental draw
         const canvas = canvasRef.current;
         const ctx = canvas?.getContext('2d');
-        if (ctx && newStroke.length > 2) {
-            if (isEraser) {
-                ctx.globalCompositeOperation = 'destination-out';
-            } else {
-                ctx.globalCompositeOperation = 'source-over';
-            }
-            ctx.lineWidth = width;
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-            ctx.strokeStyle = isEraser ? '#ffffff' : color;
+        if (!ctx) return;
 
-            ctx.beginPath();
-            const p1 = newStroke[newStroke.length - 3];
-            const p2 = newStroke[newStroke.length - 2];
-            const p3 = newStroke[newStroke.length - 1];
+        // Get coalesced events for smoother curves (Apple Pencil)
+        // This captures high-frequency points that happened between frames
+        const events = e.nativeEvent instanceof PointerEvent && 'getCoalescedEvents' in e.nativeEvent
+            ? (e.nativeEvent as PointerEvent).getCoalescedEvents()
+            : [e];
 
-            const mid1x = (p1.x + p2.x) / 2;
-            const mid1y = (p1.y + p2.y) / 2;
-            const mid2x = (p2.x + p3.x) / 2;
-            const mid2y = (p2.y + p3.y) / 2;
+        const { isEraser, color, width } = propsRef.current;
 
-            ctx.moveTo(mid1x, mid1y);
-            ctx.quadraticCurveTo(p2.x, p2.y, mid2x, mid2y);
-            ctx.stroke();
+        ctx.lineWidth = width;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = isEraser ? '#ffffff' : color;
+
+        if (isEraser) {
+            ctx.globalCompositeOperation = 'destination-out';
+        } else {
             ctx.globalCompositeOperation = 'source-over';
         }
+
+        events.forEach(event => {
+            const point = getPoint(event);
+            const currentStroke = currentStrokeRef.current;
+            currentStroke.push(point);
+
+            // Draw segment if we have enough points
+            if (currentStroke.length > 2) {
+                ctx.beginPath();
+                const p1 = currentStroke[currentStroke.length - 3];
+                const p2 = currentStroke[currentStroke.length - 2];
+                const p3 = currentStroke[currentStroke.length - 1];
+
+                const mid1x = (p1.x + p2.x) / 2;
+                const mid1y = (p1.y + p2.y) / 2;
+                const mid2x = (p2.x + p3.x) / 2;
+                const mid2y = (p2.y + p3.y) / 2;
+
+                ctx.moveTo(mid1x, mid1y);
+                ctx.quadraticCurveTo(p2.x, p2.y, mid2x, mid2y);
+                ctx.stroke();
+            }
+        });
+
+        ctx.globalCompositeOperation = 'source-over';
     };
 
     const handlePointerUp = (e: React.PointerEvent) => {
-        if (!isDrawing || readOnly) return;
-        e.currentTarget.releasePointerCapture(e.pointerId);
-        setIsDrawing(false);
+        if (e.pointerId !== activePointerIdRef.current) return;
 
-        // Determine if it was a swipe (if enabled and stroke is simple)
-        // Simple heuristic: quick horizontal movement, mostly straight
-        // Made more strict to avoid false positives with Apple Pencil
+        e.currentTarget.releasePointerCapture(e.pointerId);
+        isDrawingRef.current = false;
+        activePointerIdRef.current = null;
+
+        // Check for swipe
+        const currentStroke = currentStrokeRef.current;
         let handledAsSwipe = false;
-        if (currentStroke.length > 10) { // Require more points for a swipe
+
+        if (currentStroke.length > 10) {
             const start = currentStroke[0];
             const end = currentStroke[currentStroke.length - 1];
             const dx = end.x - start.x;
             const dy = end.y - start.y;
 
-            // Check for horizontal swipe: abs(dx) > threshold && abs(dy) < small
-            // More strict: require dx > 150 and dy < 30
             if (Math.abs(dx) > 150 && Math.abs(dy) < 30) {
+                const { onSwipeRight, onSwipeLeft } = propsRef.current;
                 if (dx > 0 && onSwipeRight) {
                     onSwipeRight();
                     handledAsSwipe = true;
@@ -233,23 +267,29 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
         if (!handledAsSwipe) {
             // Commit the stroke
             if (currentStroke.length > 0) {
-                onStrokeAdd({
+                propsRef.current.onStrokeAdd({
                     points: currentStroke,
-                    color: color,
-                    width: width,
-                    isEraser: isEraser
+                    color: propsRef.current.color,
+                    width: propsRef.current.width,
+                    isEraser: propsRef.current.isEraser
                 });
             }
         }
 
-        // Force full redraw to clean up any artifacts
+        // Force full redraw to clean up any artifacts and ensure persistence
         const canvas = canvasRef.current;
         const ctx = canvas?.getContext('2d');
         if (ctx) {
-            drawStrokes(ctx, handledAsSwipe ? strokes : [...strokes, { points: currentStroke, color, width, isEraser }]);
+            const strokes = propsRef.current.strokes;
+            drawStrokes(ctx, handledAsSwipe ? strokes : [...strokes, {
+                points: currentStroke,
+                color: propsRef.current.color,
+                width: propsRef.current.width,
+                isEraser: propsRef.current.isEraser
+            }]);
         }
 
-        setCurrentStroke([]);
+        currentStrokeRef.current = [];
     };
 
     return (

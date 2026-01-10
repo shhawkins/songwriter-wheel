@@ -11,7 +11,7 @@
  * - Pop-up SectionOptionsPopup for detailed section management
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { StickyNote, FileText, ChevronDown, RotateCcw, RotateCw, PenTool, Type, Plus, ChevronLeft, ChevronRight, Eraser, Moon, Sun, Brush } from 'lucide-react';
 import clsx from 'clsx';
 import { DraggableModal } from './ui/DraggableModal';
@@ -289,6 +289,53 @@ export const NotesModal: React.FC<NotesModalProps> = ({ isOpen, onClose }) => {
     // Check if sketch undo/redo are available
     const canSketchUndo = sketchPages[currentPageIndex]?.strokes?.length > 0;
     const canSketchRedo = sketchUndoStack.length > 0;
+
+    // Memoized save function for sketches to avoid main thread blocking on every stroke
+    const saveSketchesTimeoutRef = useRef<any>(null);
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const saveSketchesToStore = useCallback((pages: SketchPage[]) => {
+        if (saveSketchesTimeoutRef.current) {
+            clearTimeout(saveSketchesTimeoutRef.current);
+        }
+        saveSketchesTimeoutRef.current = setTimeout(() => {
+            setSketches(pages);
+        }, 1000);
+    }, [setSketches]);
+
+    // Ensure we save on unmount/close if there's a pending save
+    useEffect(() => {
+        return () => {
+            if (saveSketchesTimeoutRef.current) {
+                clearTimeout(saveSketchesTimeoutRef.current);
+            }
+        };
+    }, []);
+
+    const handleStrokeAdd = useCallback((stroke: Stroke) => {
+        setSketchPages(prevPages => {
+            const newPages = [...prevPages];
+            if (!newPages[currentPageIndex]) {
+                newPages[currentPageIndex] = {
+                    id: uuidv4(),
+                    strokes: [],
+                    createdAt: Date.now()
+                };
+            }
+            // Create a new object for the modified page to ensure immutability
+            newPages[currentPageIndex] = {
+                ...newPages[currentPageIndex],
+                strokes: [...newPages[currentPageIndex].strokes, stroke]
+            };
+
+            // Trigger debounced save
+            saveSketchesToStore(newPages);
+            return newPages;
+        });
+
+        // Clear undo stack
+        setSketchUndoStack([]);
+    }, [currentPageIndex, saveSketchesToStore, setSketchPages]);
 
     return (
         <>
@@ -618,23 +665,7 @@ export const NotesModal: React.FC<NotesModalProps> = ({ isOpen, onClose }) => {
                             >
                                 <SketchCanvas
                                     strokes={sketchPages[currentPageIndex]?.strokes || []}
-                                    onStrokeAdd={(stroke) => {
-                                        // Update state securely
-                                        const newPages = [...sketchPages];
-                                        if (!newPages[currentPageIndex]) {
-                                            newPages[currentPageIndex] = {
-                                                id: uuidv4(),
-                                                strokes: [],
-                                                createdAt: Date.now()
-                                            };
-                                        }
-                                        newPages[currentPageIndex].strokes.push(stroke);
-                                        setSketchPages(newPages);
-                                        // Auto-save to store for safety
-                                        setSketches(newPages);
-                                        // Clear undo stack when new stroke is added
-                                        setSketchUndoStack([]);
-                                    }}
+                                    onStrokeAdd={handleStrokeAdd}
                                     isEraser={isEraser}
                                     color="#000000"
                                     width={currentWidth}

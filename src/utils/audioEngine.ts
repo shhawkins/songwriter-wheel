@@ -26,6 +26,9 @@ let instruments: Record<string, Tone.Sampler | Tone.PolySynth | null> = {
     'nylon-string': null,
     melodica: null,
     'wine-glass': null,
+    'electric-bass': null,
+    'pocket-synth': null,
+    'warbly-hum': null,
 };
 
 let currentInstrument: InstrumentName = 'piano';
@@ -939,6 +942,36 @@ const instrumentFactories: Record<string, (chainInput: Tone.ToneAudioNode) => To
             "C3": "wine-glass-c3.mp3",
             "C4": "wine-glass-c4.mp3",
             "C5": "wine-glass-c5.mp3",
+        },
+        release: 2,
+        attack: 0.05,
+        baseUrl: "/samples/",
+    }).connect(chainInput),
+    'electric-bass': (chainInput) => new Tone.Sampler({
+        urls: {
+            "C3": "electric-bass-c3.mp3",
+            "C4": "electric-bass-c4.mp3",
+            "C5": "electric-bass-c5.mp3",
+        },
+        release: 2,
+        attack: 0.05,
+        baseUrl: "/samples/",
+    }).connect(chainInput),
+    'pocket-synth': (chainInput) => new Tone.Sampler({
+        urls: {
+            "C3": "pocket-synth-c3.mp3",
+            "C4": "pocket-synth-c4.mp3",
+            "C5": "pocket-synth-c5.mp3",
+        },
+        release: 2,
+        attack: 0.05,
+        baseUrl: "/samples/",
+    }).connect(chainInput),
+    'warbly-hum': (chainInput) => new Tone.Sampler({
+        urls: {
+            "C3": "warbly-hum-c3.mp3",
+            "C4": "warbly-hum-c4.mp3",
+            "C5": "warbly-hum-c5.mp3",
         },
         release: 2,
         attack: 0.05,

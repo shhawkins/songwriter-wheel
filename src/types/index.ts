@@ -124,6 +124,9 @@ export type InstrumentType =
     | 'nylon-string'
     | 'melodica'
     | 'wine-glass'
+    | 'electric-bass'
+    | 'pocket-synth'
+    | 'warbly-hum'
     | string; // Allow custom instrument IDs
 
 export interface CustomInstrument {

@@ -7,7 +7,7 @@ import { ChordDetails } from './components/panel/ChordDetails';
 import { PlaybackControls } from './components/playback/PlaybackControls';
 
 import { useSongStore } from './store/useSongStore';
-import { Download, Save, ChevronDown, ChevronUp, Plus, Minus, Clock, FolderOpen, FilePlus, Trash2, HelpCircle, FileAudio, FileText, ListMusic, ClipboardPen, Sliders, KeyboardMusic } from 'lucide-react';
+import { Download, Save, ChevronDown, ChevronUp, Plus, Minus, Clock, FolderOpen, FilePlus, Trash2, HelpCircle, FileAudio, FileText, ListMusic, ClipboardPen, Sliders, Guitar } from 'lucide-react';
 import { Logo } from './components/Logo';
 // Tone import removed for code splitting
 import { saveAs } from 'file-saver';
@@ -1078,7 +1078,7 @@ function App() {
               style={{ touchAction: 'auto', pointerEvents: 'auto' }}
               title="Open Scales & Modes"
             >
-              <KeyboardMusic size={isMobile && isLandscape ? 14 : isMobile ? 20 : 16} />
+              <Guitar size={isMobile && isLandscape ? 14 : isMobile ? 20 : 16} />
             </button>
 
             {/* Instrument Controls button - next to Notes on the LEFT */}
