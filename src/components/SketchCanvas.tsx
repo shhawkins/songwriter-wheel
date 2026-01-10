@@ -32,6 +32,7 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
     const isDrawingRef = useRef(false);
     const currentStrokeRef = useRef<Point[]>([]);
     const activePointerIdRef = useRef<number | null>(null);
+    const activePointerTypeRef = useRef<string | null>(null); // 'mouse', 'pen', 'touch'
 
     // Store props in refs for use in non-React event handlers to avoid closure staleness
     const propsRef = useRef({ color, width, isEraser, onStrokeAdd, onSwipeLeft, onSwipeRight, onDrawStart, readOnly, strokes });
@@ -150,12 +151,29 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
     const handlePointerDown = (e: React.PointerEvent) => {
         if (propsRef.current.readOnly) return;
 
-        // If we already have an active pointer, ignore this one
-        if (activePointerIdRef.current !== null) return;
+        const newPointerType = e.pointerType; // 'mouse', 'pen', or 'touch'
+
+        // If we already have an active pointer...
+        if (activePointerIdRef.current !== null) {
+            // Pen Priority: Allow pen to override touch (palm rejection)
+            if (activePointerTypeRef.current !== 'pen' && newPointerType === 'pen') {
+                // Release the old (palm) capture and cancel its stroke
+                try {
+                    e.currentTarget.releasePointerCapture(activePointerIdRef.current);
+                } catch { /* may already be released */ }
+                // Discard the palm stroke by clearing the refs
+                currentStrokeRef.current = [];
+                // Allow the new pen to take over
+            } else {
+                // Ignore simultaneous fingers/other pointers
+                return;
+            }
+        }
 
         // Set pointer capture to ensure we get all events
         e.currentTarget.setPointerCapture(e.pointerId);
         activePointerIdRef.current = e.pointerId;
+        activePointerTypeRef.current = newPointerType;
 
         isDrawingRef.current = true;
         propsRef.current.onDrawStart?.();
@@ -241,6 +259,7 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
         e.currentTarget.releasePointerCapture(e.pointerId);
         isDrawingRef.current = false;
         activePointerIdRef.current = null;
+        activePointerTypeRef.current = null;
 
         // Check for swipe
         const currentStroke = currentStrokeRef.current;

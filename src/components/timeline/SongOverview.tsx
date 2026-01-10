@@ -18,7 +18,11 @@ import {
     Trash,
     ChevronDown,
     FileText,
-    FileAudio
+    FileAudio,
+    ListMusic,
+    Sliders,
+    ClipboardPen,
+    Guitar
 } from 'lucide-react';
 import clsx from 'clsx';
 import { getWheelColors, formatChordForDisplay, type Chord } from '../../utils/musicTheory';
@@ -47,6 +51,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { getSectionDisplayName, type Section } from '../../types';
 import { SongTimeline } from './SongTimeline';
 import { SectionOptionsPopup } from './SectionOptionsPopup';
+import DraggableModal from '../ui/DraggableModal';
 
 // Lazy load ExportModal to reduce initial bundle (includes heavy PDF/audio export libs)
 const ExportModal = React.lazy(() => import('../ExportModal').then(module => ({ default: module.ExportModal })));
@@ -655,8 +660,20 @@ export const SongOverview: React.FC<SongOverviewProps> = ({ onSave, onExport }) 
         redo,
         canUndo,
         canRedo,
-        addSuggestedSection
+        addSuggestedSection,
+        setVoicingPickerState,
+        openLeadScales,
+        toggleInstrumentControlsModal,
+        toggleNotesModal,
+        selectedKey,
+        bringToFront,
+        modalStack
     } = useSongStore();
+
+    // Modal stack index for z-indexing
+    const MODAL_ID = 'song-map-modal';
+    const stackIndex = modalStack.indexOf(MODAL_ID);
+    const zIndex = stackIndex >= 0 ? 110 + stackIndex * 10 : 110;
 
     // BPM editing state
     const [isEditingBpm, setIsEditingBpm] = useState(false);
@@ -887,18 +904,60 @@ export const SongOverview: React.FC<SongOverviewProps> = ({ onSave, onExport }) 
 
     if (!songMapVisible) return null;
 
+    if (!songMapVisible) return null;
+
+    // Default scale for Guitar/Scales modal
+    const handleOpenScales = () => {
+        openLeadScales({
+            scaleNotes: [], // Will generate based on root
+            rootNote: selectedKey,
+            modeName: 'Ionian',
+            color: '#EAB308'
+        });
+    };
+
+    const handleOpenVoicingPicker = (forceChord?: Chord) => {
+        // Open with current selected chord, or a default C Major if none
+        const targetChord = forceChord || selectedMapChord || {
+            root: 'C',
+            quality: 'major',
+            notes: ['C4', 'E4', 'G4'],
+            symbol: 'C',
+            positionIndex: 0
+        } as any;
+
+        setVoicingPickerState({
+            isOpen: true,
+            chord: targetChord,
+            voicingSuggestion: '',
+            baseQuality: targetChord.quality,
+            manuallyOpened: true
+        });
+    };
+
     return (
-        <>
+        <DraggableModal
+            isOpen={songMapVisible}
+            onClose={() => toggleSongMap(false)}
+            width={isMobile ? '95vw' : '90vw'}
+            height={isMobile ? '90vh' : '85vh'}
+            position={{ x: 20, y: 40 }}
+            zIndex={zIndex}
+            dataAttribute={MODAL_ID}
+            onInteraction={() => bringToFront(MODAL_ID)}
+            title="Song Map"
+            className="bg-[#111116]"
+        >
             <div
-                className="fixed inset-0 z-[100] flex flex-col bg-[#111116] animate-in fade-in duration-200"
-                onClick={() => toggleSongMap(false)}
+                className="flex flex-col h-full bg-[#111116] animate-in fade-in duration-200"
+                onClick={(e) => e.stopPropagation()} // Prevent click-through
             >
                 {/* Header - Edge to Edge with gradient */}
                 {isMobile && isLandscape ? (
                     // COMPACT LANDSCAPE HEADER
                     <div
-                        className="shrink-0 relative z-20 flex items-center justify-between px-4 py-1 bg-gradient-to-b from-black/80 to-transparent"
-                        style={{ paddingTop: 'max(4px, env(safe-area-inset-top))' }}
+                        className="shrink-0 relative z-20 flex items-center justify-between px-4 py-1 bg-gradient-to-b from-black/80 to-transparent draggable-handle cursor-grab active:cursor-grabbing"
+                        style={{ paddingTop: 0 }} // Reset padding since it's in a modal
                         onClick={(e) => e.stopPropagation()}
                     >
                         <h2 className="font-bold text-white text-xs truncate flex-1 mr-4">
@@ -938,8 +997,8 @@ export const SongOverview: React.FC<SongOverviewProps> = ({ onSave, onExport }) 
                 ) : (
                     /* DEFAULT PORTRAIT / DESKTOP HEADER */
                     <div
-                        className="shrink-0 relative z-20"
-                        style={{ paddingTop: 'max(16px, env(safe-area-inset-top))' }}
+                        className="shrink-0 relative z-20 draggable-handle cursor-grab active:cursor-grabbing"
+                        style={{ paddingTop: 0 }}
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="absolute inset-0 bg-gradient-to-b from-black/60 to-transparent pointer-events-none" />
@@ -1322,10 +1381,17 @@ export const SongOverview: React.FC<SongOverviewProps> = ({ onSave, onExport }) 
                                             }
                                         }}
                                         onEmptySlotTap={(sectionId, beatId) => {
-                                            // Close modal, open timeline, select the slot
+                                            // Select the slot
                                             setSelectedSlot(sectionId, beatId);
-                                            toggleSongMap(false);
-                                            openTimeline();
+                                            // Open Voicing Picker as requested ("Magical Song Map")
+                                            // We create a temporary placeholder chord for the picker to bind to
+                                            const placeholderChord: any = {
+                                                root: selectedKey,
+                                                quality: 'major',
+                                                symbol: selectedKey,
+                                                notes: []
+                                            };
+                                            handleOpenVoicingPicker(placeholderChord);
                                         }}
                                         isActive={isPlaying && currentSong.sections.findIndex((s: Section) => s.id === section.id) === currentSong.sections.findIndex((s: Section) => s.id === playingSectionId)}
                                         playingSlotId={playingSlotId}
@@ -1400,7 +1466,7 @@ export const SongOverview: React.FC<SongOverviewProps> = ({ onSave, onExport }) 
                             {/* Row 1: Zoom & Secondary Controls */}
                             <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
                                 {/* Zoom Control */}
-                                <div className="flex items-center gap-4 w-full">
+                                <div className="flex items-center gap-4 flex-1">
                                     <button
                                         onClick={() => setZoomLevel(Math.max(0.02, zoomLevel - 0.05))}
                                         className="p-2 -m-2 text-text-secondary active:text-white transition-colors"
@@ -1418,7 +1484,7 @@ export const SongOverview: React.FC<SongOverviewProps> = ({ onSave, onExport }) 
                                         onChange={handleZoomChange}
                                         onTouchStart={(e) => e.stopPropagation()}
                                         onTouchMove={(e) => e.stopPropagation()}
-                                        className="flex-1 h-2 bg-white/10 rounded-full appearance-none cursor-pointer touch-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-accent-primary"
+                                        className="max-w-[120px] h-2 bg-white/10 rounded-full appearance-none cursor-pointer touch-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-accent-primary"
                                         style={{ WebkitAppearance: 'none' }}
                                     />
                                     <button
@@ -1427,6 +1493,38 @@ export const SongOverview: React.FC<SongOverviewProps> = ({ onSave, onExport }) 
                                         aria-label="Zoom In"
                                     >
                                         <ZoomIn size={18} />
+                                    </button>
+                                </div>
+
+                                {/* Magical Access Icons */}
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        onClick={() => toggleInstrumentControlsModal()}
+                                        className="p-2 hover:bg-white/10 rounded-full text-text-muted hover:text-accent-primary transition-colors"
+                                        title="Sound Controls"
+                                    >
+                                        <Sliders size={18} />
+                                    </button>
+                                    <button
+                                        onClick={() => toggleNotesModal(true)}
+                                        className="p-2 hover:bg-white/10 rounded-full text-text-muted hover:text-amber-400 transition-colors"
+                                        title="Notes & Lyrics"
+                                    >
+                                        <ClipboardPen size={18} />
+                                    </button>
+                                    <button
+                                        onClick={handleOpenScales}
+                                        className="p-2 hover:bg-white/10 rounded-full text-text-muted hover:text-purple-400 transition-colors"
+                                        title="Scales & Modes"
+                                    >
+                                        <Guitar size={18} />
+                                    </button>
+                                    <button
+                                        onClick={() => handleOpenVoicingPicker()}
+                                        className="p-2 hover:bg-white/10 rounded-full text-text-muted hover:text-indigo-400 transition-colors"
+                                        title="Voicing Picker"
+                                    >
+                                        <ListMusic size={18} />
                                     </button>
                                 </div>
                             </div>
@@ -1525,6 +1623,6 @@ export const SongOverview: React.FC<SongOverviewProps> = ({ onSave, onExport }) 
                     />
                 )}
             </Suspense>
-        </>
+        </DraggableModal>
     );
 };

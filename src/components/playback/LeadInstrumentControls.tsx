@@ -43,8 +43,7 @@ export const LeadInstrumentControls: React.FC<LeadInstrumentControlsProps> = ({ 
         setLeadFilterMix,
         leadPitchShift,
         setLeadPitchShift,
-        leadSlideEnabled,
-        setLeadSlideEnabled,
+
         resetLeadControls,
         customInstruments,
         modalStack,
@@ -141,33 +140,7 @@ export const LeadInstrumentControls: React.FC<LeadInstrumentControlsProps> = ({ 
                     </button>
                 </div>
 
-                {/* Slide Toggle */}
-                <div className="flex items-center gap-2 mt-2">
-                    <button
-                        onClick={(e) => { e.stopPropagation(); setLeadSlideEnabled(!leadSlideEnabled); }}
-                        className={clsx(
-                            "flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all text-xs font-medium",
-                            leadSlideEnabled
-                                ? "bg-purple-500/20 border-purple-400/40 text-purple-300"
-                                : "bg-white/5 border-white/10 text-text-muted hover:bg-white/10"
-                        )}
-                        title={leadSlideEnabled ? "Slide mode: drag smoothly slides between notes" : "Glissando mode: each note triggers separately"}
-                    >
-                        <span className={clsx(
-                            "w-6 h-3 rounded-full relative transition-colors",
-                            leadSlideEnabled ? "bg-purple-500" : "bg-white/20"
-                        )}>
-                            <span className={clsx(
-                                "absolute top-0.5 w-2 h-2 rounded-full bg-white transition-all",
-                                leadSlideEnabled ? "right-0.5" : "left-0.5"
-                            )} />
-                        </span>
-                        <span>Slide</span>
-                    </button>
-                    <span className="text-[10px] text-text-muted">
-                        {leadSlideEnabled ? 'Bend pitch' : 'Re-trigger notes'}
-                    </span>
-                </div>
+
             </div>
 
             {/* Scrollable Knob Area */}

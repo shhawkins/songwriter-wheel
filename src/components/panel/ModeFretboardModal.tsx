@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useSongStore } from '../../store/useSongStore';
+import { clsx } from 'clsx';
 import DraggableModal from '../ui/DraggableModal';
 import { ModeFretboard } from './ModeFretboard';
 import { PlayableScaleStrip } from './PlayableScaleStrip';
@@ -27,7 +28,8 @@ export const ModeFretboardModal: React.FC = () => {
         selectedKey,
         bringToFront,
         modalStack,
-        leadSlideEnabled
+        leadSlideEnabled,
+        setLeadSlideEnabled
     } = useSongStore();
 
     const MODAL_ID = 'mode-fretboard-modal';
@@ -206,6 +208,29 @@ export const ModeFretboardModal: React.FC = () => {
             >
                 {/* Header Controls */}
                 <div className="flex items-center justify-between mb-2 bg-white/5 p-1.5 rounded-lg border border-white/10 shrink-0">
+                    {/* Slide Toggle - Left Side */}
+                    <button
+                        onClick={(e) => { e.stopPropagation(); setLeadSlideEnabled(!leadSlideEnabled); }}
+                        className={clsx(
+                            "flex items-center gap-1.5 px-2 py-1.5 rounded-lg border transition-all text-[10px] font-medium shrink-0",
+                            leadSlideEnabled
+                                ? "bg-purple-500/20 border-purple-400/40 text-purple-300"
+                                : "bg-white/5 border-white/10 text-text-muted hover:bg-white/10"
+                        )}
+                        title={leadSlideEnabled ? "Slide mode: drag smoothly slides between notes" : "Glissando mode: each note triggers separately"}
+                    >
+                        <span className={clsx(
+                            "w-5 h-2.5 rounded-full relative transition-colors",
+                            leadSlideEnabled ? "bg-purple-500" : "bg-white/20"
+                        )}>
+                            <span className={clsx(
+                                "absolute top-0.5 w-1.5 h-1.5 rounded-full bg-white transition-all",
+                                leadSlideEnabled ? "right-0.5" : "left-0.5"
+                            )} />
+                        </span>
+                        <span>Slide</span>
+                    </button>
+
                     <button
                         onClick={handlePrev}
                         onTouchEnd={handlePrev}

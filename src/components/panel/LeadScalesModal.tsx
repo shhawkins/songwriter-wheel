@@ -6,6 +6,7 @@ import { ModeFretboard } from './ModeFretboard';
 import { PlayableScaleStrip } from './PlayableScaleStrip';
 import { getMajorScale, formatChordForDisplay, getDiatonicChords } from '../../utils/musicTheory';
 import { ChevronLeft, ChevronRight, ChevronDown, Volume2 } from 'lucide-react';
+import clsx from 'clsx';
 import { useMobileLayout } from '../../hooks/useIsMobile';
 import { playLeadNote, setLeadChannelVolume } from '../../utils/audioEngine';
 import { LeadInstrumentControls } from '../playback/LeadInstrumentControls';
@@ -32,7 +33,8 @@ export const LeadScalesModal: React.FC = () => {
         modalStack,
         leadChannelVolume,
         setLeadChannelVolume: setStoreLeadChannelVolume,
-        leadSlideEnabled
+        leadSlideEnabled,
+        setLeadSlideEnabled
     } = useSongStore();
 
     const MODAL_ID = 'lead-scales-modal';
@@ -310,6 +312,29 @@ export const LeadScalesModal: React.FC = () => {
                                 <span className="text-[10px] text-text-muted font-mono w-6">{Math.round(leadChannelVolume * 100)}%</span>
                             </div>
 
+                            {/* Slide Toggle */}
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setLeadSlideEnabled(!leadSlideEnabled); }}
+                                className={clsx(
+                                    "flex items-center gap-1.5 px-2 py-1 rounded-lg border transition-all text-[10px] font-medium",
+                                    leadSlideEnabled
+                                        ? "bg-purple-500/20 border-purple-400/40 text-purple-300"
+                                        : "bg-white/5 border-white/10 text-text-muted hover:bg-white/10"
+                                )}
+                                title={leadSlideEnabled ? "Slide mode: drag smoothly slides between notes" : "Glissando mode: each note triggers separately"}
+                            >
+                                <span className={clsx(
+                                    "w-5 h-2.5 rounded-full relative transition-colors",
+                                    leadSlideEnabled ? "bg-purple-500" : "bg-white/20"
+                                )}>
+                                    <span className={clsx(
+                                        "absolute top-0.5 w-1.5 h-1.5 rounded-full bg-white transition-all",
+                                        leadSlideEnabled ? "right-0.5" : "left-0.5"
+                                    )} />
+                                </span>
+                                <span>Slide</span>
+                            </button>
+
                             {/* Right: Voice Selector */}
                             <div className="lead-voice-selector-dropdown">
                                 <LeadVoiceSelector
@@ -515,7 +540,6 @@ export const LeadScalesModal: React.FC = () => {
                                     )}
                                 </div>
 
-                                {/* Voice Selector */}
                                 <div className="lead-voice-selector-dropdown">
                                     <LeadVoiceSelector
                                         variant="default"
@@ -524,6 +548,29 @@ export const LeadScalesModal: React.FC = () => {
                                         onSettingsClick={() => setShowLeadControls(true)}
                                     />
                                 </div>
+
+                                {/* Slide Toggle */}
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); setLeadSlideEnabled(!leadSlideEnabled); }}
+                                    className={clsx(
+                                        "flex items-center gap-1.5 px-2 py-1.5 rounded-lg border transition-all text-[10px] font-medium shrink-0",
+                                        leadSlideEnabled
+                                            ? "bg-purple-500/20 border-purple-400/40 text-purple-300"
+                                            : "bg-white/5 border-white/10 text-text-muted hover:bg-white/10"
+                                    )}
+                                    title={leadSlideEnabled ? "Slide mode" : "Glissando mode"}
+                                >
+                                    <span className={clsx(
+                                        "w-5 h-2.5 rounded-full relative transition-colors",
+                                        leadSlideEnabled ? "bg-purple-500" : "bg-white/20"
+                                    )}>
+                                        <span className={clsx(
+                                            "absolute top-0.5 w-1.5 h-1.5 rounded-full bg-white transition-all",
+                                            leadSlideEnabled ? "right-0.5" : "left-0.5"
+                                        )} />
+                                    </span>
+                                    <span>Slide</span>
+                                </button>
                             </div>
                         </>
                     )}
