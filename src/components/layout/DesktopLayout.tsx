@@ -4,9 +4,8 @@ import { useSongStore } from '../../store/useSongStore';
 import { MobileTimeline } from '../timeline/MobileTimeline';
 import { ChordDetails } from '../panel/ChordDetails';
 import { ChordWheel } from '../wheel/ChordWheel';
-import { formatChordForDisplay, getWheelColors, invertChord, getChordSymbolWithInversion, getChordNotes } from '../../utils/musicTheory';
-import { playChord } from '../../utils/audioEngine';
-import { wheelDragState } from '../../utils/wheelDragState';
+import { getWheelColors } from '../../utils/musicTheory';
+import { DraggableChordBadge } from '../DraggableChordBadge';
 
 interface DesktopLayoutProps {
     /** Whether header/footer should be hidden (immersive mode) */
@@ -62,7 +61,6 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
     const {
         timelineVisible,
         toggleTimeline,
-        openTimeline,
         selectedChord,
         toggleInstrumentControlsModal,
         selectedKey,
@@ -74,26 +72,11 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
     const timelineHeight = 176; // Increased to accommodate taller header
     const collapsedHeight = 48; // Doubled from 32 to give more tap area
 
-    // Get chord color for badge
-    const colors = getWheelColors();
-    const chordColor = selectedChord
-        ? colors[selectedChord.root as keyof typeof colors] || '#6366f1'
+    // Get chord color for badge (kept for future use in other places)
+    const _colors = getWheelColors();
+    const _chordColor = selectedChord
+        ? _colors[selectedChord.root as keyof typeof _colors] || '#6366f1'
         : '#6366f1';
-
-    // Compute badge name with voicing and inversion
-    const getBadgeData = () => {
-        if (!selectedChord) return { name: '', notes: [] as string[], chord: null };
-        const rawNotes = getChordNotes(selectedChord.root, selectedChord.quality);
-        const invertedNotes = invertChord(rawNotes, chordInversion);
-        const fullSymbol = getChordSymbolWithInversion(selectedChord.root, selectedChord.quality, invertedNotes, chordInversion);
-        const chordWithVoicing = {
-            ...selectedChord,
-            notes: invertedNotes,
-            inversion: chordInversion,
-            symbol: fullSymbol
-        };
-        return { name: formatChordForDisplay(fullSymbol), notes: invertedNotes, chord: chordWithVoicing };
-    };
 
     const handleOpenVoicingPicker = () => {
         const state = useSongStore.getState();
@@ -113,9 +96,6 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
     const touchStartY = useRef<number>(0);
     const [dragOffset, setDragOffset] = useState(0);
     const isDragging = useRef(false);
-
-    // Drag state for badge
-    const badgeDragRef = useRef({ startPos: { x: 0, y: 0 }, isDragging: false });
 
     // Touch handlers
     const handleTouchStart = (e: React.TouchEvent) => {
@@ -237,84 +217,17 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
                     </div>
                 </div>
 
-                {selectedChord && (() => {
-                    const badgeData = getBadgeData();
-
-                    const handlePointerDown = (e: React.PointerEvent) => {
-                        badgeDragRef.current.startPos = { x: e.clientX, y: e.clientY };
-                        badgeDragRef.current.isDragging = false;
-                        (e.target as HTMLElement).setPointerCapture(e.pointerId);
-                    };
-
-                    const handlePointerMove = (e: React.PointerEvent) => {
-                        const { startPos, isDragging } = badgeDragRef.current;
-                        if (startPos.x === 0 && startPos.y === 0) return;
-
-                        const dx = e.clientX - startPos.x;
-                        const dy = e.clientY - startPos.y;
-                        const distance = Math.sqrt(dx * dx + dy * dy);
-
-                        if (distance > 15 && !isDragging && badgeData.chord) {
-                            badgeDragRef.current.isDragging = true;
-                            wheelDragState.startDrag(badgeData.chord);
-
-                            if (!timelineVisible) {
-                                openTimeline();
-                            }
-                        }
-
-                        if (badgeDragRef.current.isDragging) {
-                            wheelDragState.updatePosition(e.clientX, e.clientY);
-                        }
-                    };
-
-                    const handlePointerUp = (e: React.PointerEvent) => {
-                        if (badgeDragRef.current.isDragging) {
-                            setTimeout(() => wheelDragState.endDrag(), 50);
-                        }
-                        badgeDragRef.current.startPos = { x: 0, y: 0 };
-                        badgeDragRef.current.isDragging = false;
-                        try {
-                            (e.target as HTMLElement).releasePointerCapture(e.pointerId);
-                        } catch (err) {
-                            // ignore
-                        }
-                    };
-
-                    const handleClick = (e: React.MouseEvent) => {
-                        if (!badgeDragRef.current.isDragging) {
-                            e.stopPropagation();
-                            e.preventDefault();
-                            playChord(badgeData.notes);
-                        }
-                    };
-
-                    return (
-                        <div
-                            className="absolute top-3 left-3 flex items-center gap-1 cursor-grab active:cursor-grabbing touch-feedback active:scale-95 z-50"
-                            style={{
-                                color: chordColor,
-                                padding: '4px 10px',
-                                borderRadius: '8px',
-                                border: `2px solid ${chordColor}`,
-                                backdropFilter: 'blur(8px)',
-                                background: 'rgba(0, 0, 0, 0.4)',
-                                touchAction: 'none',
-                            }}
-                            onPointerDown={handlePointerDown}
-                            onPointerMove={handlePointerMove}
-                            onPointerUp={handlePointerUp}
-                            onClick={handleClick}
-                        >
-                            <span className="text-sm font-bold leading-none">{badgeData.name}</span>
-                            {selectedChord.numeral && (
-                                <span className="text-xs font-serif italic opacity-70">
-                                    {formatChordForDisplay(selectedChord.numeral)}
-                                </span>
-                            )}
-                        </div>
-                    );
-                })()}
+                {selectedChord && (
+                    <div className="absolute top-3 left-3 z-50">
+                        <DraggableChordBadge
+                            chord={selectedChord}
+                            inversion={chordInversion}
+                            showNumeral={true}
+                            showGripIcon={true}
+                            size="default"
+                        />
+                    </div>
+                )}
 
                 {/* Help Button - Upper Right */}
                 <button

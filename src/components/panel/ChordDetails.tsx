@@ -1,7 +1,17 @@
+
 import { useSongStore } from '../../store/useSongStore';
 import { PianoKeyboard } from './PianoKeyboard';
 import { VoiceSelector } from '../playback/VoiceSelector';
-import { getWheelColors, getChordNotes, getIntervalFromKey, invertChord, getMaxInversion, getInversionName, getChordSymbolWithInversion, formatChordForDisplay, getQualitySymbol, getAbsoluteDegree } from '../../utils/musicTheory';
+import {
+    getWheelColors, getChordNotes,
+    invertChord,
+    getMaxInversion,
+    getInversionName,
+    getChordSymbolWithInversion,
+    formatChordForDisplay,
+    getQualitySymbol
+} from '../../utils/musicTheory';
+import { DraggableChordBadge } from '../DraggableChordBadge';
 import { PanelRightClose, PanelRight, GripVertical, ChevronLeft, ChevronRight, Plus, MoveRight } from 'lucide-react';
 import { playChord, playNote } from '../../utils/audioEngine';
 import { useState, useCallback, useEffect, useRef } from 'react';
@@ -160,11 +170,11 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
         if (quality === 'major' || quality === 'maj') {
             return formatChordForDisplay(chord.root); // Just 'C' instead of 'C major'
         } else if (quality === 'minor' || quality === 'm') {
-            return formatChordForDisplay(`${chord.root}m`); // 'Cm' instead of 'C minor'
+            return formatChordForDisplay(`${chord.root} m`); // 'Cm' instead of 'C minor'
         } else if (quality === 'diminished' || quality === 'dim') {
             return formatChordForDisplay(`${chord.root}°`);
         }
-        return formatChordForDisplay(`${chord.root}${getQualitySymbol(quality)}`);
+        return formatChordForDisplay(`${chord.root}${getQualitySymbol(quality)} `);
     };
 
     const handleNotePlay = useCallback((note: string, octave: number) => {
@@ -528,7 +538,7 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
                     : isDrawer
                         ? `${isMobile ? 'relative w-full' : 'fixed inset-x-3 bottom-[88px]'} ${isMobile ? 'max-h-[60vh]' : 'max-h-[70vh]'} bg-bg-secondary ${isMobile ? 'border-t-2 border-border-subtle' : 'border-2 border-border-subtle rounded-2xl'} shadow-2xl overflow-hidden ${isMobile ? '' : 'z-40'} flex select-none`
                         : "h-full flex bg-bg-secondary border-l border-border-subtle overflow-x-hidden select-none"
-                }${chordPanelAttention ? ' chord-panel-attention' : ''}${voicingsHighlight ? ' voicings-highlight' : ''}`}
+                }${chordPanelAttention ? ' chord-panel-attention' : ''}${voicingsHighlight ? ' voicings-highlight' : ''} `}
             style={{
                 ...(!isDrawer && !isLandscapePanel && !isLandscapeExpanded ? { width: panelWidth, minWidth: 0, maxWidth: '100%' } : {}),
                 ...(isDrawer ? {
@@ -589,7 +599,7 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
                                                 color: chordColor,
                                                 padding: '2px 8px',
                                                 borderRadius: '8px',
-                                                border: `2px solid ${chordColor}`,
+                                                border: `2px solid ${chordColor} `,
                                                 minWidth: '36px'
                                             }}
                                             onClick={handleDiagramClick}
@@ -636,29 +646,49 @@ export const ChordDetails: React.FC<ChordDetailsProps> = ({ variant = 'sidebar',
                             </>
                         ) : (
                             <>
-                                {/* Non-landscape view: regular title */}
-                                <span
-                                    className={`flex items-center shrink-0 min-w-0 ${chord ? 'cursor-pointer touch-feedback hover:opacity-80 active:scale-95 transition-all' : ''}`}
-                                    style={chord ? {
-                                        gap: '4px',
-                                        backgroundColor: 'transparent',
-                                        color: chordColor,
-                                        padding: isMobile && isDrawer ? '3px 6px' : '3px 8px',
-                                        borderRadius: '6px',
-                                        border: `1.5px solid ${chordColor}`
-                                    } : { gap: '4px' }}
-                                    onClick={chord ? handleDiagramClick : undefined}
-                                    onDoubleClick={chord ? handleDiagramDoubleClick : undefined}
-                                    onTouchEnd={chord ? handleTitleTouchEnd : undefined}
-                                    onTouchStart={chord ? (e) => e.stopPropagation() : undefined}
-                                >
-                                    <span className={`${isLandscapeVariant ? 'text-lg' : isMobile ? 'text-sm' : 'text-xs sm:text-sm'} font-bold leading-none truncate`}>
-                                        {(isMobile && isDrawer) ? getShortChordName() : (chord ? formatChordForDisplay(`${chord.root}${getQualitySymbol(previewVariant || chord.quality)}`) : 'Chord Details')}
+                                {/* Non-landscape view: chord badge or placeholder */}
+                                {chord ? (
+                                    (isMobile && isDrawer) ? (
+                                        // Mobile drawer: compact display
+                                        <span
+                                            className="flex items-center shrink-0 cursor-pointer touch-feedback hover:opacity-80 active:scale-95 transition-all"
+                                            style={{
+                                                gap: '4px',
+                                                backgroundColor: 'transparent',
+                                                color: chordColor,
+                                                padding: '3px 6px',
+                                                borderRadius: '6px',
+                                                border: `1.5px solid ${chordColor}`
+                                            }}
+                                            onClick={handleDiagramClick}
+                                            onDoubleClick={handleDiagramDoubleClick}
+                                            onTouchEnd={handleTitleTouchEnd}
+                                            onTouchStart={(e) => e.stopPropagation()}
+                                        >
+                                            <span className="text-sm font-bold leading-none">
+                                                {getShortChordName()}
+                                            </span>
+                                            {chord.numeral && (
+                                                <span className="text-[10px] font-serif italic opacity-70 shrink-0">
+                                                    {formatChordForDisplay(chord.numeral)}
+                                                </span>
+                                            )}
+                                        </span>
+                                    ) : (
+                                        // Desktop/tablet: use DraggableChordBadge directly
+                                        <DraggableChordBadge
+                                            chord={chord}
+                                            inversion={chordInversion}
+                                            showNumeral={true}
+                                            showGripIcon={true}
+                                            size="default"
+                                        />
+                                    )
+                                ) : (
+                                    <span className="text-sm font-semibold text-text-muted">
+                                        Chord Details
                                     </span>
-                                    {chord?.numeral && (
-                                        <span className={`${isLandscapeVariant ? 'text-sm' : 'text-[10px]'} font-serif italic opacity-70 shrink-0`}>{formatChordForDisplay(chord.numeral)}</span>
-                                    )}
-                                </span>
+                                )}
 
                                 {/* Inversion controls - now a separate element to the right of the badge */}
                                 {chord && !isCompactLandscape && (

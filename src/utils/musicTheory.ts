@@ -283,7 +283,7 @@ export function getInversionName(inversion: number): string {
  * @returns Symbol like "C" or "C/E" for first inversion
  */
 export function getChordSymbolWithInversion(root: string, quality: string, notes: string[], inversion: number): string {
-    const qualitySymbol = quality === 'major' || quality === 'maj' ? '' : quality;
+    const qualitySymbol = getQualitySymbol(quality);
     const baseSymbol = `${root}${qualitySymbol}`;
 
     if (!inversion || inversion === 0 || !notes || notes.length === 0) {

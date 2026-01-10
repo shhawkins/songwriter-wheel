@@ -345,8 +345,8 @@ export const NotesModal: React.FC<NotesModalProps> = ({ isOpen, onClose }) => {
                 onClose={handleClose}
                 showDragHandle={true}
                 showCloseButton={true}
-                width="580px"
-                minWidth="340px"
+                width="min(580px, calc(100vw - 32px))"
+                minWidth="280px"
                 maxWidth="800px"
                 zIndex={zIndex}
                 onInteraction={() => bringToFront(MODAL_ID)}
@@ -354,53 +354,51 @@ export const NotesModal: React.FC<NotesModalProps> = ({ isOpen, onClose }) => {
                 dataAttribute="notes-modal"
             >
                 <div className="flex flex-col gap-3 w-full h-full min-h-0 overflow-hidden">
-                    {/* Header */}
+                    {/* Header with integrated tabs */}
                     <div className="flex items-center justify-between gap-2 sticky top-0 bg-inherit z-10 pb-1">
                         <div className="flex items-center gap-2">
-                            <StickyNote size={18} className="text-amber-400" />
-                            <h2 className="text-sm font-semibold text-text-primary">Song Notes & Lyrics</h2>
+                            <StickyNote size={18} className="text-amber-400 shrink-0" />
+                            <h2 className="text-sm font-semibold text-text-primary whitespace-nowrap">Notes & Lyrics</h2>
+                        </div>
+
+                        {/* Tabs - integrated into header */}
+                        <div className="flex items-center bg-bg-tertiary/50 rounded-full p-0.5 border border-border-subtle">
+                            <button
+                                onClick={() => setActiveTab('text')}
+                                className={clsx(
+                                    "flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium transition-all",
+                                    activeTab === 'text'
+                                        ? "bg-bg-primary text-accent-primary shadow-sm ring-1 ring-black/5"
+                                        : "text-text-muted hover:text-text-primary hover:bg-white/5"
+                                )}
+                            >
+                                <Type size={11} />
+                                Text
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('sketch')}
+                                className={clsx(
+                                    "flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium transition-all",
+                                    activeTab === 'sketch'
+                                        ? "bg-bg-primary text-accent-primary shadow-sm ring-1 ring-black/5"
+                                        : "text-text-muted hover:text-text-primary hover:bg-white/5"
+                                )}
+                            >
+                                <PenTool size={11} />
+                                Sketch
+                            </button>
                         </div>
 
                         {/* Preview Toggle */}
                         <button
                             onClick={() => setPreviewMode(!previewMode)}
-                            className={`text-xs px-2 py-2 rounded transition-colors no-touch-enlarge ${previewMode
+                            className={`text-xs px-2 py-1.5 rounded transition-colors no-touch-enlarge shrink-0 ${previewMode
                                 ? 'bg-accent-primary/20 text-accent-primary'
                                 : 'text-text-muted hover:text-text-primary hover:bg-bg-tertiary'
                                 }`}
                         >
                             {previewMode ? 'Edit' : 'Save'}
                         </button>
-                    </div>
-
-                    {/* Tabs */}
-                    <div className="flex items-center justify-center p-1 mb-2">
-                        <div className="flex items-center bg-bg-tertiary/50 rounded-full p-0.5 border border-border-subtle">
-                            <button
-                                onClick={() => setActiveTab('text')}
-                                className={clsx(
-                                    "flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-medium transition-all",
-                                    activeTab === 'text'
-                                        ? "bg-bg-primary text-accent-primary shadow-sm ring-1 ring-black/5"
-                                        : "text-text-muted hover:text-text-primary hover:bg-white/5"
-                                )}
-                            >
-                                <Type size={12} />
-                                Text
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('sketch')}
-                                className={clsx(
-                                    "flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-medium transition-all",
-                                    activeTab === 'sketch'
-                                        ? "bg-bg-primary text-accent-primary shadow-sm ring-1 ring-black/5"
-                                        : "text-text-muted hover:text-text-primary hover:bg-white/5"
-                                )}
-                            >
-                                <PenTool size={12} />
-                                Sketch
-                            </button>
-                        </div>
                     </div>
 
                     {/* Content */}

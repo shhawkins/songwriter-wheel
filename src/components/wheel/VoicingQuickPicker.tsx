@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { clsx } from 'clsx';
 import { playChord } from '../../utils/audioEngine';
 import { useMobileLayout } from '../../hooks/useIsMobile';
-import { Info, Plus, ChevronLeft, ChevronRight, MoveRight, GripVertical } from 'lucide-react';
+import { Info, Plus, ChevronLeft, ChevronRight, MoveRight } from 'lucide-react';
 import { VoiceSelector } from '../playback/VoiceSelector';
 import { useSongStore } from '../../store/useSongStore';
 import DraggableModal from '../ui/DraggableModal';
@@ -21,6 +21,7 @@ import {
     getContrastingTextColor,
     type Chord
 } from '../../utils/musicTheory';
+import { DraggableChordBadge } from '../DraggableChordBadge';
 
 interface VoicingOption {
     quality: string;
@@ -611,32 +612,17 @@ export const VoicingQuickPicker: React.FC<VoicingQuickPickerProps> = ({
                     {/* Draggable chord pill - between info and inversion */}
                     {(() => {
                         const q = selectedChord?.quality || voicings[0]?.quality || 'major';
-                        const notes = getChordNotes(chordRoot, q);
-                        const symbol = getChordSymbolWithInversion(chordRoot, q, notes, chordInversion);
-                        const chordColor = colors[chordRoot as keyof typeof colors] || '#6366f1';
+                        const chordForBadge = constructChordFromQuality(q);
 
                         return (
-                            <div
-                                className="flex items-center justify-center gap-0.5 shrink-0 h-6 px-1.5 cursor-grab active:cursor-grabbing touch-none select-none transition-all active:scale-95 hover:brightness-110"
-                                style={{
-                                    color: chordColor,
-                                    borderRadius: '6px',
-                                    border: `1.5px solid ${chordColor}`,
-                                    background: 'rgba(0, 0, 0, 0.5)',
-                                }}
-                                onPointerDown={(e) => {
-                                    const q = selectedChord?.quality || voicings[0]?.quality || 'major';
-                                    handleBadgePointerDown(e, constructChordFromQuality(q));
-                                }}
-                                onPointerMove={handleBadgePointerMove}
-                                onPointerUp={handleBadgePointerUp}
-                                title="Drag to timeline"
-                            >
-                                <GripVertical size={10} className="opacity-50" />
-                                <span className="font-bold leading-none text-[10px] whitespace-nowrap">
-                                    {formatChordForDisplay(symbol)}
-                                </span>
-                            </div>
+                            <DraggableChordBadge
+                                chord={chordForBadge}
+                                inversion={chordInversion}
+                                showNumeral={true}
+                                showGripIcon={true}
+                                size="small"
+                                className="h-8 !rounded-xl shadow-sm"
+                            />
                         );
                     })()}
 

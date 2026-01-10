@@ -65,21 +65,39 @@ export function useDraggablePosition(options: UseDraggablePositionOptions): UseD
                 if (x < 10) x = 10;
 
                 setPosition({ x, y: Math.max(10, initialPosition.y) });
+                setIsInitialized(true);
             } else {
-                // Default to center
-                const estimatedWidth = 320;
-                const estimatedHeight = 380;
-                setPosition({
-                    x: Math.max(10, (window.innerWidth - estimatedWidth) / 2),
-                    y: Math.max(80, (window.innerHeight - estimatedHeight) / 2)
-                });
+                // Default to center - measure actual element if possible
+                // Use a small delay to allow the element to render with its final dimensions
+                setTimeout(() => {
+                    let width = 380;  // Fallback estimate
+                    let height = 380;
+
+                    if (elementRef.current) {
+                        const rect = elementRef.current.getBoundingClientRect();
+                        if (rect.width > 0) width = rect.width;
+                        if (rect.height > 0) height = rect.height;
+                    }
+
+                    // For responsive widths like min(580px, calc(100vw - 32px)),
+                    // estimate based on viewport
+                    if (width === 380) {
+                        width = Math.min(580, window.innerWidth - 32);
+                    }
+
+                    setPosition({
+                        x: Math.max(10, (window.innerWidth - width) / 2),
+                        y: Math.max(80, (window.innerHeight - height) / 2)
+                    });
+                    setIsInitialized(true);
+                }, 10);
+                return; // Don't set initialized yet, will be done in timeout
             }
-            setIsInitialized(true);
         };
 
         // Use requestAnimationFrame to ensure DOM is ready
         requestAnimationFrame(calculateInitialPosition);
-    }, [enabled, isInitialized, initialPosition]);
+    }, [enabled, isInitialized, initialPosition, elementRef]);
 
     // Reset initialization on unmount/disable
     useEffect(() => {

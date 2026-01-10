@@ -14,8 +14,7 @@ import { saveAs } from 'file-saver';
 import { deleteSong } from './utils/storage';
 
 import { type Song } from './types';
-import { formatChordForDisplay, getQualitySymbol, getWheelColors, invertChord, getChordSymbolWithInversion, getChordNotes } from './utils/musicTheory';
-import { wheelDragState } from './utils/wheelDragState';
+import { formatChordForDisplay } from './utils/musicTheory';
 
 import { ConfirmDialog } from './components/ui/ConfirmDialog';
 import { OnboardingTooltip } from './components/OnboardingTooltip';
@@ -44,6 +43,7 @@ import { DesktopLayout } from './components/layout/DesktopLayout';
 import { UnsavedChangesDialog } from './components/ui/UnsavedChangesDialog';
 import { SaveStatusIndicator } from './components/ui/SaveStatusIndicator';
 import { WheelDragGhost } from './components/wheel/WheelDragGhost';
+import { DraggableChordBadge } from './components/DraggableChordBadge';
 
 
 
@@ -1113,97 +1113,17 @@ function App() {
             </button>
 
             {/* Chord badge - pinned to upper left of wheel panel area */}
-            {selectedChord && (() => {
-              const colors = getWheelColors();
-              const chordColor = colors[selectedChord.root as keyof typeof colors] || '#6366f1';
-
-              // Compute inverted notes and proper symbol with voicing
-              const rawNotes = getChordNotes(selectedChord.root, selectedChord.quality);
-              const invertedNotes = invertChord(rawNotes, chordInversion);
-              const fullSymbol = getChordSymbolWithInversion(selectedChord.root, selectedChord.quality, invertedNotes, chordInversion);
-              const shortName = formatChordForDisplay(fullSymbol);
-
-              // Build chord object with proper voicing for drag/add
-              const chordWithVoicing = {
-                ...selectedChord,
-                notes: invertedNotes,
-                inversion: chordInversion,
-                symbol: fullSymbol
-              };
-
-              // Drag state refs (local to this closure)
-              let dragStartPos = { x: 0, y: 0 };
-              let isDragging = false;
-
-              const handlePointerDown = (e: React.PointerEvent) => {
-                dragStartPos = { x: e.clientX, y: e.clientY };
-                isDragging = false;
-              };
-
-              const handlePointerMove = (e: React.PointerEvent) => {
-                if (dragStartPos.x === 0 && dragStartPos.y === 0) return;
-
-                const dx = e.clientX - dragStartPos.x;
-                const dy = e.clientY - dragStartPos.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-
-                if (distance > 15 && !isDragging) {
-                  isDragging = true;
-                  wheelDragState.startDrag(chordWithVoicing);
-
-                  if (!timelineVisible) {
-                    openTimeline();
-                  }
-                }
-
-                if (isDragging) {
-                  wheelDragState.updatePosition(e.clientX, e.clientY);
-                }
-              };
-
-              const handlePointerUp = () => {
-                if (isDragging) {
-                  setTimeout(() => wheelDragState.endDrag(), 50);
-                }
-                dragStartPos = { x: 0, y: 0 };
-                isDragging = false;
-              };
-
-              const handleClick = (e: React.MouseEvent | React.TouchEvent) => {
-                // Only play if not dragging
-                if (!isDragging) {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  import('./utils/audioEngine').then(mod => mod.playChord(invertedNotes));
-                }
-              };
-
-              return (
-                <div
-                  className={`absolute ${isMobile && isLandscape ? 'top-2 left-2' : 'top-3 left-3'} flex items-center gap-1 cursor-grab active:cursor-grabbing touch-feedback active:scale-95 z-50`}
-                  style={{
-                    color: chordColor,
-                    padding: '4px 10px',
-                    borderRadius: '8px',
-                    border: `2px solid ${chordColor}`,
-                    backdropFilter: 'blur(8px)',
-                    background: 'rgba(0, 0, 0, 0.4)',
-                    touchAction: 'none',
-                    pointerEvents: 'auto'
-                  }}
-                  onPointerDown={handlePointerDown}
-                  onPointerMove={handlePointerMove}
-                  onPointerUp={handlePointerUp}
-                  onPointerLeave={handlePointerUp}
-                  onClick={handleClick}
-                >
-                  <span className="text-sm font-bold leading-none">{shortName}</span>
-                  {selectedChord.numeral && (
-                    <span className="text-xs font-serif italic opacity-70">{formatChordForDisplay(selectedChord.numeral)}</span>
-                  )}
-                </div>
-              );
-            })()}
+            {selectedChord && (
+              <div className={`absolute ${isMobile && isLandscape ? 'top-2 left-2' : 'top-3 left-3'} z-50`}>
+                <DraggableChordBadge
+                  chord={selectedChord}
+                  inversion={chordInversion}
+                  showNumeral={true}
+                  showGripIcon={true}
+                  size="default"
+                />
+              </div>
+            )}
 
             {/* Desktop: Timeline section - mobile-inspired aesthetic with horizontal section tabs */}
             {!isMobile ? (

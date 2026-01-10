@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { wheelDragState } from '../../utils/wheelDragState';
-import { formatChordForDisplay, getWheelColors } from '../../utils/musicTheory';
+import { formatChordForDisplay, getWheelColors, getQualitySymbol } from '../../utils/musicTheory';
 import { useSongStore } from '../../store/useSongStore';
 
 
@@ -138,7 +138,7 @@ export const WheelDragGhost: React.FC = () => {
                     boxShadow: `0 0 20px ${color}50, 0 8px 32px rgba(0,0,0,0.5)`,
                 }}
             >
-                {formatChordForDisplay(chord.symbol || `${chord.root}${chord.quality === 'major' ? '' : 'm'}`)}
+                {formatChordForDisplay(chord.symbol || `${chord.root}${getQualitySymbol(chord.quality)}`)}
             </div>
             {/* Helper text */}
             <div

@@ -1,8 +1,9 @@
 import React, { useRef, useState, useCallback } from 'react';
 import { getGuitarChord, type GuitarChordShape } from '../../utils/guitarChordData';
-import { formatChordForDisplay, getQualitySymbol } from '../../utils/musicTheory';
+import { formatChordForDisplay, getQualitySymbol, getChordNotes, type Chord } from '../../utils/musicTheory';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import * as audioEngine from '../../utils/audioEngine';
+import { DraggableChordBadge } from '../DraggableChordBadge';
 
 interface GuitarChordProps {
     root: string;
@@ -22,7 +23,7 @@ export const GuitarChord: React.FC<GuitarChordProps> = ({
     interactive = true
 }) => {
     const isMobile = useIsMobile();
-    const chord = getGuitarChord(root, quality);
+    const chordShape = getGuitarChord(root, quality);
     const lastClickTime = useRef(0);
     const clickTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -42,6 +43,16 @@ export const GuitarChord: React.FC<GuitarChordProps> = ({
 
     // Format chord name with proper flat symbols and quality symbol
     const chordName = formatChordForDisplay(`${root}${getQualitySymbol(quality)}`);
+
+    // Construct real chord object for DraggableChordBadge
+    const notesArr = getChordNotes(root, quality);
+    const chordObj: Chord = {
+        root,
+        quality: quality as any, // Cast to any to avoid strict union type issues if quality string is loose
+        notes: notesArr,
+        symbol: chordName,
+        inversion: 0
+    };
 
     // Standard tuning base notes (Low E to High E)
     // E2, A2, D3, G3, B3, E4
@@ -93,10 +104,10 @@ export const GuitarChord: React.FC<GuitarChordProps> = ({
     };
 
     const playStringNote = async (stringIdx: number) => {
-        if (!chord || !interactive) return;
+        if (!chordShape || !interactive) return;
 
         // Find the fret for this string
-        const fret = chord.frets[stringIdx];
+        const fret = chordShape.frets[stringIdx];
 
         // If muted, don't play
         if (fret === -1) return;
@@ -148,13 +159,13 @@ export const GuitarChord: React.FC<GuitarChordProps> = ({
 
     const handleMouseDown = useCallback((stringIdx: number) => {
         handleInputStart(stringIdx);
-    }, [interactive, chord]);
+    }, [interactive, chordShape]);
 
     const handleMouseEnter = useCallback((stringIdx: number) => {
         if (interactive && isDragging) {
             playStringNote(stringIdx);
         }
-    }, [interactive, isDragging, chord]);
+    }, [interactive, isDragging, chordShape]);
 
     const handleMouseUp = useCallback(() => {
         setIsDragging(false);
@@ -179,7 +190,7 @@ export const GuitarChord: React.FC<GuitarChordProps> = ({
                 playStringNote(stringIdx);
             }
         }
-    }, [interactive, isDragging, chord]);
+    }, [interactive, isDragging, chordShape]);
 
     // Handle click with double-click detection (for adding to timeline)
     const handleClick = () => {
@@ -226,7 +237,7 @@ export const GuitarChord: React.FC<GuitarChordProps> = ({
         // The badge above still handles taps for playing the full chord
     };
 
-    if (!chord) {
+    if (!chordShape) {
         return (
             <div className="flex items-center justify-center text-text-muted text-xs py-4">
                 No guitar diagram available for {root}{quality}
@@ -245,42 +256,18 @@ export const GuitarChord: React.FC<GuitarChordProps> = ({
             onTouchEnd={handleTouchEnd}
             onTouchMove={handleTouchMove}
         >
-            <span
-                className={`${isMobile ? 'text-xs' : 'text-[11px]'} font-bold mb-1 text-center touch-feedback transition-all active:scale-95`}
-                onClick={(e) => {
-                    e.stopPropagation();
-                    // Badge tap: simple click handling, no strumming detection needed
-                    if (onClick) onClick();
-                }}
-                onDoubleClick={(e) => {
-                    e.stopPropagation();
-                    if (onDoubleClick) onDoubleClick();
-                }}
-                onTouchEnd={(e) => {
-                    // Prevent ghost clicks and handle touch directly
-                    e.stopPropagation();
-                    e.preventDefault();
-                    // Simple tap detection for badge - no need for strumming logic
-                    const now = Date.now();
-                    const timeSinceLastClick = now - lastClickTime.current;
-                    if (timeSinceLastClick < 300 && timeSinceLastClick > 0) {
-                        lastClickTime.current = 0;
-                        if (onDoubleClick) onDoubleClick();
-                    } else {
-                        lastClickTime.current = now;
-                        if (onClick) onClick();
-                    }
-                }}
-                style={{
-                    backgroundColor: 'transparent',
-                    color: color,
-                    padding: '4px 12px',
-                    borderRadius: '10px',
-                    border: `2px solid ${color}`
-                }}
-            >
-                {chordName}
-            </span>
+            <div className="mb-2">
+                <DraggableChordBadge
+                    chord={chordObj}
+                    inversion={0}
+                    showNumeral={false}
+                    showGripIcon={true}
+                    size="small"
+                    className="touch-action-none"
+                    onClick={onClick}
+                    onDoubleClick={onDoubleClick}
+                />
+            </div>
             <svg
                 viewBox="0 0 100 120"
                 className={`w-full ${isMobile ? 'max-w-[110px]' : 'max-w-[120px]'}`}
@@ -289,7 +276,7 @@ export const GuitarChord: React.FC<GuitarChordProps> = ({
                 onTouchStart={() => handleInputStart()}
             >
                 <ChordDiagram
-                    chord={chord}
+                    chord={chordShape}
                     color={color}
                     onMouseDown={handleMouseDown}
                     onMouseEnter={handleMouseEnter}
