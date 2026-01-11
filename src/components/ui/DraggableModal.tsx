@@ -43,6 +43,8 @@ export interface DraggableModalProps {
     onInteraction?: () => void;
     /** Whether the modal is resizable. Defaults to true. */
     resizable?: boolean;
+    /** If true, resizing expands equally from center instead of from opposite corner. */
+    symmetricResize?: boolean;
     /** Minimum height of the modal */
     minHeight?: string;
     /** Maximum area (width * height) in square pixels. Prevents modal from being both very wide AND very tall. */
@@ -83,6 +85,7 @@ export const DraggableModal: React.FC<DraggableModalProps> = ({
     dataAttribute,
     onInteraction,
     resizable = true,
+    symmetricResize = false,
     minHeight = '200px',
     maxArea,
     onResize
@@ -158,20 +161,37 @@ export const DraggableModal: React.FC<DraggableModalProps> = ({
             let newY = startPos.y;
 
             // Width & X
-            if (direction.includes('e')) {
-                newWidth = startWidth + deltaX;
-            } else if (direction.includes('w')) {
-                newWidth = startWidth - deltaX;
-                // If we expand left, we must move X left effectively
-                newX = startPos.x + deltaX;
-            }
+            if (symmetricResize) {
+                // Symmetric resize: expand equally from center
+                const widthDelta = Math.abs(deltaX);
+                if (direction.includes('e') || direction.includes('w')) {
+                    // Expand width symmetrically
+                    newWidth = startWidth + (direction.includes('e') ? deltaX : -deltaX);
+                    // Keep centered: move X by half the delta
+                    newX = startPos.x - (newWidth - startWidth) / 2;
+                }
+                // Height & Y (symmetric)
+                const heightDelta = Math.abs(deltaY);
+                if (direction.includes('s') || direction.includes('n')) {
+                    newHeight = startHeight + (direction.includes('s') ? deltaY : -deltaY);
+                    newY = startPos.y - (newHeight - startHeight) / 2;
+                }
+            } else {
+                // Standard resize: opposite corner stays fixed
+                if (direction.includes('e')) {
+                    newWidth = startWidth + deltaX;
+                } else if (direction.includes('w')) {
+                    newWidth = startWidth - deltaX;
+                    newX = startPos.x + deltaX;
+                }
 
-            // Height & Y
-            if (direction.includes('s')) {
-                newHeight = startHeight + deltaY;
-            } else if (direction.includes('n')) {
-                newHeight = startHeight - deltaY;
-                newY = startPos.y + deltaY;
+                // Height & Y
+                if (direction.includes('s')) {
+                    newHeight = startHeight + deltaY;
+                } else if (direction.includes('n')) {
+                    newHeight = startHeight - deltaY;
+                    newY = startPos.y + deltaY;
+                }
             }
 
             // Constraints
@@ -397,32 +417,32 @@ export const DraggableModal: React.FC<DraggableModalProps> = ({
             {resizable && !compact && (
                 <>
                     <div
-                        className="resize-handle absolute top-0 left-0 w-6 h-6 z-50 cursor-nw-resize touch-none"
-                        style={{ marginLeft: '-8px', marginTop: '-8px' }}
+                        className="resize-handle absolute top-0 left-0 w-4 h-4 z-50 cursor-nw-resize touch-none"
+                        style={{ marginLeft: '-16px', marginTop: '-16px' }}
                         onMouseDown={(e) => handleResizeStart(e, 'nw')}
                         onTouchStart={(e) => handleResizeStart(e, 'nw')}
                     />
                     <div
-                        className="resize-handle absolute top-0 right-0 w-6 h-6 z-50 cursor-ne-resize touch-none"
-                        style={{ marginRight: '-8px', marginTop: '-8px' }}
+                        className="resize-handle absolute top-0 right-0 w-4 h-4 z-50 cursor-ne-resize touch-none"
+                        style={{ marginRight: '-16px', marginTop: '-16px' }}
                         onMouseDown={(e) => handleResizeStart(e, 'ne')}
                         onTouchStart={(e) => handleResizeStart(e, 'ne')}
                     />
                     <div
-                        className="resize-handle absolute bottom-0 left-0 w-6 h-6 z-50 cursor-sw-resize touch-none"
-                        style={{ marginLeft: '-8px', marginBottom: '-8px' }}
+                        className="resize-handle absolute bottom-0 left-0 w-4 h-4 z-50 cursor-sw-resize touch-none"
+                        style={{ marginLeft: '-16px', marginBottom: '-16px' }}
                         onMouseDown={(e) => handleResizeStart(e, 'sw')}
                         onTouchStart={(e) => handleResizeStart(e, 'sw')}
                     />
                     {/* Make SE handle slightly visible or larger hit area */}
                     <div
-                        className="resize-handle absolute bottom-0 right-0 w-6 h-6 z-50 cursor-se-resize touch-none group"
-                        style={{ marginRight: '-8px', marginBottom: '-8px' }}
+                        className="resize-handle absolute bottom-0 right-0 w-4 h-4 z-50 cursor-se-resize touch-none group"
+                        style={{ marginRight: '-16px', marginBottom: '-16px' }}
                         onMouseDown={(e) => handleResizeStart(e, 'se')}
                         onTouchStart={(e) => handleResizeStart(e, 'se')}
                     >
                         {/* Optional visible corner hint */}
-                        <div className="absolute bottom-2 right-2 w-2 h-2 border-r-2 border-b-2 border-white/20 group-hover:border-white/40 rounded-br-sm" />
+                        <div className="absolute bottom-4 right-4 w-2 h-2 border-r-2 border-b-2 border-white/20 group-hover:border-white/40 rounded-br-sm" />
                     </div>
                 </>
             )}
