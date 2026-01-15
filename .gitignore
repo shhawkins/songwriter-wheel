@@ -1,3 +1,9 @@
+# Build cache
+.vite
+
+# AI agent files
+.agent
+
 # Logs
 logs
 *.log
