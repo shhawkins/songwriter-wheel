@@ -125,7 +125,7 @@ export const GrandStaff: React.FC<GrandStaffProps> = ({
 
     const getNoteTreblePosition = (note: string): { line: number; accidental: string } => {
         const normalizedNote = note.replace(/[0-9]/g, '');
-        let baseNote = normalizedNote[0];
+        const baseNote = normalizedNote[0];
         let accidental = '';
         if (normalizedNote.includes('♯') || normalizedNote.includes('#')) accidental = '♯';
         else if (normalizedNote.includes('♭') || normalizedNote.includes('b')) accidental = '♭';
@@ -206,7 +206,7 @@ export const GrandStaff: React.FC<GrandStaffProps> = ({
     const getNoteBassPosition = (note: string): { line: number; accidental: string } => {
         // Same accidental logic
         const normalizedNote = note.replace(/[0-9]/g, '');
-        let baseNote = normalizedNote[0];
+        const baseNote = normalizedNote[0];
         let accidental = '';
         if (normalizedNote.includes('♯') || normalizedNote.includes('#')) accidental = '♯';
         else if (normalizedNote.includes('♭') || normalizedNote.includes('b')) accidental = '♭';

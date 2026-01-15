@@ -4,7 +4,7 @@ import { useSongStore } from '../store/useSongStore';
 
 type InstrumentName = InstrumentType;
 
-let instruments: Record<string, Tone.Sampler | Tone.PolySynth | null> = {
+const instruments: Record<string, Tone.Sampler | Tone.PolySynth | null> = {
     piano: null,
     epiano: null,
     guitar: null,
@@ -37,7 +37,7 @@ let scheduledEvents: number[] = [];
 let sectionStartTimes: Record<string, number> = {}; // Map sectionId -> startTime (beats)
 
 // Lazy loading infrastructure
-let instrumentLoadingPromises: Record<string, Promise<void> | undefined> = {};
+const instrumentLoadingPromises: Record<string, Promise<void> | undefined> = {};
 let effectsChainInput: Tone.ToneAudioNode | null = null;
 
 // iOS-specific audio unlock state
@@ -286,9 +286,9 @@ let effectsChainInitialized = false;
 // LEAD CHANNEL - Separate audio channel for melody/lead instrument
 // ============================================================================
 
-let leadInstruments: Record<string, Tone.Sampler | Tone.PolySynth | null> = {};
+const leadInstruments: Record<string, Tone.Sampler | Tone.PolySynth | null> = {};
 let currentLeadInstrument: InstrumentName = 'jazzmaster';
-let leadInstrumentLoadingPromises: Record<string, Promise<void> | undefined> = {};
+const leadInstrumentLoadingPromises: Record<string, Promise<void> | undefined> = {};
 let leadEffectsChainInput: Tone.ToneAudioNode | null = null;
 
 // Lead channel effect values (independent from main channel)
@@ -1699,7 +1699,7 @@ export const playInstrumentNote = async (note: string, octave: number = 4, durat
         await loadInstrument(instrumentName as InstrumentName);
     }
 
-    let inst = instruments[instrumentName];
+    const inst = instruments[instrumentName];
     if (!inst) return;
 
     const noteWithOctave = `${note}${octave}`;

@@ -861,17 +861,17 @@ export const useSongStore = create<SongState>()(
                             if (beatIndex === -1) return measure;
 
                             const beat = measure.beats[beatIndex];
-                            let newDuration = beat.duration + lenChange;
+                            const newDuration = beat.duration + lenChange;
 
                             // Clamp min duration
                             if (newDuration < 0.25) return measure; // Minimum 16th note approx
 
-                            let newBeats = [...measure.beats];
+                            const newBeats = [...measure.beats];
 
                             if (lenChange > 0) {
                                 // Growing: Consume subsequent beats
                                 let remainingNeed = lenChange;
-                                let nextIdx = beatIndex + 1;
+                                const nextIdx = beatIndex + 1;
 
                                 while (remainingNeed > 0.001 && nextIdx < newBeats.length) {
                                     const nextBeat = newBeats[nextIdx];

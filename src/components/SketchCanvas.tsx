@@ -42,33 +42,7 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
         propsRef.current = { color, width, isEraser, onStrokeAdd, onSwipeLeft, onSwipeRight, onDrawStart, readOnly, strokes };
     }, [color, width, isEraser, onStrokeAdd, onSwipeLeft, onSwipeRight, onDrawStart, readOnly, strokes]);
 
-    // Handle high-DPI displays
-    useEffect(() => {
-        const canvas = canvasRef.current;
-        const container = containerRef.current;
-        if (!canvas || !container) return;
-
-        // Debounce resize slightly? No, immediate is better for layout updates
-        const resizeObserver = new ResizeObserver(() => {
-            const { width, height } = container.getBoundingClientRect();
-            const dpr = window.devicePixelRatio || 1;
-
-            canvas.width = width * dpr;
-            canvas.height = height * dpr;
-
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-                ctx.scale(dpr, dpr);
-                // Redraw immediately after resize
-                drawStrokes(ctx, propsRef.current.strokes);
-            }
-        });
-
-        resizeObserver.observe(container);
-        return () => resizeObserver.disconnect();
-    }, []); // Only setup once, strokes dependency handled by redraw effect
-
-    // Draw function
+    // Draw function - defined before useEffects that use it
     const drawStrokes = (ctx: CanvasRenderingContext2D, strokesToDraw: Stroke[]) => {
         ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
@@ -126,6 +100,32 @@ export const SketchCanvas: React.FC<SketchCanvasProps> = ({
         // Reset composite operation
         ctx.globalCompositeOperation = 'source-over';
     };
+
+    // Handle high-DPI displays
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        const container = containerRef.current;
+        if (!canvas || !container) return;
+
+        // Debounce resize slightly? No, immediate is better for layout updates
+        const resizeObserver = new ResizeObserver(() => {
+            const { width, height } = container.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+
+            canvas.width = width * dpr;
+            canvas.height = height * dpr;
+
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                ctx.scale(dpr, dpr);
+                // Redraw immediately after resize
+                drawStrokes(ctx, propsRef.current.strokes);
+            }
+        });
+
+        resizeObserver.observe(container);
+        return () => resizeObserver.disconnect();
+    }, []); // Only setup once, strokes dependency handled by redraw effect
 
     // Redraw when strokes change
     useEffect(() => {

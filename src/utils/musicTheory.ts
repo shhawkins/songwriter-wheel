@@ -378,7 +378,7 @@ export function getIntervalFromKey(keyRoot: string, note: string): string {
 
     if (keyIndex === -1 || noteIndex === -1) return '?';
 
-    let semitones = (noteIndex - keyIndex + 12) % 12;
+    const semitones = (noteIndex - keyIndex + 12) % 12;
 
     const intervals: Record<number, string> = {
         0: '1',

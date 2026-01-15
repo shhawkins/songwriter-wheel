@@ -42,6 +42,12 @@ export const PlayableScaleStrip: React.FC<PlayableScaleStripProps> = ({
         }
     };
 
+    const handlePointerUp = () => {
+        activeNoteRef.current = null;
+        setHighlightedIndex(null);
+        stopCurrentNote();
+    };
+
     const handleInteraction = useCallback(async (e: React.PointerEvent) => {
         // Prevent default touch actions (scrolling)
         if (e.type !== 'pointerup') {
@@ -99,12 +105,6 @@ export const PlayableScaleStrip: React.FC<PlayableScaleStripProps> = ({
             }
         }
     }, [playbackNotes, useLead]);
-
-    const handlePointerUp = () => {
-        activeNoteRef.current = null;
-        setHighlightedIndex(null);
-        stopCurrentNote();
-    };
 
     return (
         <div

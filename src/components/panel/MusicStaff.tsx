@@ -30,7 +30,7 @@ export const MusicStaff: React.FC<MusicStaffProps> = ({
         const normalizedNote = note.replace(/[0-9]/g, '');
 
         // Determine base note and accidental
-        let baseNote = normalizedNote[0];
+        const baseNote = normalizedNote[0];
         let accidental = '';
 
         if (normalizedNote.includes('♯') || normalizedNote.includes('#')) {

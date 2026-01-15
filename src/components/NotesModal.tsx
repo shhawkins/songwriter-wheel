@@ -293,7 +293,7 @@ export const NotesModal: React.FC<NotesModalProps> = ({ isOpen, onClose }) => {
     // Memoized save function for sketches to avoid main thread blocking on every stroke
     const saveSketchesTimeoutRef = useRef<any>(null);
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
     const saveSketchesToStore = useCallback((pages: SketchPage[]) => {
         if (saveSketchesTimeoutRef.current) {
             clearTimeout(saveSketchesTimeoutRef.current);
